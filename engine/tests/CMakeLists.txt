@@ -10,6 +10,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(mf_engine_tests
+  order_book_test.cpp
   test_placeholder.cpp
 )
 target_link_libraries(mf_engine_tests PRIVATE mf::engine GTest::gtest_main)
