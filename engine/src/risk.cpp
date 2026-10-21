@@ -222,15 +222,14 @@ void RiskGate::add_exposure(Account& a, Side side, Price price, Qty qty, int sig
 }
 
 void RiskGate::reduce(OrderId order_id, Qty qty) {
-  const auto it = open_.find(order_id);
-  if (it == open_.end()) throw InvariantViolation("risk: event for unknown order");
-  OpenOrder& o = it->second;
-  Account& a = accounts_[o.account_id];
-  add_exposure(a, o.side, o.price, qty, -1);
-  o.leaves -= qty;
-  if (o.leaves == 0) {
+  OpenOrder* o = open_.find(order_id);
+  if (o == nullptr) throw InvariantViolation("risk: event for unknown order");
+  Account& a = accounts_[o->account_id];
+  add_exposure(a, o->side, o->price, qty, -1);
+  o->leaves -= qty;
+  if (o->leaves == 0) {
     --a.exposure.open_orders;
-    open_.erase(it);
+    open_.erase(order_id);
   }
 }
 
@@ -243,9 +242,9 @@ void RiskGate::apply(std::span<const Event> events, AccountId new_order_account)
             // A market order is open only within its own command; at price 0 it adds
             // no notional while it is.
             Account& a = accounts_[new_order_account];
-            open_.emplace(e.order_id, OpenOrder{.account_id = new_order_account,
-                                                .side = e.side, .price = e.price,
-                                                .leaves = e.qty});
+            open_.try_emplace(e.order_id, OpenOrder{.account_id = new_order_account,
+                                                    .side = e.side, .price = e.price,
+                                                    .leaves = e.qty});
             add_exposure(a, e.side, e.price, e.qty, +1);
             ++a.exposure.open_orders;
           } else if constexpr (std::is_same_v<T, Fill>) {
@@ -257,7 +256,9 @@ void RiskGate::apply(std::span<const Event> events, AccountId new_order_account)
           } else if constexpr (std::is_same_v<T, Cancelled>) {
             reduce(e.order_id, e.cancelled_qty);
           } else if constexpr (std::is_same_v<T, Replaced>) {
-            OpenOrder& o = open_.at(e.order_id);
+            OpenOrder* found = open_.find(e.order_id);
+            if (found == nullptr) throw InvariantViolation("risk: replace of unknown order");
+            OpenOrder& o = *found;
             Account& a = accounts_[o.account_id];
             add_exposure(a, o.side, o.price, o.leaves, -1);
             o.price = e.price;
@@ -367,8 +368,8 @@ RiskGate RiskGate::from_state(const RiskState& s, const BookState& book) {
     for (const auto& level : side == Side::Buy ? book.bids : book.asks) {
       for (const auto& o : level.orders) {
         Account& a = gate.accounts_[o.account_id];
-        gate.open_.emplace(o.order_id, OpenOrder{.account_id = o.account_id, .side = side,
-                                                 .price = level.price, .leaves = o.leaves_qty});
+        gate.open_.try_emplace(o.order_id, OpenOrder{.account_id = o.account_id, .side = side,
+                                                     .price = level.price, .leaves = o.leaves_qty});
         gate.add_exposure(a, side, level.price, o.leaves_qty, +1);
         ++a.exposure.open_orders;
       }
@@ -381,9 +382,9 @@ void RiskGate::check_consistency(const OrderBook& book) const {
   std::map<AccountId, Exposure> rebuilt;
   std::size_t resting = 0;
   book.for_each_order([&](OrderId id, const OrderBook::OrderView& o) {
-    const auto it = open_.find(id);
-    if (it == open_.end() || it->second.leaves != o.leaves_qty ||
-        it->second.price != o.price || it->second.account_id != o.account_id) {
+    const OpenOrder* open = open_.find(id);
+    if (open == nullptr || open->leaves != o.leaves_qty || open->price != o.price ||
+        open->account_id != o.account_id) {
       throw InvariantViolation("risk does not track resting order " + std::to_string(id));
     }
     Exposure& e = rebuilt[o.account_id];

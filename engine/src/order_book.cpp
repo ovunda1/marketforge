@@ -481,7 +481,8 @@ void OrderBook::reset_used_ids() {
 
 BookState OrderBook::state() const {
   BookState s{.last_seq_no = last_seq_no_.value_or(0), .next_trade_id = next_trade_id_};
-  s.used_ids.assign(used_ids_.begin(), used_ids_.end());
+  s.used_ids.reserve(used_ids_.size());
+  used_ids_.for_each([&](OrderId id) { s.used_ids.push_back(id); });
   std::sort(s.used_ids.begin(), s.used_ids.end());  // hash order must not leak out
   const auto copy_side = [](const auto& levels, std::vector<BookState::Level>& out) {
     for (const auto& [price, level] : levels) {
@@ -505,7 +506,8 @@ std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
   for (std::size_t i = 1; i < s.used_ids.size(); ++i) {
     if (s.used_ids[i - 1] >= s.used_ids[i]) fail("state: used_ids not strictly ascending");
   }
-  book->used_ids_.insert(s.used_ids.begin(), s.used_ids.end());
+  book->used_ids_.reserve(s.used_ids.size());
+  for (const OrderId id : s.used_ids) book->used_ids_.insert(id);
   if (s.last_seq_no != 0) book->last_seq_no_ = s.last_seq_no;
   book->next_trade_id_ = s.next_trade_id;
 

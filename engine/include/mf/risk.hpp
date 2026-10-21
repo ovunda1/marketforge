@@ -9,6 +9,7 @@
 
 #include "mf/commands.hpp"
 #include "mf/events.hpp"
+#include "mf/flat_hash_map.hpp"
 #include "mf/order_book.hpp"
 #include "mf/types.hpp"
 
@@ -164,8 +165,8 @@ class RiskGate {
   std::optional<Price> last_trade_price_;
   // Ordered, so state() and refit_buckets() walk accounts in id order.
   std::map<AccountId, Account> accounts_;
-  // Lookup only, never iterated to produce output.
-  std::unordered_map<OrderId, OpenOrder> open_;
+  // Lookup only, never iterated to produce output. Flat, like the book's order index.
+  FlatHashMap<OrderId, OpenOrder> open_;
 };
 
 }  // namespace mf
