@@ -10,24 +10,35 @@ namespace {
 
 [[noreturn]] void fail(const std::string& what) { throw InvariantViolation(what); }
 
+// GTC and DAY remainders rest; IOC and FOK remainders are cancelled.
+bool rests(TimeInForce tif) { return tif == TimeInForce::GTC || tif == TimeInForce::Day; }
+
 }  // namespace
 
 // --- Commands ---------------------------------------------------------------------
 
-void OrderBook::process(const Command& command, std::vector<Event>& events_out) {
+void OrderBook::check_seq_no(SeqNo seq_no) const {
   // Always on: the sequencer contract is cheap to check and replay depends on it.
-  const SeqNo seq_no = std::visit([](const auto& c) { return c.seq_no; }, command);
   if (last_seq_no_ && seq_no <= *last_seq_no_) {
     fail("seq_no " + std::to_string(seq_no) + " does not exceed previous " +
          std::to_string(*last_seq_no_));
   }
+}
+
+void OrderBook::skip_seq_no(SeqNo seq_no) {
+  check_seq_no(seq_no);
   last_seq_no_ = seq_no;
+}
+
+void OrderBook::process(const OrderCommand& command, std::vector<Event>& events_out,
+                        std::optional<Price> market_limit) {
+  skip_seq_no(std::visit([](const auto& c) { return c.seq_no; }, command));
 
   std::visit(
       [&](const auto& c) {
         using T = std::decay_t<decltype(c)>;
         if constexpr (std::is_same_v<T, NewOrder>) {
-          on_new_order(c, events_out);
+          on_new_order(c, market_limit, events_out);
         } else if constexpr (std::is_same_v<T, Cancel>) {
           on_cancel(c, events_out);
         } else {
@@ -39,28 +50,36 @@ void OrderBook::process(const Command& command, std::vector<Event>& events_out) 
   if constexpr (kInvariantChecksEnabled) check_invariants();
 }
 
+std::optional<RejectReason> OrderBook::validate_new(const NewOrder& order) {
+  const bool is_market = order.type == OrderType::Market;
+  if (is_market ? order.price != 0 : order.price <= 0) return RejectReason::InvalidPrice;
+  if (order.qty <= 0) return RejectReason::InvalidQty;
+  if ((is_market && (order.tif != TimeInForce::IOC || order.post_only)) ||
+      (order.post_only && !rests(order.tif))) {
+    return RejectReason::InvalidOrderType;
+  }
+  return std::nullopt;
+}
+
 // Checks run in a fixed order (docs/order-types.md), and every failure is a Reject that
 // leaves the book untouched: the order's contract can't be honored. Outcomes within the
 // contract (an IOC with nothing to fill, an STP cancel) are Ack + Cancelled instead.
-void OrderBook::on_new_order(const NewOrder& order, std::vector<Event>& out) {
+void OrderBook::on_new_order(const NewOrder& order, std::optional<Price> market_limit,
+                             std::vector<Event>& out) {
   const auto reject = [&](RejectReason reason) {
     out.push_back(Reject{.seq_no = order.seq_no, .order_id = order.order_id, .reason = reason});
   };
-  const bool is_market = order.type == OrderType::Market;
-  if (is_market ? order.price != 0 : order.price <= 0) return reject(RejectReason::InvalidPrice);
-  if (order.qty <= 0) return reject(RejectReason::InvalidQty);
-  if ((is_market && (order.tif != TimeInForce::IOC || order.post_only)) ||
-      (order.post_only && order.tif != TimeInForce::GTC)) {
-    return reject(RejectReason::InvalidOrderType);
-  }
+  if (const auto reason = validate_new(order)) return reject(*reason);
   // Session-wide: any id acked earlier is taken, even if that order has since filled or
   // been cancelled. Checked here, not in the sequencer, so replay reproduces the reject.
   if (used_ids_.contains(order.order_id)) return reject(RejectReason::DuplicateOrderId);
 
+  const bool is_market = order.type == OrderType::Market;
   Aggressor taker{.seq_no = order.seq_no, .order_id = order.order_id,
                   .account_id = order.account_id, .side = order.side,
-                  .limit = is_market ? std::nullopt : std::optional<Price>{order.price},
-                  .post_only = order.post_only, .stp = order.stp, .leaves = order.qty};
+                  .limit = is_market ? market_limit : std::optional<Price>{order.price},
+                  .post_only = order.post_only, .stp = order.stp, .tif = order.tif,
+                  .leaves = order.qty};
   if (is_market && opposite_empty(order.side)) return reject(RejectReason::NoLiquidity);
   if (order.post_only && crosses_opposite(order.side, order.price)) {
     return reject(RejectReason::PostOnlyWouldCross);
@@ -83,7 +102,7 @@ void OrderBook::execute(Aggressor& taker, TimeInForce tif, Qty original_qty,
   const bool stp_cancelled =
       taker.side == Side::Buy ? match(asks_, taker, out) : match(bids_, taker, out);
   if (taker.leaves == 0) return;
-  if (stp_cancelled || tif != TimeInForce::GTC) {
+  if (stp_cancelled || !rests(tif)) {
     out.push_back(Cancelled{.seq_no = taker.seq_no, .order_id = taker.order_id,
                             .cancelled_qty = taker.leaves,
                             .reason = stp_cancelled ? CancelReason::SelfTrade
@@ -202,7 +221,8 @@ void OrderBook::rest(const Aggressor& taker, Qty original_qty) {
   resting = Order{.order_id = taker.order_id, .account_id = taker.account_id,
                   .side = taker.side, .price = price, .original_qty = original_qty,
                   .leaves_qty = taker.leaves, .filled_qty = taker.filled,
-                  .seq_no = taker.seq_no, .post_only = taker.post_only, .stp = taker.stp};
+                  .seq_no = taker.seq_no, .post_only = taker.post_only, .stp = taker.stp,
+                  .tif = taker.tif};
 
   Level& level = taker.side == Side::Buy
                      ? bids_.try_emplace(price, Level{.price = price}).first->second
@@ -226,17 +246,22 @@ void OrderBook::on_cancel(const Cancel& cancel, std::vector<Event>& out) {
 // Same price: a decrease (or no change) keeps the order's place; an increase moves it to
 // the back of its level. A price change is cancel + new: the order leaves the book and
 // matches as an aggressor, keeping its id, filled quantity and STP mode.
+std::optional<RejectReason> OrderBook::validate_replace(const Replace& replace) const {
+  if (replace.price <= 0) return RejectReason::InvalidPrice;
+  if (replace.qty <= 0) return RejectReason::InvalidQty;
+  const auto it = orders_.find(replace.order_id);
+  if (it == orders_.end()) return RejectReason::UnknownOrder;
+  if (replace.qty <= it->second.filled_qty) return RejectReason::ReplaceQtyTooLow;
+  return std::nullopt;
+}
+
 void OrderBook::on_replace(const Replace& replace, std::vector<Event>& out) {
   const auto reject = [&](RejectReason reason) {
     out.push_back(
         Reject{.seq_no = replace.seq_no, .order_id = replace.order_id, .reason = reason});
   };
-  if (replace.price <= 0) return reject(RejectReason::InvalidPrice);
-  if (replace.qty <= 0) return reject(RejectReason::InvalidQty);
-  const auto it = orders_.find(replace.order_id);
-  if (it == orders_.end()) return reject(RejectReason::UnknownOrder);
-  Order& order = it->second;
-  if (replace.qty <= order.filled_qty) return reject(RejectReason::ReplaceQtyTooLow);
+  if (const auto reason = validate_replace(replace)) return reject(*reason);
+  Order& order = orders_.find(replace.order_id)->second;
 
   const Qty new_leaves = replace.qty - order.filled_qty;
   if (replace.price == order.price) {
@@ -262,12 +287,12 @@ void OrderBook::on_replace(const Replace& replace, std::vector<Event>& out) {
   Aggressor taker{.seq_no = replace.seq_no, .order_id = order.order_id,
                   .account_id = order.account_id, .side = order.side,
                   .limit = replace.price, .post_only = order.post_only, .stp = order.stp,
-                  .leaves = new_leaves, .filled = order.filled_qty};
+                  .tif = order.tif, .leaves = new_leaves, .filled = order.filled_qty};
   out.push_back(Replaced{.seq_no = replace.seq_no, .order_id = replace.order_id,
                          .price = replace.price, .qty = replace.qty,
                          .leaves_qty = new_leaves, .priority_kept = false});
   remove(order);  // destroys order; only taker is used below
-  execute(taker, TimeInForce::GTC, replace.qty, out);
+  execute(taker, taker.tif, replace.qty, out);
 }
 
 void OrderBook::remove(Order& order) {
@@ -381,6 +406,71 @@ std::optional<Qty> OrderBook::leaves_qty(OrderId order_id) const {
   return it->second.leaves_qty;
 }
 
+std::optional<OrderBook::OrderView> OrderBook::find(OrderId order_id) const {
+  const auto it = orders_.find(order_id);
+  if (it == orders_.end()) return std::nullopt;
+  const Order& o = it->second;
+  return OrderView{.account_id = o.account_id, .side = o.side, .price = o.price,
+                   .qty = o.original_qty, .leaves_qty = o.leaves_qty, .filled_qty = o.filled_qty};
+}
+
+Notional OrderBook::sweep_notional(Side side, Qty qty, AccountId account_id,
+                                   std::optional<Price> limit) const {
+  Notional total = 0;
+  Qty left = qty;
+  const auto walk = [&](const auto& opposite) {
+    for (const auto& [price, level] : opposite) {
+      if (limit && (side == Side::Buy ? price > *limit : price < *limit)) return;
+      for (const Order* o = level.head; o != nullptr; o = o->next) {
+        if (o->account_id == account_id) continue;
+        const Qty take = std::min(left, o->leaves_qty);
+        total += Notional{price} * take;
+        left -= take;
+        if (left == 0) return;
+      }
+    }
+  };
+  if (side == Side::Buy) {
+    walk(asks_);
+  } else {
+    walk(bids_);
+  }
+  return total;
+}
+
+// --- Session and kill-switch actions ------------------------------------------------
+
+void OrderBook::cancel_where(SeqNo seq_no,
+                             const std::function<bool(const OrderView&, TimeInForce)>& pred,
+                             CancelReason reason, std::vector<Event>& out) {
+  // Collect first: removing an order can erase the level being walked.
+  std::vector<Order*> selected;
+  const auto collect = [&](auto& levels) {
+    for (auto& [price, level] : levels) {
+      for (Order* o = level.head; o != nullptr; o = o->next) {
+        const OrderView view{.account_id = o->account_id, .side = o->side, .price = o->price,
+                             .qty = o->original_qty, .leaves_qty = o->leaves_qty,
+                             .filled_qty = o->filled_qty};
+        if (pred(view, o->tif)) selected.push_back(o);
+      }
+    }
+  };
+  collect(bids_);
+  collect(asks_);
+  for (Order* o : selected) {
+    out.push_back(Cancelled{.seq_no = seq_no, .order_id = o->order_id,
+                            .cancelled_qty = o->leaves_qty, .reason = reason});
+    remove(*o);  // destroys *o
+  }
+  if constexpr (kInvariantChecksEnabled) check_invariants();
+}
+
+// Ids of resting orders stay used: a new order must not take a live order's id.
+void OrderBook::reset_used_ids() {
+  used_ids_.clear();
+  for (const auto& [id, order] : orders_) used_ids_.insert(id);  // order-insensitive
+}
+
 // --- State capture and restore -----------------------------------------------------
 
 BookState OrderBook::state() const {
@@ -394,7 +484,7 @@ BookState OrderBook::state() const {
         l.orders.push_back({.order_id = o->order_id, .account_id = o->account_id,
                             .qty = o->original_qty, .leaves_qty = o->leaves_qty,
                             .filled_qty = o->filled_qty, .priority_seq_no = o->seq_no,
-                            .post_only = o->post_only, .stp = o->stp});
+                            .post_only = o->post_only, .stp = o->stp, .tif = o->tif});
       }
     }
   };
@@ -438,12 +528,13 @@ std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
         if (!std::binary_search(s.used_ids.begin(), s.used_ids.end(), o.order_id)) {
           fail(who + "resting but not in used_ids");
         }
+        if (!rests(o.tif)) fail(who + "time in force that cannot rest");
         const auto [it, inserted] = book->orders_.try_emplace(
             o.order_id, Order{.order_id = o.order_id, .account_id = o.account_id,
                               .side = side, .price = l.price, .original_qty = o.qty,
                               .leaves_qty = o.leaves_qty, .filled_qty = o.filled_qty,
                               .seq_no = o.priority_seq_no, .post_only = o.post_only,
-                              .stp = o.stp});
+                              .stp = o.stp, .tif = o.tif});
         if (!inserted) fail(who + "duplicate resting id");
         append(level, it->second);
       }
@@ -486,6 +577,7 @@ std::size_t OrderBook::check_side(const Levels& levels, Side side) const {
       if (o->side != side || o->price != price) fail(who + "wrong side or price");
       if (o->leaves_qty <= 0) fail(who + "resting with no open quantity");
       if (o->filled_qty + o->leaves_qty != o->original_qty) fail(who + "quantity not conserved");
+      if (!rests(o->tif)) fail(who + "time in force that cannot rest");
       const auto it = orders_.find(o->order_id);
       if (it == orders_.end() || &it->second != o) fail(who + "not in the order index");
       sum += o->leaves_qty;

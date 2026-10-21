@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <fstream>
 #include <random>
 #include <string>
 #include <vector>
 
+#include "mf/engine.hpp"
 #include "mf/order_book.hpp"
 #include "mf/snapshot.hpp"
+#include "risk_fixture.hpp"
 #include "temp_dir.hpp"
 #include "test_helpers.hpp"
 
@@ -108,7 +111,7 @@ TEST(BookState, RestoredBookProducesIdenticalEvents) {
   std::mt19937_64 rng(4242);
   OrderId next_id = 1;  // deliberately collides with used ids early on
   for (SeqNo seq = 11; seq < 3000; ++seq) {
-    Command c;
+    OrderCommand c;
     const auto r = rng() % 10;
     const Side side = rng() % 2 ? Side::Buy : Side::Sell;
     if (r < 2) {
@@ -183,10 +186,27 @@ TEST(BookState, RestoreRejectsInconsistentStates) {
 
 // --- File format ------------------------------------------------------------------
 
+// Every risk field set, so the format tests cover every byte of the risk section.
+RiskState rich_risk() {
+  return {.session = SessionState::Halted,
+          .instrument = {.max_qty = 1000, .band_bps = 250, .reference_price = 100},
+          .default_limits = AccountLimits{.max_notional = 50'000, .max_open_orders = 9},
+          .account_limits = {{.account_id = 2, .limits = {.credit = 7, .rate = RateLimit{3, 4}}},
+                             {.account_id = 5, .limits = {.position_limit = 11}}},
+          .global_kill = true,
+          .killed_accounts = {3, 4},
+          .positions = {{.account_id = 1, .qty = -5}, {.account_id = 4, .qty = 5}},
+          .buckets = {{.account_id = 2, .tokens = 1'500'000'000, .last_refill = 99}},
+          .last_trade_price = 101};
+}
+
 Snapshot rich_snapshot() {
   OrderBook book;
   build_rich_book(book);
-  return {.book = book.state(), .last_timestamp = 123'456'789, .journal_offset = 4242};
+  Snapshot snap{.book = book.state(), .risk = rich_risk(), .last_timestamp = 123'456'789,
+                .journal_offset = 4242};
+  snap.book.bids[0].orders[0].tif = TimeInForce::Day;
+  return snap;
 }
 
 TEST(SnapshotFormat, RoundTripsAndReencodesToIdenticalBytes) {
@@ -249,6 +269,151 @@ TEST(SnapshotFile, WritesAtomicallyAndReadsBack) {
   EXPECT_THROW(read_snapshot_file(dir.file("missing.mfsnap")), SnapshotError);
   write_bytes(dir.file("junk.mfsnap"), "not a snapshot");
   EXPECT_THROW(read_snapshot_file(dir.file("junk.mfsnap")), SnapshotError);
+}
+
+// --- Version 2: risk state (M5) ---------------------------------------------------------
+
+using test::RiskFixture;
+
+// An engine whose risk state has something in every field.
+void build_rich_engine(RiskFixture& f) {
+  f.set_instrument({.max_qty = 500, .band_bps = 2'000, .reference_price = 100});
+  f.set_account(std::nullopt, {.position_limit = 100, .max_open_orders = 20});
+  f.set_account(2, {.credit = 100'000, .rate = RateLimit{.per_sec = 5, .burst = 3}});
+  f.at(1'000);
+  f.limit(1, 1, Side::Sell, 100, 10);
+  f.limit(2, 2, Side::Buy, 100, 4);  // trade: positions and last trade price
+  f.limit(3, 2, Side::Buy, 98, 6, TimeInForce::Day);
+  f.limit(4, 3, Side::Sell, 103, 2);
+  f.kill(3, true);
+}
+
+TEST(SnapshotV2, EngineStateRoundTripsAndRestoresTheSameEngine) {
+  RiskFixture f;
+  build_rich_engine(f);
+  const EngineState state = f.engine.state();
+  EXPECT_EQ(state.risk.positions,
+            (std::vector<RiskState::Position>{{.account_id = 1, .qty = -4},
+                                              {.account_id = 2, .qty = 4}}));
+  EXPECT_EQ(state.risk.killed_accounts, std::vector<AccountId>{3});
+  EXPECT_EQ(state.risk.last_trade_price, 100);
+  ASSERT_EQ(state.risk.buckets.size(), 1u);
+  EXPECT_EQ(state.risk.buckets[0].tokens, 1 * kTokenScale);
+
+  const Snapshot snap{.book = state.book, .risk = state.risk};
+  const Snapshot decoded = decode_snapshot(encode_snapshot(snap));
+  EXPECT_EQ(decoded, snap);
+  const auto restored = Engine::from_state({.book = decoded.book, .risk = decoded.risk});
+  EXPECT_EQ(restored->state(), state);
+
+  // Both continue identically: rate limit, kill switch, DAY expiry, exposure.
+  std::mt19937_64 rng(3);
+  SeqNo seq = f.seq;
+  for (int i = 0; i < 300; ++i) {
+    Command c;
+    const auto r = rng() % 10;
+    if (r == 0) {
+      c = SetSession{.state = static_cast<SessionState>(rng() % 4)};
+    } else if (r == 1) {
+      c = Cancel{.order_id = 1 + rng() % 40};
+    } else {
+      c = NewOrder{.order_id = 5 + rng() % 40, .account_id = 1 + rng() % 3,
+                   .side = rng() % 2 ? Side::Buy : Side::Sell,
+                   .tif = rng() % 3 ? TimeInForce::GTC : TimeInForce::Day,
+                   .price = 90 + static_cast<Price>(rng() % 20),
+                   .qty = 1 + static_cast<Qty>(rng() % 20)};
+    }
+    std::visit([&](auto& x) { x.seq_no = ++seq; }, c);
+    const Timestamp ts = 1'000 + Timestamp{i} * 50'000'000;
+    std::vector<Event> a;
+    std::vector<Event> b;
+    f.engine.process(c, ts, a);
+    restored->process(c, ts, b);
+    ASSERT_EQ(a, b) << "command " << seq;
+  }
+  EXPECT_EQ(restored->state(), f.engine.state());
+}
+
+TEST(SnapshotV2, SameRiskStateGivesSameBytesWhateverTheHistory) {
+  RiskFixture up;
+  RiskFixture down;
+  for (AccountId a = 1; a <= 40; ++a) {
+    up.set_account(a, {.credit = static_cast<std::int64_t>(a)});
+    up.kill(a, true);
+    down.set_account(41 - a, {.credit = static_cast<std::int64_t>(41 - a)});
+    down.kill(41 - a, true);
+  }
+  const auto bytes = [](const RiskFixture& f) {
+    EngineState s = f.engine.state();
+    s.book.last_seq_no = 0;
+    return encode_snapshot({.book = s.book, .risk = s.risk});
+  };
+  EXPECT_EQ(bytes(up), bytes(down));
+}
+
+// The M4 snapshot fixture (written by the M4 build) loads with default risk state.
+TEST(SnapshotV2, ReadsVersion1Snapshots) {
+  const std::filesystem::path dir = MF_JOURNAL_FIXTURE_DIR;
+  const Snapshot snap = read_snapshot_file((dir / "v1-250.mfsnap").string());
+  EXPECT_EQ(snap.book.last_seq_no, 250u);
+  EXPECT_EQ(snap.risk, RiskState{});
+  for (const auto* side : {&snap.book.bids, &snap.book.asks}) {
+    for (const auto& level : *side) {
+      for (const auto& o : level.orders) EXPECT_EQ(o.tif, TimeInForce::GTC);
+    }
+  }
+  EXPECT_FALSE(snap.book.bids.empty() && snap.book.asks.empty());
+  EXPECT_NO_THROW(Engine::from_state({.book = snap.book, .risk = snap.risk}));
+}
+
+TEST(SnapshotV2, RestoreRejectsInconsistentRiskStates) {
+  RiskFixture f;
+  build_rich_engine(f);
+  const EngineState good = f.engine.state();
+  ASSERT_NO_THROW(Engine::from_state(good));
+
+  const auto expect_bad = [&](const char* what, auto edit) {
+    EngineState s = good;
+    edit(s.risk);
+    EXPECT_THROW(Engine::from_state(s), InvariantViolation) << what;
+  };
+  expect_bad("accounts out of order", [](RiskState& r) {
+    r.account_limits.push_back({.account_id = 1, .limits = {}});
+  });
+  expect_bad("duplicate account", [](RiskState& r) {
+    r.account_limits.push_back(r.account_limits.back());
+  });
+  expect_bad("invalid account limits", [](RiskState& r) {
+    r.account_limits[0].limits.credit = -1;
+  });
+  expect_bad("invalid default limits", [](RiskState& r) {
+    r.default_limits->max_open_orders = -1;
+  });
+  expect_bad("invalid instrument limits", [](RiskState& r) { r.instrument.max_qty = 0; });
+  expect_bad("killed accounts out of order", [](RiskState& r) {
+    r.killed_accounts = {5, 4};
+  });
+  expect_bad("zero position", [](RiskState& r) { r.positions[0].qty = 0; });
+  expect_bad("positions out of order", [](RiskState& r) {
+    std::swap(r.positions[0], r.positions[1]);
+  });
+  expect_bad("negative tokens", [](RiskState& r) { r.buckets[0].tokens = -1; });
+  expect_bad("tokens above the burst", [](RiskState& r) {
+    r.buckets[0].tokens = 3 * kTokenScale + 1;
+  });
+  expect_bad("bucket without a rate limit", [](RiskState& r) {
+    r.buckets.push_back({.account_id = 7, .tokens = 0, .last_refill = 0});
+  });
+  expect_bad("non-positive last trade price", [](RiskState& r) { r.last_trade_price = 0; });
+  expect_bad("invalid session", [](RiskState& r) { r.session = static_cast<SessionState>(9); });
+}
+
+TEST(SnapshotV2, RestoreRejectsABadTimeInForce) {
+  RiskFixture f;
+  build_rich_engine(f);
+  EngineState s = f.engine.state();
+  s.book.bids[0].orders[0].tif = TimeInForce::IOC;  // IOC never rests
+  EXPECT_THROW(Engine::from_state(s), InvariantViolation);
 }
 
 }  // namespace

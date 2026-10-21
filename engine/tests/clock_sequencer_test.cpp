@@ -84,7 +84,7 @@ TEST(Sequencer, JournalsCommandsTheBookRejects) {
   SimulatedClock clock(1, 1);
   JournalWriter journal(dir.file("j.mfj"));
   Sequencer sequencer(clock, journal);
-  OrderBook book;
+  Engine engine;
 
   const std::vector<Command> commands = {
       Cancel{.order_id = 77},                                          // UNKNOWN_ORDER
@@ -93,7 +93,8 @@ TEST(Sequencer, JournalsCommandsTheBookRejects) {
       bid(3, 100, 0),                                                  // INVALID_QTY
   };
   for (const auto& c : commands) {
-    const auto events = run(book, sequencer.sequence(c).command);
+    const auto record = sequencer.sequence(c);
+    const auto events = run(engine, record.command, record.timestamp);
     ASSERT_EQ(events.size(), 1u);
     EXPECT_TRUE(std::holds_alternative<Reject>(events[0]));
   }

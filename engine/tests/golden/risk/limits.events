@@ -1,0 +1,29 @@
+ADM seq=1 kind=INSTRUMENT_LIMITS
+BOOK seq=1 bid=- ask=-
+ADM seq=2 kind=ACCOUNT_LIMITS
+BOOK seq=2 bid=- ask=-
+REJ seq=3 id=1 reason=MAX_QTY
+BOOK seq=3 bid=- ask=-
+REJ seq=4 id=2 reason=PRICE_BAND
+BOOK seq=4 bid=- ask=-
+ACK seq=5 id=3 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=10
+BOOK seq=5 bid=100x10 ask=-
+REJ seq=6 id=4 reason=MAX_NOTIONAL
+BOOK seq=6 bid=100x10 ask=-
+ACK seq=7 id=5 side=B type=LMT tif=GTC po=0 stp=CN px=90 qty=5
+BOOK seq=7 bid=100x10 ask=-
+REJ seq=8 id=6 reason=POSITION_LIMIT
+BOOK seq=8 bid=100x10 ask=-
+ACK seq=9 id=7 side=S type=LMT tif=GTC po=0 stp=CN px=109 qty=5
+BOOK seq=9 bid=100x10 ask=109x5
+REJ seq=10 id=8 reason=MAX_OPEN_ORDERS
+BOOK seq=10 bid=100x10 ask=109x5
+CXL seq=11 id=7 qty=5 reason=USER
+BOOK seq=11 bid=100x10 ask=-
+REJ seq=12 id=9 reason=INSUFFICIENT_CREDIT
+BOOK seq=12 bid=100x10 ask=-
+ACK seq=13 id=10 side=S type=LMT tif=GTC po=0 stp=CN px=109 qty=5
+BOOK seq=13 bid=100x10 ask=109x5
+LVL side=B px=100 qty=10 orders=3:10
+LVL side=B px=90 qty=5 orders=5:5
+LVL side=S px=109 qty=5 orders=10:5

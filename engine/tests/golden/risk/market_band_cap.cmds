@@ -1,0 +1,16 @@
+# Market orders trade only up to the price-band edge (reference +- band); the rest of
+# the order is cancelled as UNFILLED. A trade at 100 sets the reference.
+N 1 1 1 S LMT GTC 0 CN 100 1
+N 2 2 2 B LMT GTC 0 CN 100 1
+# Thin book: asks 100x2, 103x2, 110x5; bids 99x2, 96x2, 90x5.
+N 3 3 3 S LMT GTC 0 CN 100 2
+N 4 4 3 S LMT GTC 0 CN 103 2
+N 5 5 3 S LMT GTC 0 CN 110 5
+N 6 6 3 B LMT GTC 0 CN 99 2
+N 7 7 3 B LMT GTC 0 CN 96 2
+N 8 8 3 B LMT GTC 0 CN 90 5
+# Band 5%. Buy edge floor(100 * 1.05) = 105: takes 100 and 103, 110 is out of band.
+L 9 - 500 -
+N 10 9 4 B MKT IOC 0 CN 0 10
+# The last trade is now 103. Sell edge ceil(103 * 0.95) = ceil(97.85) = 98: takes 99 only.
+N 11 10 4 S MKT IOC 0 CN 0 10

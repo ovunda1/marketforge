@@ -1,5 +1,5 @@
-// mf-replay: replays a journal through a fresh order book, optionally starting from a
-// snapshot, and prints the SHA-256 of the canonical event stream (docs/event-format.md).
+// mf-replay: replays a journal through a fresh engine (risk gate + order book),
+// optionally starting from a snapshot, and prints the SHA-256 of the canonical event stream (docs/event-format.md).
 // Replaying the same journal always prints the same hash; for the same commands it
 // equals sha256 of mf_driver's output.
 //

@@ -1,0 +1,20 @@
+N 1 1 1 B LMT GTC 0 CN 99 5
+N 2 2 2 B LMT GTC 0 CN 100 3
+N 3 3 1 B LMT GTC 0 CN 100 4
+N 4 4 1 S LMT GTC 0 CN 105 2
+N 5 5 2 S LMT GTC 0 CN 104 1
+# Account 1's switch with CANCEL: its orders go in book order, bids best first, then asks.
+K 6 1 ON CANCEL
+N 7 6 1 B LMT GTC 0 CN 98 1
+N 8 7 2 B LMT GTC 0 CN 98 1
+# The global switch blocks every account; cancels still work.
+K 9 * ON KEEP
+N 10 8 2 S LMT GTC 0 CN 110 1
+C 11 7
+# Releasing the global switch leaves account 1's on.
+K 12 * OFF KEEP
+N 13 9 1 S LMT GTC 0 CN 110 1
+K 14 1 OFF KEEP
+N 15 10 1 S LMT GTC 0 CN 110 1
+# CANCEL without ON is refused.
+K 16 2 OFF CANCEL

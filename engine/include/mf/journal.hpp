@@ -16,12 +16,12 @@ namespace mf {
 // Binary command journal: the source of truth for replay. Layout, error handling and
 // durability guarantees are specified in docs/journal-format.md.
 //
-// Every command that receives a seq_no is journaled, including ones the book rejects:
-// a reject depends on book state, so it is only known after matching, and replay must
-// reproduce every event the client saw.
+// Every command that receives a seq_no is journaled, including ones the engine rejects
+// and admin commands: a reject depends on book and risk state, so it is only known
+// after the engine runs, and replay must reproduce every event the client saw.
 
 inline constexpr std::string_view kJournalMagic{"MFJOURNL", 8};
-inline constexpr std::uint16_t kJournalVersion = 1;
+inline constexpr std::uint16_t kJournalVersion = 2;  // reads 1 and 2
 inline constexpr std::size_t kJournalHeaderSize = 16;
 // length field + its covered bytes (seq_no, timestamp, cmd_type) + crc, without payload.
 inline constexpr std::size_t kRecordOverhead = 4 + 8 + 8 + 1 + 4;
@@ -55,7 +55,7 @@ class JournalError : public std::runtime_error {
 };
 
 // Exact byte encodings, exposed so tests can pin the format and craft bad files.
-std::string encode_journal_header();
+std::string encode_journal_header(std::uint16_t version = kJournalVersion);
 std::string encode_record(const JournalRecord& record);
 
 // Creates a new journal file (never overwrites an existing one) and appends records.
@@ -114,6 +114,7 @@ class JournalReader {
   std::string path_;
   std::ifstream in_;
   std::uint64_t file_size_{};
+  std::uint16_t version_{};
   std::uint64_t offset_{};
   SeqNo last_seq_no_{};
   std::optional<Timestamp> last_timestamp_;

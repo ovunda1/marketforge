@@ -9,10 +9,11 @@ namespace mf {
 
 // Live-path ordering stage for one symbol: assigns the next seq_no (1, 2, 3, ... with no
 // gaps), stamps the clock's time and appends the record to the journal before the
-// caller hands the command to the book (write-ahead). It never rejects: validation,
-// including session-wide order-id uniqueness, happens in the book, which also runs on
-// replay, so every reject is reproduced. Replay does not use the sequencer; seq_nos
-// and timestamps come from the journal.
+// caller hands the command to the engine (write-ahead). It never rejects: validation,
+// including risk checks and session-wide order-id uniqueness, happens in the Engine
+// (risk gate, then book), which also runs on replay, so every reject is reproduced.
+// Admin commands (limits, kill switches, sessions) are sequenced the same way. Replay
+// does not use the sequencer; seq_nos and timestamps come from the journal.
 class Sequencer {
  public:
   Sequencer(Clock& clock, JournalWriter& journal) : clock_(clock), journal_(journal) {}

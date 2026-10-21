@@ -1,0 +1,9 @@
+# Without a band, a market order's notional is its true maximum cost: a read-only walk
+# of the opposite side. Account 1: max notional 500.
+A 1 1 500 - - - - -
+N 2 1 2 S LMT GTC 0 CN 100 2
+N 3 2 2 S LMT GTC 0 CN 110 3
+# 2 x 100 + 3 x 110 = 530 > 500.
+N 4 3 1 B MKT IOC 0 CN 0 5
+# 2 x 100 + 2 x 110 = 420.
+N 5 4 1 B MKT IOC 0 CN 0 4

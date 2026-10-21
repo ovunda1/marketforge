@@ -1,0 +1,38 @@
+ACK seq=1 id=1 side=B type=LMT tif=GTC po=0 stp=CN px=99 qty=5
+BOOK seq=1 bid=99x5 ask=-
+ACK seq=2 id=2 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=3
+BOOK seq=2 bid=100x3 ask=-
+ACK seq=3 id=3 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=4
+BOOK seq=3 bid=100x7 ask=-
+ACK seq=4 id=4 side=S type=LMT tif=GTC po=0 stp=CN px=105 qty=2
+BOOK seq=4 bid=100x7 ask=105x2
+ACK seq=5 id=5 side=S type=LMT tif=GTC po=0 stp=CN px=104 qty=1
+BOOK seq=5 bid=100x7 ask=104x1
+ADM seq=6 kind=KILL_SWITCH
+CXL seq=6 id=3 qty=4 reason=KILL_SWITCH
+CXL seq=6 id=1 qty=5 reason=KILL_SWITCH
+CXL seq=6 id=4 qty=2 reason=KILL_SWITCH
+BOOK seq=6 bid=100x3 ask=104x1
+REJ seq=7 id=6 reason=KILL_SWITCH
+BOOK seq=7 bid=100x3 ask=104x1
+ACK seq=8 id=7 side=B type=LMT tif=GTC po=0 stp=CN px=98 qty=1
+BOOK seq=8 bid=100x3 ask=104x1
+ADM seq=9 kind=KILL_SWITCH
+BOOK seq=9 bid=100x3 ask=104x1
+REJ seq=10 id=8 reason=KILL_SWITCH
+BOOK seq=10 bid=100x3 ask=104x1
+CXL seq=11 id=7 qty=1 reason=USER
+BOOK seq=11 bid=100x3 ask=104x1
+ADM seq=12 kind=KILL_SWITCH
+BOOK seq=12 bid=100x3 ask=104x1
+REJ seq=13 id=9 reason=KILL_SWITCH
+BOOK seq=13 bid=100x3 ask=104x1
+ADM seq=14 kind=KILL_SWITCH
+BOOK seq=14 bid=100x3 ask=104x1
+ACK seq=15 id=10 side=S type=LMT tif=GTC po=0 stp=CN px=110 qty=1
+BOOK seq=15 bid=100x3 ask=104x1
+AREJ seq=16 reason=INVALID_KILL_SWITCH
+BOOK seq=16 bid=100x3 ask=104x1
+LVL side=B px=100 qty=3 orders=2:3
+LVL side=S px=104 qty=1 orders=5:1
+LVL side=S px=110 qty=1 orders=10:1

@@ -17,13 +17,18 @@ add_executable(mf_engine_tests
   order_book_test.cpp
   order_types_test.cpp
   replay_test.cpp
+  risk_config_test.cpp
+  risk_replay_test.cpp
+  risk_test.cpp
+  session_test.cpp
   snapshot_test.cpp
   test_placeholder.cpp
   text_format_test.cpp
 )
-target_link_libraries(mf_engine_tests PRIVATE mf::engine GTest::gtest_main)
+target_link_libraries(mf_engine_tests PRIVATE mf::config GTest::gtest_main)  # brings mf::engine
 target_compile_definitions(mf_engine_tests PRIVATE
   MF_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
+  MF_RISK_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden/risk"
   MF_JOURNAL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/journal"
 )
 

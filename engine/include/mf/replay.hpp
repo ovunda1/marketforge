@@ -29,7 +29,8 @@ struct ReplayResult {
   std::vector<std::string> snapshots_written;
 };
 
-// Replays a journal (optionally from a snapshot) through a fresh book and hashes the
+// Replays a journal (optionally from a snapshot) through a fresh Engine, passing each
+// record's timestamp (the rate limiter's only clock), and hashes the
 // canonical event stream (docs/event-format.md): each command's events and BOOK line,
 // then the final LVL depth. For the same commands this is byte for byte what mf_driver
 // writes. Throws JournalError, SnapshotError or InvariantViolation; on any error no

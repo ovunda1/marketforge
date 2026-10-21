@@ -1,0 +1,22 @@
+# DAY orders rest like GTC and expire at the close; GTC orders survive it.
+N 1 1 1 B LMT DAY 0 CN 99 5
+N 2 2 2 B LMT GTC 0 CN 100 3
+N 3 3 3 S LMT DAY 0 CN 105 2
+N 4 4 4 S LMT GTC 0 CN 100 1
+# A halt rejects new orders and replaces but accepts cancels; nothing expires.
+S 5 HALTED
+N 6 5 1 B LMT GTC 0 CN 98 1
+R 7 2 100 1
+C 8 3
+S 9 CONTINUOUS
+# Close: DAY order 1 expires; GTC order 2 stays.
+S 10 CLOSED
+N 11 6 1 B LMT GTC 0 CN 98 1
+# CLOSED -> CONTINUOUS must go through PRE_OPEN.
+S 12 CONTINUOUS
+# Session open resets used ids, except those of orders still resting (2).
+S 13 PRE_OPEN
+N 14 7 1 B LMT GTC 0 CN 98 1
+S 15 CONTINUOUS
+N 16 4 1 B LMT GTC 0 CN 98 1
+N 17 2 1 B LMT GTC 0 CN 98 1

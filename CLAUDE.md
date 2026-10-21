@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 4 (Journal and replay)
+## Current milestone: 5 (Risk gate)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -25,6 +25,7 @@ make build    # configure + build the C++ engine with CMake (build/)
 make test     # run GoogleTest (ctest) and pytest (includes the 100k-command difftest)
 make difftest-long   # C++ engine vs Python reference on 1M commands (SEED=…)
 make difftest-replay # replay saved failing cases in tests/difftest/regressions/
+make sanitize        # ASan + UBSan build (build-asan/): ctest, then pytest on it (as CI)
 make replay JOURNAL=… [SNAPSHOT=…]  # mf-replay: SHA-256 of a journal's event stream
 make clean    # remove build artifacts
 ```
@@ -45,6 +46,15 @@ journal, `mf-replay` replays one (optionally from a snapshot) and prints the SHA
 the event stream. Formats: `docs/journal-format.md`, `docs/snapshot-format.md`. Order
 ids are unique per session and checked in the book, not the sequencer, so replay
 reproduces the reject.
+
+Risk gate (M5, `docs/risk.md`): `Engine` = `RiskGate` in front of `OrderBook`; every
+sequenced command goes through `Engine::process(command, timestamp)`, live and on
+replay. Limits, kill switches and session transitions are journaled admin commands; the
+YAML config (`mf_config`, yaml-cpp) only turns into such commands
+(`mf_driver`/`mf-journal --config`). The rate limiter's only clock is the record
+timestamp (`T <ns>` lines in text files). A fresh engine is CONTINUOUS with no limits
+(M4 behavior). Risk goldens (`engine/tests/golden/risk/`) are C++ only: the Python
+reference stays book-only.
 
 Golden scenarios live in `engine/tests/golden/` (`*.cmds` + hand-derived `*.events`)
 and run against both engines. Formats: `docs/event-format.md`; order-type rules:

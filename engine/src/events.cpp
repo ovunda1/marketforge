@@ -16,6 +16,7 @@ const char* to_string(TimeInForce tif) {
     case TimeInForce::GTC: return "GTC";
     case TimeInForce::IOC: return "IOC";
     case TimeInForce::FOK: return "FOK";
+    case TimeInForce::Day: return "DAY";
   }
   return "?";
 }
@@ -42,6 +43,15 @@ const char* to_string(RejectReason reason) {
     case RejectReason::FokNotFillable: return "FOK_NOT_FILLABLE";
     case RejectReason::PostOnlyWouldCross: return "POST_ONLY_WOULD_CROSS";
     case RejectReason::ReplaceQtyTooLow: return "REPLACE_QTY_TOO_LOW";
+    case RejectReason::MarketClosed: return "MARKET_CLOSED";
+    case RejectReason::KillSwitch: return "KILL_SWITCH";
+    case RejectReason::RateLimit: return "RATE_LIMIT";
+    case RejectReason::MaxQty: return "MAX_QTY";
+    case RejectReason::PriceBand: return "PRICE_BAND";
+    case RejectReason::MaxNotional: return "MAX_NOTIONAL";
+    case RejectReason::MaxOpenOrders: return "MAX_OPEN_ORDERS";
+    case RejectReason::PositionLimit: return "POSITION_LIMIT";
+    case RejectReason::InsufficientCredit: return "INSUFFICIENT_CREDIT";
   }
   return "?";
 }
@@ -51,6 +61,36 @@ const char* to_string(CancelReason reason) {
     case CancelReason::User: return "USER";
     case CancelReason::Unfilled: return "UNFILLED";
     case CancelReason::SelfTrade: return "SELF_TRADE";
+    case CancelReason::Expired: return "EXPIRED";
+    case CancelReason::KillSwitch: return "KILL_SWITCH";
+  }
+  return "?";
+}
+
+const char* to_string(SessionState state) {
+  switch (state) {
+    case SessionState::PreOpen: return "PRE_OPEN";
+    case SessionState::Continuous: return "CONTINUOUS";
+    case SessionState::Halted: return "HALTED";
+    case SessionState::Closed: return "CLOSED";
+  }
+  return "?";
+}
+
+const char* to_string(AdminKind kind) {
+  switch (kind) {
+    case AdminKind::InstrumentLimits: return "INSTRUMENT_LIMITS";
+    case AdminKind::AccountLimits: return "ACCOUNT_LIMITS";
+    case AdminKind::KillSwitch: return "KILL_SWITCH";
+  }
+  return "?";
+}
+
+const char* to_string(AdminRejectReason reason) {
+  switch (reason) {
+    case AdminRejectReason::InvalidTransition: return "INVALID_TRANSITION";
+    case AdminRejectReason::InvalidLimits: return "INVALID_LIMITS";
+    case AdminRejectReason::InvalidKillSwitch: return "INVALID_KILL_SWITCH";
   }
   return "?";
 }
@@ -86,6 +126,12 @@ std::string to_string(const Event& event) {
           os << "RPL seq=" << e.seq_no << " id=" << e.order_id << " px=" << e.price
              << " qty=" << e.qty << " leaves=" << e.leaves_qty
              << " prio=" << (e.priority_kept ? "KEPT" : "LOST");
+        } else if constexpr (std::is_same_v<T, SessionChanged>) {
+          os << "SES seq=" << e.seq_no << " state=" << to_string(e.state);
+        } else if constexpr (std::is_same_v<T, AdminAck>) {
+          os << "ADM seq=" << e.seq_no << " kind=" << to_string(e.kind);
+        } else if constexpr (std::is_same_v<T, AdminReject>) {
+          os << "AREJ seq=" << e.seq_no << " reason=" << to_string(e.reason);
         }
       },
       event);

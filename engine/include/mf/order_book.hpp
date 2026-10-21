@@ -43,6 +43,7 @@ struct BookState {
     SeqNo priority_seq_no{};  // command that last set its time priority
     bool post_only{};
     StpMode stp{};
+    TimeInForce tif{TimeInForce::GTC};  // GTC or DAY
 
     bool operator==(const RestingOrder&) const = default;
   };
@@ -73,10 +74,70 @@ class OrderBook {
   OrderBook(const OrderBook&) = delete;  // orders hold pointers into this book
   OrderBook& operator=(const OrderBook&) = delete;
 
+  // A resting order, as the risk gate sees it.
+  struct OrderView {
+    AccountId account_id{};
+    Side side{};
+    Price price{};
+    Qty qty{};  // current total quantity
+    Qty leaves_qty{};
+    Qty filled_qty{};
+  };
+
   // Applies one command and appends the resulting events to events_out (it is never
   // cleared). Throws InvariantViolation if seq_no does not exceed the previous one,
   // before touching the book; this check runs in every build.
-  void process(const Command& command, std::vector<Event>& events_out);
+  //
+  // market_limit caps a market order: it trades only at prices up to (buy) or down to
+  // (sell) the limit and its remainder is cancelled as UNFILLED. The risk gate sets it
+  // to the price-band edge. Ignored for other commands.
+  void process(const OrderCommand& command, std::vector<Event>& events_out,
+               std::optional<Price> market_limit = std::nullopt);
+
+  // Records a command that does not reach process() (a risk reject or an admin
+  // command), so seq_nos stay strictly increasing across both. Throws like process().
+  void skip_seq_no(SeqNo seq_no);
+  // Throws InvariantViolation unless seq_no exceeds the last one; changes nothing.
+  void check_seq_no(SeqNo seq_no) const;
+
+  // --- Checks the Engine runs in its own order (docs/risk.md) -----------------------
+  // Price, quantity and type combination of a new order, as process() checks them.
+  static std::optional<RejectReason> validate_new(const NewOrder& order);
+  // Price, quantity, unknown order and qty-too-low of a replace, as process() checks them.
+  std::optional<RejectReason> validate_replace(const Replace& replace) const;
+  // True if an order with this id was acked this session.
+  bool id_used(OrderId order_id) const { return used_ids_.contains(order_id); }
+  std::optional<OrderView> find(OrderId order_id) const;
+  // Read-only walk of the side opposite `side`, best price first: the notional that an
+  // order of `qty` could trade, up to `limit` if set. Orders of `account_id` are skipped
+  // (self-trade prevention can only cancel them, letting the sweep go deeper), so the
+  // result is an upper bound whatever the STP mode.
+  Notional sweep_notional(Side side, Qty qty, AccountId account_id,
+                          std::optional<Price> limit) const;
+
+  // --- Session and kill-switch actions, part of the current command ------------------
+  // Cancels every resting order `pred` selects, bids best price first then asks best
+  // price first, FIFO within a level; one Cancelled each with seq_no and reason.
+  void cancel_where(SeqNo seq_no, const std::function<bool(const OrderView&, TimeInForce)>& pred,
+                    CancelReason reason, std::vector<Event>& out);
+  // Session open: forgets used ids except those of orders still resting.
+  void reset_used_ids();
+
+  // Visits every resting order, bids best price first then asks, FIFO within a level.
+  template <class F>
+  void for_each_order(F&& f) const {
+    const auto walk = [&](const auto& levels) {
+      for (const auto& [price, level] : levels) {
+        for (const Order* o = level.head; o != nullptr; o = o->next) {
+          f(o->order_id, OrderView{.account_id = o->account_id, .side = o->side,
+                                   .price = o->price, .qty = o->original_qty,
+                                   .leaves_qty = o->leaves_qty, .filled_qty = o->filled_qty});
+        }
+      }
+    };
+    walk(bids_);
+    walk(asks_);
+  }
 
   std::optional<Price> best_bid() const;
   std::optional<Price> best_ask() const;
@@ -92,6 +153,7 @@ class OrderBook {
   std::vector<Price> level_prices(Side side) const;
 
   std::size_t order_count() const { return orders_.size(); }
+  std::optional<SeqNo> last_seq_no() const { return last_seq_no_; }
   // Open quantity of a resting order, or nullopt if it is not on the book.
   std::optional<Qty> leaves_qty(OrderId order_id) const;
 
@@ -122,6 +184,7 @@ class OrderBook {
     SeqNo seq_no{};  // command that last set its time priority
     bool post_only{};
     StpMode stp{};
+    TimeInForce tif{TimeInForce::GTC};  // GTC or DAY
     Level* level{};
     Order* prev{};
     Order* next{};
@@ -144,6 +207,7 @@ class OrderBook {
     std::optional<Price> limit;  // nullopt for a market order
     bool post_only{};
     StpMode stp{};
+    TimeInForce tif{TimeInForce::GTC};  // what a remainder rests as: GTC or DAY
     Qty leaves{};
     Qty filled{};
   };
@@ -153,7 +217,8 @@ class OrderBook {
   using BidLevels = std::map<Price, Level, std::greater<Price>>;
   using AskLevels = std::map<Price, Level, std::less<Price>>;
 
-  void on_new_order(const NewOrder& order, std::vector<Event>& out);
+  void on_new_order(const NewOrder& order, std::optional<Price> market_limit,
+                    std::vector<Event>& out);
   void on_cancel(const Cancel& cancel, std::vector<Event>& out);
   void on_replace(const Replace& replace, std::vector<Event>& out);
 
@@ -188,9 +253,8 @@ class OrderBook {
   std::unordered_map<OrderId, Order> orders_;
   // Ids of every order acked this session: an id is never reused, even after the order
   // filled or was cancelled. A rejected order was never accepted, so its id stays free.
-  // Lookup only, never iterated to produce output (snapshots sort it). It grows with
-  // the session; it will be cleared at session open when session states arrive (M5),
-  // which bounds memory to one session's orders.
+  // Lookup only, never iterated to produce output (snapshots sort it). Reset at session
+  // open (keeping resting ids), which bounds memory to one session's orders.
   std::unordered_set<OrderId> used_ids_;
   std::optional<SeqNo> last_seq_no_;
   TradeId next_trade_id_{1};

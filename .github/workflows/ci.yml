@@ -28,6 +28,34 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure --no-tests=error
 
+  # AddressSanitizer + UndefinedBehaviorSanitizer (M5): the unit tests, then pytest
+  # (including the 100k-command differential test) against the instrumented tools. Any
+  # finding aborts the process and fails the job.
+  sanitizers:
+    name: ASan + UBSan (clang)
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:strict_string_checks=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DMF_SANITIZE=ON
+      - name: Build
+        run: cmake --build build -j
+      - name: Test (GoogleTest)
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+      - name: Test (pytest, sanitized tools)
+        run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest
+
   bindings:
     name: pybind11 stub
     runs-on: ubuntu-latest
