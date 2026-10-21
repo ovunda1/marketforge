@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 1 (Scaffold)
+## Current milestone: 2 (Core book)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -26,6 +26,10 @@ macOS 26; override with `make PYTHON=/path/to/python3.12`.
 
 The pybind11 stub (`bindings/`) is off by default: build it with
 `cmake -S . -B build -DMF_BUILD_BINDINGS=ON`.
+
+`MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency
+walk after every command; benchmark builds turn it off. The `seq_no` monotonicity
+check in `OrderBook::process` is always on.
 
 Later milestones add `bench`, `lint`, `fmt`, `up`, `down`, `replay` and `demo` targets.
 
