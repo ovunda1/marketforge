@@ -52,7 +52,35 @@ TimeInForce parse_tif(std::string_view t) {
   if (t == "GTC") return TimeInForce::GTC;
   if (t == "IOC") return TimeInForce::IOC;
   if (t == "FOK") return TimeInForce::FOK;
+  if (t == "DAY") return TimeInForce::Day;
   bad_field("tif", t);
+}
+
+SessionState parse_state(std::string_view t) {
+  if (t == "PRE_OPEN") return SessionState::PreOpen;
+  if (t == "CONTINUOUS") return SessionState::Continuous;
+  if (t == "HALTED") return SessionState::Halted;
+  if (t == "CLOSED") return SessionState::Closed;
+  bad_field("state", t);
+}
+
+// "-" for an unset limit.
+template <class T>
+std::optional<T> optional_number(std::string_view token, const char* field) {
+  if (token == "-") return std::nullopt;
+  return number<T>(token, field);
+}
+
+// "*" for the defaults (account limits) or the global switch.
+std::optional<AccountId> parse_scope(std::string_view t) {
+  if (t == "*") return std::nullopt;
+  return number<AccountId>(t, "acct");
+}
+
+bool parse_choice(std::string_view t, const char* yes, const char* no, const char* field) {
+  if (t == yes) return true;
+  if (t == no) return false;
+  bad_field(field, t);
 }
 
 bool parse_flag(std::string_view t) {
@@ -89,6 +117,13 @@ void append_side_top(std::string& out, const OrderBook& book, Side side) {
 }  // namespace
 
 std::optional<Command> parse_command(std::string_view line) {
+  const auto parsed = parse_line(line);
+  if (!parsed) return std::nullopt;
+  if (std::holds_alternative<ClockSet>(*parsed)) throw ParseError("a clock line is not a command");
+  return std::get<Command>(*parsed);
+}
+
+std::optional<TextLine> parse_line(std::string_view line) {
   if (const auto hash = line.find('#'); hash != std::string_view::npos) {
     line = line.substr(0, hash);
   }
@@ -118,6 +153,47 @@ std::optional<Command> parse_command(std::string_view line) {
                    .order_id = number<OrderId>(t[2], "id"),
                    .price = number<Price>(t[3], "px"),
                    .qty = number<Qty>(t[4], "qty")};
+  }
+  if (t[0] == "S") {
+    expect_fields(t, 3);
+    return SetSession{.seq_no = number<SeqNo>(t[1], "seq"), .state = parse_state(t[2])};
+  }
+  if (t[0] == "L") {
+    expect_fields(t, 5);
+    return SetInstrumentLimits{
+        .seq_no = number<SeqNo>(t[1], "seq"),
+        .limits = {.max_qty = optional_number<Qty>(t[2], "max_qty"),
+                   .band_bps = optional_number<std::int64_t>(t[3], "band_bps"),
+                   .reference_price = optional_number<Price>(t[4], "ref_px")}};
+  }
+  if (t[0] == "A") {
+    expect_fields(t, 9);
+    const auto per_sec = optional_number<std::int64_t>(t[7], "rate");
+    const auto burst = optional_number<std::int64_t>(t[8], "burst");
+    if (per_sec.has_value() != burst.has_value()) {
+      throw ParseError("rate and burst must both be set or both be '-'");
+    }
+    return SetAccountLimits{
+        .seq_no = number<SeqNo>(t[1], "seq"),
+        .account_id = parse_scope(t[2]),
+        .limits = {.max_notional = optional_number<std::int64_t>(t[3], "max_notional"),
+                   .position_limit = optional_number<Qty>(t[4], "position"),
+                   .credit = optional_number<std::int64_t>(t[5], "credit"),
+                   .max_open_orders = optional_number<std::int64_t>(t[6], "max_open"),
+                   .rate = per_sec ? std::optional<RateLimit>{{*per_sec, *burst}} : std::nullopt}};
+  }
+  if (t[0] == "K") {
+    expect_fields(t, 5);
+    return KillSwitch{.seq_no = number<SeqNo>(t[1], "seq"),
+                      .account_id = parse_scope(t[2]),
+                      .engaged = parse_choice(t[3], "ON", "OFF", "kill switch state"),
+                      .cancel_open = parse_choice(t[4], "CANCEL", "KEEP", "kill switch action")};
+  }
+  if (t[0] == "T") {
+    expect_fields(t, 2);
+    const auto ts = number<Timestamp>(t[1], "time");
+    if (ts < 0) bad_field("time", t[1]);
+    return ClockSet{.timestamp = ts};
   }
   throw ParseError("unknown command '" + std::string(t[0]) + "'");
 }
@@ -159,27 +235,42 @@ void append_command_output(const std::vector<Event>& events, SeqNo seq_no,
   (out += format_top_of_book(seq_no, book)) += '\n';
 }
 
-void run_commands(std::istream& in, std::ostream& out) {
-  OrderBook book;
+void run_commands(std::istream& in, std::ostream& out, const std::vector<Command>& prefix) {
+  Engine engine;
   std::vector<Event> events;
-  std::string line;
   std::string text;
+  Timestamp now = 0;
+  const auto run = [&](const Command& command) {
+    events.clear();
+    engine.process(command, now, events);
+    text.clear();
+    append_command_output(events, seq_no_of(command), engine.book(), text);
+    out << text;
+  };
+  SeqNo seq = 0;
+  for (Command command : prefix) {
+    std::visit([&](auto& c) { c.seq_no = ++seq; }, command);
+    run(command);
+  }
+  std::string line;
   for (std::size_t line_no = 1; std::getline(in, line); ++line_no) {
-    std::optional<Command> command;
+    std::optional<TextLine> parsed;
     try {
-      command = parse_command(line);
+      parsed = parse_line(line);
+      if (const auto* set = parsed ? std::get_if<ClockSet>(&*parsed) : nullptr) {
+        if (set->timestamp < now) {
+          throw ParseError("time " + std::to_string(set->timestamp) + " is before " +
+                           std::to_string(now));
+        }
+        now = set->timestamp;
+        continue;
+      }
     } catch (const ParseError& e) {
       throw ParseError("line " + std::to_string(line_no) + ": " + e.what());
     }
-    if (!command) continue;
-    events.clear();
-    book.process(*command, events);
-    text.clear();
-    const SeqNo seq_no = std::visit([](const auto& c) { return c.seq_no; }, *command);
-    append_command_output(events, seq_no, book, text);
-    out << text;
+    if (parsed) run(std::get<Command>(*parsed));
   }
-  out << format_depth(book);
+  out << format_depth(engine.book());
 }
 
 }  // namespace mf

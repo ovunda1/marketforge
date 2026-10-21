@@ -5,12 +5,13 @@ VENV       := .venv
 VENV_PY    := $(VENV)/bin/python
 BUILD_DIR  := build
 BUILD_TYPE ?= RelWithDebInfo
+ASAN_DIR   := build-asan
 DRIVER     := $(BUILD_DIR)/engine/tools/mf_driver
 REPLAY     := $(BUILD_DIR)/engine/tools/mf-replay
 # Seed for the long differential test; override with `make difftest-long SEED=7`.
 SEED       ?= 20261020
 
-.PHONY: venv build test test-cpp test-py difftest difftest-long difftest-replay replay clean
+.PHONY: venv build test test-cpp test-py sanitize difftest difftest-long difftest-replay replay clean
 
 venv: $(VENV)/.installed
 
@@ -33,6 +34,13 @@ test-cpp: build
 test-py: venv build
 	MF_DRIVER=$(DRIVER) $(VENV_PY) -m pytest
 
+# ASan + UBSan build (as in CI): unit tests, then pytest against the instrumented tools.
+sanitize: venv
+	cmake -S . -B $(ASAN_DIR) -DCMAKE_BUILD_TYPE=Debug -DMF_SANITIZE=ON
+	cmake --build $(ASAN_DIR) -j
+	ctest --test-dir $(ASAN_DIR) --output-on-failure --no-tests=error
+	MF_DRIVER=$(ASAN_DIR)/engine/tools/mf_driver $(VENV_PY) -m pytest
+
 difftest: venv build
 	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 100000
 
@@ -49,4 +57,4 @@ replay: build
 	$(REPLAY) $(JOURNAL) $(if $(SNAPSHOT),--snapshot $(SNAPSHOT))
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) $(ASAN_DIR)

@@ -1,0 +1,19 @@
+ADM seq=1 kind=ACCOUNT_LIMITS
+BOOK seq=1 bid=- ask=-
+ACK seq=2 id=1 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=1
+BOOK seq=2 bid=100x1 ask=-
+ACK seq=3 id=2 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=1
+BOOK seq=3 bid=100x2 ask=-
+REJ seq=4 id=3 reason=RATE_LIMIT
+BOOK seq=4 bid=100x2 ask=-
+CXL seq=5 id=1 qty=1 reason=USER
+BOOK seq=5 bid=100x1 ask=-
+ACK seq=6 id=4 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=1
+BOOK seq=6 bid=100x2 ask=-
+REJ seq=7 id=5 reason=RATE_LIMIT
+BOOK seq=7 bid=100x2 ask=-
+ACK seq=8 id=6 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=1
+BOOK seq=8 bid=100x3 ask=-
+REJ seq=9 id=2 reason=RATE_LIMIT
+BOOK seq=9 bid=100x3 ask=-
+LVL side=B px=100 qty=3 orders=2:1,4:1,6:1

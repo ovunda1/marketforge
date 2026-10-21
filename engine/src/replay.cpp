@@ -6,7 +6,7 @@
 
 #include "mf/checksum.hpp"
 #include "mf/journal.hpp"
-#include "mf/order_book.hpp"
+#include "mf/engine.hpp"
 #include "mf/snapshot.hpp"
 #include "mf/text_format.hpp"
 
@@ -25,18 +25,18 @@ std::string snapshot_name(SeqNo seq_no) {
 
 ReplayResult replay(const ReplayOptions& options) {
   JournalReader reader(options.journal_path);
-  std::unique_ptr<OrderBook> book;
+  std::unique_ptr<Engine> engine;
   if (options.snapshot_path) {
     const Snapshot snap = read_snapshot_file(*options.snapshot_path);
     try {
-      book = OrderBook::from_state(snap.book);
+      engine = Engine::from_state({.book = snap.book, .risk = snap.risk});
     } catch (const InvariantViolation& e) {
       throw SnapshotError(*options.snapshot_path + ": inconsistent snapshot: " + e.what());
     }
     // The next record must be last_seq_no + 1: a snapshot from another journal fails here.
     reader.seek(snap.journal_offset, snap.book.last_seq_no, snap.last_timestamp);
   } else {
-    book = std::make_unique<OrderBook>();
+    engine = std::make_unique<Engine>();
   }
 
   Sha256 hash;
@@ -52,22 +52,23 @@ ReplayResult replay(const ReplayOptions& options) {
   std::string text;
   while (const auto record = reader.next()) {
     events.clear();
-    book->process(record->command, events);
+    engine->process(record->command, record->timestamp, events);
     text.clear();
-    append_command_output(events, record->seq_no(), *book, text);
+    append_command_output(events, record->seq_no(), engine->book(), text);
     emit(text);
     ++result.commands;
 
     if (options.snapshot_every != 0 && record->seq_no() % options.snapshot_every == 0) {
       const std::string path =
           (std::filesystem::path(options.snapshot_dir) / snapshot_name(record->seq_no())).string();
-      write_snapshot_file(path, Snapshot{.book = book->state(),
+      const EngineState state = engine->state();
+      write_snapshot_file(path, Snapshot{.book = state.book, .risk = state.risk,
                                          .last_timestamp = record->timestamp,
                                          .journal_offset = reader.offset()});
       result.snapshots_written.push_back(path);
     }
   }
-  emit(format_depth(*book));
+  emit(format_depth(engine->book()));
 
   result.last_seq_no = reader.last_seq_no();
   result.sha256 = Sha256::hex(hash.finish());

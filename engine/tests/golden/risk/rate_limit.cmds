@@ -1,0 +1,16 @@
+# Account 1: 2 orders per second, burst 2. T lines set the simulated time (ns).
+A 1 1 - - - - 2 2
+T 0
+N 2 1 1 B LMT GTC 0 CN 100 1
+N 3 2 1 B LMT GTC 0 CN 100 1
+N 4 3 1 B LMT GTC 0 CN 100 1
+# Cancels are never throttled; account 2 has no rate limit.
+C 5 1
+N 6 4 2 B LMT GTC 0 CN 100 1
+# Just under half a second refills 0.999999998 tokens; exactly half a second, one.
+T 499999999
+N 7 5 1 B LMT GTC 0 CN 100 1
+T 500000000
+N 8 6 1 B LMT GTC 0 CN 100 1
+# A replace costs a token too.
+R 9 2 100 2

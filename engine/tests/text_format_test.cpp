@@ -57,7 +57,7 @@ TEST(TextFormat, RejectsMalformedLines) {
            "C -1 2",                          // seq_no is unsigned
            "N 1 1 1 Q LMT GTC 0 CN 100 5",    // bad side
            "N 1 1 1 B STP GTC 0 CN 100 5",    // bad type
-           "N 1 1 1 B LMT DAY 0 CN 100 5",    // bad tif
+           "N 1 1 1 B LMT GTD 0 CN 100 5",    // bad tif
            "N 1 1 1 B LMT GTC 2 CN 100 5",    // post-only must be 0 or 1
            "N 1 1 1 B LMT GTC 0 XX 100 5",    // bad stp
            "R 1 1 100 5x",                    // trailing garbage in a number
@@ -119,6 +119,15 @@ TEST(TextFormat, FormatsEveryRejectReason) {
       {RejectReason::FokNotFillable, "FOK_NOT_FILLABLE"},
       {RejectReason::PostOnlyWouldCross, "POST_ONLY_WOULD_CROSS"},
       {RejectReason::ReplaceQtyTooLow, "REPLACE_QTY_TOO_LOW"},
+      {RejectReason::MarketClosed, "MARKET_CLOSED"},
+      {RejectReason::KillSwitch, "KILL_SWITCH"},
+      {RejectReason::RateLimit, "RATE_LIMIT"},
+      {RejectReason::MaxQty, "MAX_QTY"},
+      {RejectReason::PriceBand, "PRICE_BAND"},
+      {RejectReason::MaxNotional, "MAX_NOTIONAL"},
+      {RejectReason::MaxOpenOrders, "MAX_OPEN_ORDERS"},
+      {RejectReason::PositionLimit, "POSITION_LIMIT"},
+      {RejectReason::InsufficientCredit, "INSUFFICIENT_CREDIT"},
   };
   for (const auto& [reason, text] : cases) {
     EXPECT_EQ(to_string(Reject{.seq_no = 1, .order_id = 2, .reason = reason}),
@@ -173,6 +182,138 @@ TEST(TextFormat, RunCommandsReportsLineNumberOfMalformedCommand) {
     FAIL() << "expected ParseError";
   } catch (const ParseError& e) {
     EXPECT_EQ(std::string(e.what()).rfind("line 2: ", 0), 0u) << e.what();
+  }
+}
+
+// --- M5: DAY, admin commands, clock lines and their events --------------------------
+
+TEST(TextFormat, ParsesDayOrders) {
+  const auto c = parse_command("N 1 1 1 B LMT DAY 1 CN 100 5");
+  ASSERT_TRUE(c.has_value());
+  EXPECT_EQ(std::get<NewOrder>(*c).tif, TimeInForce::Day);
+  EXPECT_TRUE(std::get<NewOrder>(*c).post_only);
+}
+
+TEST(TextFormat, ParsesAdminCommands) {
+  EXPECT_EQ(parse_command("S 1 PRE_OPEN"),
+            (std::optional<Command>{SetSession{.seq_no = 1, .state = SessionState::PreOpen}}));
+  EXPECT_EQ(parse_command("S 2 CONTINUOUS"),
+            (std::optional<Command>{SetSession{.seq_no = 2, .state = SessionState::Continuous}}));
+  EXPECT_EQ(parse_command("S 3 HALTED"),
+            (std::optional<Command>{SetSession{.seq_no = 3, .state = SessionState::Halted}}));
+  EXPECT_EQ(parse_command("S 4 CLOSED"),
+            (std::optional<Command>{SetSession{.seq_no = 4, .state = SessionState::Closed}}));
+  EXPECT_EQ(parse_command("L 5 40 - 100"),
+            (std::optional<Command>{SetInstrumentLimits{
+                .seq_no = 5, .limits = {.max_qty = 40, .reference_price = 100}}}));
+  EXPECT_EQ(parse_command("L 6 - - -"),
+            (std::optional<Command>{SetInstrumentLimits{.seq_no = 6, .limits = {}}}));
+  EXPECT_EQ(parse_command("A 7 * 3000 60 - 6 20 5"),
+            (std::optional<Command>{SetAccountLimits{
+                .seq_no = 7, .account_id = std::nullopt,
+                .limits = {.max_notional = 3000, .position_limit = 60, .max_open_orders = 6,
+                           .rate = RateLimit{.per_sec = 20, .burst = 5}}}}));
+  EXPECT_EQ(parse_command("A 8 12 - - -1 - - -"),
+            (std::optional<Command>{SetAccountLimits{
+                .seq_no = 8, .account_id = 12, .limits = {.credit = -1}}}));
+  EXPECT_EQ(parse_command("K 9 * ON CANCEL"),
+            (std::optional<Command>{KillSwitch{.seq_no = 9, .account_id = std::nullopt,
+                                               .engaged = true, .cancel_open = true}}));
+  EXPECT_EQ(parse_command("K 10 3 OFF KEEP"),
+            (std::optional<Command>{KillSwitch{.seq_no = 10, .account_id = 3,
+                                               .engaged = false, .cancel_open = false}}));
+}
+
+TEST(TextFormat, ParsesClockLines) {
+  EXPECT_EQ(parse_line("T 1500"), (std::optional<TextLine>{ClockSet{.timestamp = 1500}}));
+  EXPECT_EQ(parse_line("C 1 2"), (std::optional<TextLine>{Command{Cancel{.seq_no = 1, .order_id = 2}}}));
+  EXPECT_EQ(parse_line("# x"), std::nullopt);
+  EXPECT_THROW(parse_command("T 1500"), ParseError);  // not a command
+}
+
+TEST(TextFormat, RejectsMalformedAdminLines) {
+  for (const char* bad : {
+           "S 1 OPEN",                  // bad state
+           "S 1",                       // missing state
+           "L 1 40 -",                  // too few fields
+           "L 1 x - -",                 // not a number
+           "A 1 * 1 2 3 4 5",           // too few fields
+           "A 1 * - - - - 20 -",        // rate without burst
+           "A 1 * - - - - - 5",         // burst without rate
+           "A 1 x - - - - - -",         // bad account
+           "K 1 * MAYBE KEEP",          // bad engaged
+           "K 1 * ON NOW",              // bad action
+           "T",                         // missing time
+           "T -5",                      // negative time
+           "T 5 6",                     // too many fields
+       }) {
+    EXPECT_THROW(parse_line(bad), ParseError) << bad;
+  }
+}
+
+TEST(TextFormat, FormatsAdminEventsAndNewCancelReasons) {
+  EXPECT_EQ(to_string(SessionChanged{.seq_no = 1, .state = SessionState::PreOpen}),
+            "SES seq=1 state=PRE_OPEN");
+  EXPECT_EQ(to_string(SessionChanged{.seq_no = 1, .state = SessionState::Continuous}),
+            "SES seq=1 state=CONTINUOUS");
+  EXPECT_EQ(to_string(SessionChanged{.seq_no = 1, .state = SessionState::Halted}),
+            "SES seq=1 state=HALTED");
+  EXPECT_EQ(to_string(SessionChanged{.seq_no = 1, .state = SessionState::Closed}),
+            "SES seq=1 state=CLOSED");
+  EXPECT_EQ(to_string(AdminAck{.seq_no = 2, .kind = AdminKind::InstrumentLimits}),
+            "ADM seq=2 kind=INSTRUMENT_LIMITS");
+  EXPECT_EQ(to_string(AdminAck{.seq_no = 2, .kind = AdminKind::AccountLimits}),
+            "ADM seq=2 kind=ACCOUNT_LIMITS");
+  EXPECT_EQ(to_string(AdminAck{.seq_no = 2, .kind = AdminKind::KillSwitch}),
+            "ADM seq=2 kind=KILL_SWITCH");
+  EXPECT_EQ(to_string(AdminReject{.seq_no = 3, .reason = AdminRejectReason::InvalidTransition}),
+            "AREJ seq=3 reason=INVALID_TRANSITION");
+  EXPECT_EQ(to_string(AdminReject{.seq_no = 3, .reason = AdminRejectReason::InvalidLimits}),
+            "AREJ seq=3 reason=INVALID_LIMITS");
+  EXPECT_EQ(to_string(AdminReject{.seq_no = 3, .reason = AdminRejectReason::InvalidKillSwitch}),
+            "AREJ seq=3 reason=INVALID_KILL_SWITCH");
+  EXPECT_EQ(to_string(Cancelled{.seq_no = 4, .order_id = 5, .cancelled_qty = 6,
+                                .reason = CancelReason::Expired}),
+            "CXL seq=4 id=5 qty=6 reason=EXPIRED");
+  EXPECT_EQ(to_string(Cancelled{.seq_no = 4, .order_id = 5, .cancelled_qty = 6,
+                                .reason = CancelReason::KillSwitch}),
+            "CXL seq=4 id=5 qty=6 reason=KILL_SWITCH");
+  EXPECT_EQ(to_string(Ack{.seq_no = 1, .order_id = 1, .tif = TimeInForce::Day, .price = 1,
+                          .qty = 1}),
+            "ACK seq=1 id=1 side=B type=LMT tif=DAY po=0 stp=CN px=1 qty=1");
+}
+
+TEST(TextFormat, RunCommandsRunsThePrefixFirstAndHonorsClockLines) {
+  // The prefix is numbered 1..k; the file continues at k + 1.
+  const std::vector<Command> prefix = {
+      SetAccountLimits{.account_id = 1, .limits = {.rate = RateLimit{.per_sec = 1, .burst = 1}}}};
+  std::istringstream in(
+      "N 2 1 1 B LMT GTC 0 CN 100 1\n"
+      "N 3 2 1 B LMT GTC 0 CN 100 1\n"
+      "T 1000000000\n"
+      "N 4 3 1 B LMT GTC 0 CN 100 1\n");
+  std::ostringstream out;
+  run_commands(in, out, prefix);
+  EXPECT_EQ(out.str(),
+            "ADM seq=1 kind=ACCOUNT_LIMITS\n"
+            "BOOK seq=1 bid=- ask=-\n"
+            "ACK seq=2 id=1 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=1\n"
+            "BOOK seq=2 bid=100x1 ask=-\n"
+            "REJ seq=3 id=2 reason=RATE_LIMIT\n"
+            "BOOK seq=3 bid=100x1 ask=-\n"
+            "ACK seq=4 id=3 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=1\n"
+            "BOOK seq=4 bid=100x2 ask=-\n"
+            "LVL side=B px=100 qty=2 orders=1:1,3:1\n");
+}
+
+TEST(TextFormat, RunCommandsRejectsTimeGoingBackwards) {
+  std::istringstream in("T 10\nC 1 1\nT 9\nC 2 1\n");
+  std::ostringstream out;
+  try {
+    run_commands(in, out);
+    FAIL() << "expected ParseError";
+  } catch (const ParseError& e) {
+    EXPECT_EQ(std::string(e.what()).rfind("line 3: ", 0), 0u) << e.what();
   }
 }
 

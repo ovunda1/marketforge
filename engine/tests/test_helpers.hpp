@@ -3,6 +3,7 @@
 #include <ostream>
 #include <vector>
 
+#include "mf/engine.hpp"
 #include "mf/order_book.hpp"
 
 namespace mf {
@@ -16,13 +17,22 @@ inline void PrintTo(const Fill& e, std::ostream* os) { PrintTo(Event{e}, os); }
 inline void PrintTo(const Cancelled& e, std::ostream* os) { PrintTo(Event{e}, os); }
 inline void PrintTo(const Trade& e, std::ostream* os) { PrintTo(Event{e}, os); }
 inline void PrintTo(const Replaced& e, std::ostream* os) { PrintTo(Event{e}, os); }
+inline void PrintTo(const SessionChanged& e, std::ostream* os) { PrintTo(Event{e}, os); }
+inline void PrintTo(const AdminAck& e, std::ostream* os) { PrintTo(Event{e}, os); }
+inline void PrintTo(const AdminReject& e, std::ostream* os) { PrintTo(Event{e}, os); }
 
 namespace test {
 
 // Processes one command and returns only the events it produced.
-inline std::vector<Event> run(OrderBook& book, const Command& command) {
+inline std::vector<Event> run(OrderBook& book, const OrderCommand& command) {
   std::vector<Event> out;
   book.process(command, out);
+  return out;
+}
+
+inline std::vector<Event> run(Engine& engine, const Command& command, Timestamp ts = 0) {
+  std::vector<Event> out;
+  engine.process(command, ts, out);
   return out;
 }
 

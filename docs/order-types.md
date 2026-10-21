@@ -1,4 +1,4 @@
-# Order types, cancel-replace and self-trade prevention (M3)
+# Order types, cancel-replace and self-trade prevention (M3, DAY in M5)
 
 Rules implemented by `engine/src/order_book.cpp` and, independently, by the Python
 reference engine in `reference/book.py`. Golden scenarios in `engine/tests/golden/`
@@ -26,23 +26,31 @@ rejects: honoring them is impossible by definition.
 
 ## Validation order
 
-Both engines check a new order in this order and report the first failure:
+The risk gate (M5) adds checks around these. The full order, book and risk combined,
+is in `docs/risk.md`. Within the book, both engines check a new order in this order and
+report the first failure:
 
 1. Price: a limit order needs `price > 0`; a market order must have `price == 0`
    (`INVALID_PRICE`).
 2. Quantity: `qty > 0` (`INVALID_QTY`).
 3. Type combination: a market order must be IOC and not post-only; a post-only order
-   must be a GTC limit (`INVALID_ORDER_TYPE`).
+   must be a GTC or DAY limit (`INVALID_ORDER_TYPE`).
 4. Duplicate id: an order with this id was acked earlier in the session, even if it has
    since filled or been cancelled (`DUPLICATE_ORDER_ID`). A rejected order was never
    accepted, so its id stays free. The check lives in the book, not the sequencer, so
-   replay reproduces it (M4). The set of used ids is reset at session open once session
-   states arrive (M5), which bounds its memory to one session.
+   replay reproduces it (M4). The set of used ids is reset at session open, keeping the
+   ids of orders still resting (M5), which bounds its memory to one session.
 5. Type-specific: market into an empty side (`NO_LIQUIDITY`), crossing post-only
    (`POST_ONLY_WOULD_CROSS`), unfillable FOK (`FOK_NOT_FILLABLE`).
 
 A replace checks price, then quantity, then that the order is resting
 (`UNKNOWN_ORDER`), then `qty > filled` (`REPLACE_QTY_TOO_LOW`), then post-only crossing.
+
+## DAY (M5)
+
+A DAY limit order behaves exactly like GTC (it rests, keeps priority, can be replaced
+and stays DAY when re-priced) until the session closes. At the close it is cancelled
+with `CXL reason=EXPIRED` (`docs/risk.md`). DAY is not valid on a market order.
 
 ## Market
 
@@ -50,6 +58,10 @@ No price; sweeps the opposite side best price first, FIFO within a level, with n
 limit. The remainder is cancelled (`UNFILLED`); a market order never rests. "Empty side"
 means no resting orders on the opposite side at all. If the only liquidity belongs to
 the same account the order is accepted and self-trade prevention handles it.
+
+With a price band configured (M5), the risk gate caps a market order at the band edge:
+it trades only within the band and the rest is cancelled as `UNFILLED`
+(`docs/risk.md`).
 
 ## IOC
 

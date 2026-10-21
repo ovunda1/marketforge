@@ -33,12 +33,32 @@ enum class RejectReason : std::uint8_t {
   FokNotFillable,      // FOK cannot be filled completely within its limit
   PostOnlyWouldCross,  // post-only (new or replaced) would take liquidity
   ReplaceQtyTooLow,    // replace to a total at or below the filled quantity
+  // Risk gate (M5, docs/risk.md).
+  MarketClosed,        // session is not continuous (new orders and replaces)
+  KillSwitch,          // global or account kill switch engaged
+  RateLimit,           // account's token bucket is empty
+  MaxQty,              // qty above the instrument limit
+  PriceBand,           // price outside the band, or a market order with no reference
+  MaxNotional,         // price * qty above the account limit
+  MaxOpenOrders,       // account already has the maximum number of open orders
+  PositionLimit,       // worst-case position would exceed the account limit
+  InsufficientCredit,  // open-order notional would exceed the account credit
 };
 
 enum class CancelReason : std::uint8_t {
   User,       // Cancel command
   Unfilled,   // IOC or market remainder
   SelfTrade,  // self-trade prevention
+  Expired,    // DAY order at session close
+  KillSwitch, // kill switch engaged with cancel_open
+};
+
+enum class AdminKind : std::uint8_t { InstrumentLimits, AccountLimits, KillSwitch };
+
+enum class AdminRejectReason : std::uint8_t {
+  InvalidTransition,   // session transition not allowed from the current state
+  InvalidLimits,       // a limit value out of range
+  InvalidKillSwitch,   // cancel_open without engaged
 };
 
 enum class Liquidity : std::uint8_t { Maker, Taker };
@@ -115,7 +135,32 @@ struct Replaced {
   bool operator==(const Replaced&) const = default;
 };
 
-using Event = std::variant<Ack, Reject, Fill, Cancelled, Trade, Replaced>;
+// Accepted session transition. A close's DAY expiries follow it.
+struct SessionChanged {
+  SeqNo seq_no{};
+  SessionState state{};
+
+  bool operator==(const SessionChanged&) const = default;
+};
+
+// Accepted limits or kill-switch change. A kill switch's cancels follow it.
+struct AdminAck {
+  SeqNo seq_no{};
+  AdminKind kind{};
+
+  bool operator==(const AdminAck&) const = default;
+};
+
+// Refused admin command; nothing changed.
+struct AdminReject {
+  SeqNo seq_no{};
+  AdminRejectReason reason{};
+
+  bool operator==(const AdminReject&) const = default;
+};
+
+using Event = std::variant<Ack, Reject, Fill, Cancelled, Trade, Replaced, SessionChanged,
+                           AdminAck, AdminReject>;
 
 // Canonical single-line text form (docs/event-format.md), shared byte for byte with the
 // Python reference engine. Also used in test failure messages.

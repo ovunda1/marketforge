@@ -16,6 +16,14 @@ option(MF_BUILD_BINDINGS "Build the pybind11 mfengine module" OFF)
 # O(N) book consistency walk after every command. On by default for correctness;
 # benchmark builds (M6) turn it off. The seq_no check is always on.
 option(MF_CHECK_INVARIANTS "Check order book invariants after every command" ON)
+# AddressSanitizer + UndefinedBehaviorSanitizer for everything built here, including
+# third-party code, so a bad access anywhere is reported. Any finding aborts.
+option(MF_SANITIZE "Build with ASan and UBSan" OFF)
+if(MF_SANITIZE)
+  add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all
+                      -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address,undefined)
+endif()
 
 if(MF_BUILD_TESTS)
   enable_testing()

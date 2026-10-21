@@ -1,0 +1,20 @@
+# Instrument: max qty 10, band 10% around the configured reference 100.
+L 1 10 1000 100
+# Defaults for every account: notional 1000, position 15, credit 2000, 3 open orders.
+A 2 * 1000 15 2000 3 - -
+N 3 1 1 B LMT GTC 0 CN 100 11
+# 11% above the reference.
+N 4 2 1 B LMT GTC 0 CN 111 1
+# Notional exactly 1000, then 1010.
+N 5 3 1 B LMT GTC 0 CN 100 10
+N 6 4 1 B LMT GTC 0 CN 101 10
+# Exactly on the band edge; worst-case position +15.
+N 7 5 1 B LMT GTC 0 CN 90 5
+N 8 6 1 B LMT GTC 0 CN 90 1
+# Open notional 1450 + 545 = 1995; third open order.
+N 9 7 1 S LMT GTC 0 CN 109 5
+N 10 8 1 S LMT GTC 0 CN 108 1
+# The cancel frees a slot and 545 of credit: 1450 + 654 > 2000, 1450 + 545 fits.
+C 11 7
+N 12 9 1 S LMT GTC 0 CN 109 6
+N 13 10 1 S LMT GTC 0 CN 109 5

@@ -22,21 +22,45 @@ using detail::put_u32;
 using detail::put_u64;
 using detail::put_u8;
 
-// Wire values of cmd_type (docs/journal-format.md).
-enum class CmdType : std::uint8_t { New = 1, Cancel = 2, Replace = 3 };
+// Wire values of cmd_type (docs/journal-format.md). 4-7 are version 2 (M5).
+enum class CmdType : std::uint8_t {
+  New = 1,
+  Cancel = 2,
+  Replace = 3,
+  SetSession = 4,
+  SetInstrumentLimits = 5,
+  SetAccountLimits = 6,
+  KillSwitch = 7,
+};
 
 // Bytes covered by the length field: seq_no, timestamp, cmd_type and the payload.
 constexpr std::uint32_t kBodyFixed = 8 + 8 + 1;
 constexpr std::uint32_t kNewPayload = 8 + 8 + 5 + 8 + 8;
 constexpr std::uint32_t kCancelPayload = 8;
 constexpr std::uint32_t kReplacePayload = 8 + 8 + 8;
-constexpr std::uint32_t kMinBody = kBodyFixed + kCancelPayload;
-constexpr std::uint32_t kMaxBody = kBodyFixed + kNewPayload;
+constexpr std::uint32_t kSessionPayload = 1;
+constexpr std::uint32_t kInstrumentPayload = 1 + 3 * 8;
+constexpr std::uint32_t kAccountPayload = 1 + 8 + 1 + 6 * 8;
+constexpr std::uint32_t kKillPayload = 1 + 8 + 1 + 1;
+constexpr std::uint32_t kMinBody = kBodyFixed + kSessionPayload;
+constexpr std::uint32_t kMaxBody = kBodyFixed + kAccountPayload;
+
+// Presence bits of the limit masks. An unset field is written as 0, so every command
+// has exactly one encoding.
+constexpr std::uint8_t kInstrumentMask = 0b111;
+constexpr std::uint8_t kAccountMask = 0b11111;
+
+void put_optional(std::string& out, std::uint8_t& mask, int bit, std::optional<std::int64_t> v) {
+  if (v) mask |= static_cast<std::uint8_t>(1u << bit);
+  put_i64(out, v.value_or(0));
+}
 
 // Enum wire values are the enumerators' underlying values; pin them, since changing
 // one would silently change the meaning of existing journals.
 static_assert(static_cast<int>(Side::Sell) == 1 && static_cast<int>(OrderType::Market) == 1);
 static_assert(static_cast<int>(TimeInForce::FOK) == 2 && static_cast<int>(StpMode::CancelBoth) == 2);
+static_assert(static_cast<int>(TimeInForce::Day) == 3 &&
+              static_cast<int>(SessionState::Closed) == 3);
 
 template <class E>
 std::uint8_t wire(E e) {
@@ -51,9 +75,9 @@ bool enum_from(std::uint8_t v, std::uint8_t max, E& out) {
   return true;
 }
 
-std::string header_prefix() {
+std::string header_prefix(std::uint16_t version) {
   std::string out(kJournalMagic);
-  put_u16(out, kJournalVersion);
+  put_u16(out, version);
   put_u16(out, 0);  // reserved
   return out;
 }
@@ -64,8 +88,8 @@ SeqNo JournalRecord::seq_no() const {
   return std::visit([](const auto& c) { return c.seq_no; }, command);
 }
 
-std::string encode_journal_header() {
-  std::string out = header_prefix();
+std::string encode_journal_header(std::uint16_t version) {
+  std::string out = header_prefix(version);
   put_u32(out, crc32(out));
   return out;
 }
@@ -90,11 +114,46 @@ std::string encode_record(const JournalRecord& record) {
         } else if constexpr (std::is_same_v<T, Cancel>) {
           type = CmdType::Cancel;
           put_u64(payload, c.order_id);
-        } else {
+        } else if constexpr (std::is_same_v<T, Replace>) {
           type = CmdType::Replace;
           put_u64(payload, c.order_id);
           put_i64(payload, c.price);
           put_i64(payload, c.qty);
+        } else if constexpr (std::is_same_v<T, SetSession>) {
+          type = CmdType::SetSession;
+          put_u8(payload, wire(c.state));
+        } else if constexpr (std::is_same_v<T, SetInstrumentLimits>) {
+          type = CmdType::SetInstrumentLimits;
+          std::uint8_t mask = 0;
+          std::string fields;
+          put_optional(fields, mask, 0, c.limits.max_qty);
+          put_optional(fields, mask, 1, c.limits.band_bps);
+          put_optional(fields, mask, 2, c.limits.reference_price);
+          put_u8(payload, mask);
+          payload += fields;
+        } else if constexpr (std::is_same_v<T, SetAccountLimits>) {
+          type = CmdType::SetAccountLimits;
+          put_u8(payload, c.account_id ? 1 : 0);
+          put_u64(payload, c.account_id.value_or(0));
+          const AccountLimits& l = c.limits;
+          std::uint8_t mask = 0;
+          std::string fields;
+          put_optional(fields, mask, 0, l.max_notional);
+          put_optional(fields, mask, 1, l.position_limit);
+          put_optional(fields, mask, 2, l.credit);
+          put_optional(fields, mask, 3, l.max_open_orders);
+          if (l.rate) mask |= 1u << 4;
+          put_i64(fields, l.rate ? l.rate->per_sec : 0);
+          put_i64(fields, l.rate ? l.rate->burst : 0);
+          put_u8(payload, mask);
+          payload += fields;
+        } else {
+          static_assert(std::is_same_v<T, KillSwitch>);
+          type = CmdType::KillSwitch;
+          put_u8(payload, c.account_id ? 1 : 0);
+          put_u64(payload, c.account_id.value_or(0));
+          put_u8(payload, c.engaged ? 1 : 0);
+          put_u8(payload, c.cancel_open ? 1 : 0);
         }
       },
       record.command);
@@ -186,10 +245,11 @@ JournalReader::JournalReader(const std::string& path) : path_(path) {
   const std::uint16_t reserved = r.u16();
   const std::uint32_t stored_crc = r.u32();
   if (stored_crc != crc32(std::string_view(header).substr(0, 12))) bad("journal header CRC mismatch");
-  if (version != kJournalVersion) {
+  if (version < 1 || version > kJournalVersion) {
     bad("unsupported journal format version " + std::to_string(version) +
-        " (this build reads version " + std::to_string(kJournalVersion) + ")");
+        " (this build reads versions 1 to " + std::to_string(kJournalVersion) + ")");
   }
+  version_ = version;
   if (reserved != 0) bad("journal header reserved field is not zero");
   offset_ = kJournalHeaderSize;
 }
@@ -255,6 +315,16 @@ std::optional<JournalRecord> JournalReader::next() {
   const std::uint32_t payload = length - kBodyFixed;
   const auto corrupt = [&](const std::string& what) { fail(Kind::Corrupt, at, "corrupt record: " + what); };
 
+  // Scope byte then account id; scope 0 (defaults / global) must carry account 0.
+  const auto read_scope = [&](const char* what) -> std::optional<AccountId> {
+    const std::uint8_t scope = r.u8();
+    const AccountId id = r.u64();
+    if (scope > 1) corrupt(std::string(what) + " scope " + std::to_string(scope) + " out of range");
+    if (scope == 1) return id;
+    if (id != 0) corrupt(std::string(what) + " without an account scope has an account id");
+    return std::nullopt;
+  };
+
   JournalRecord record{.timestamp = ts, .command = Cancel{}};
   if (type == static_cast<std::uint8_t>(CmdType::New)) {
     if (payload != kNewPayload) corrupt("length does not match a new-order record");
@@ -270,7 +340,9 @@ std::optional<JournalRecord> JournalReader::next() {
     if (!enum_from(order_type, 1, o.type)) {
       corrupt("order type " + std::to_string(order_type) + " out of range");
     }
-    if (!enum_from(tif, 2, o.tif)) corrupt("time in force " + std::to_string(tif) + " out of range");
+    if (!enum_from(tif, version_ >= 2 ? 3 : 2, o.tif)) {
+      corrupt("time in force " + std::to_string(tif) + " out of range");
+    }
     if (post_only > 1) corrupt("post_only " + std::to_string(post_only) + " is not 0 or 1");
     o.post_only = post_only == 1;
     if (!enum_from(stp, 2, o.stp)) corrupt("stp mode " + std::to_string(stp) + " out of range");
@@ -286,6 +358,59 @@ std::optional<JournalRecord> JournalReader::next() {
     c.order_id = r.u64();
     c.price = r.i64();
     c.qty = r.i64();
+    record.command = c;
+  } else if (version_ < 2 && type <= static_cast<std::uint8_t>(CmdType::KillSwitch)) {
+    corrupt("command type " + std::to_string(type) + " in a version 1 journal");
+  } else if (type == static_cast<std::uint8_t>(CmdType::SetSession)) {
+    if (payload != kSessionPayload) corrupt("length does not match a session record");
+    SetSession c{.seq_no = seq};
+    const std::uint8_t state = r.u8();
+    if (!enum_from(state, 3, c.state)) corrupt("session state " + std::to_string(state) + " out of range");
+    record.command = c;
+  } else if (type == static_cast<std::uint8_t>(CmdType::SetInstrumentLimits)) {
+    if (payload != kInstrumentPayload) corrupt("length does not match an instrument limits record");
+    const std::uint8_t mask = r.u8();
+    if ((mask & ~kInstrumentMask) != 0) corrupt("unknown instrument limit bits");
+    const auto field = [&](int bit) -> std::optional<std::int64_t> {
+      const std::int64_t v = r.i64();
+      if (mask & (1u << bit)) return v;
+      if (v != 0) corrupt("unset instrument limit is not zero");
+      return std::nullopt;
+    };
+    SetInstrumentLimits c{.seq_no = seq};
+    c.limits.max_qty = field(0);
+    c.limits.band_bps = field(1);
+    c.limits.reference_price = field(2);
+    record.command = c;
+  } else if (type == static_cast<std::uint8_t>(CmdType::SetAccountLimits)) {
+    if (payload != kAccountPayload) corrupt("length does not match an account limits record");
+    SetAccountLimits c{.seq_no = seq};
+    c.account_id = read_scope("account limits");
+    const std::uint8_t mask = r.u8();
+    if ((mask & ~kAccountMask) != 0) corrupt("unknown account limit bits");
+    const auto field = [&](int bit) -> std::optional<std::int64_t> {
+      const std::int64_t v = r.i64();
+      if (mask & (1u << bit)) return v;
+      if (v != 0) corrupt("unset account limit is not zero");
+      return std::nullopt;
+    };
+    c.limits.max_notional = field(0);
+    c.limits.position_limit = field(1);
+    c.limits.credit = field(2);
+    c.limits.max_open_orders = field(3);
+    const auto per_sec = field(4);
+    const auto burst = field(4);
+    if (per_sec) c.limits.rate = RateLimit{.per_sec = *per_sec, .burst = *burst};
+    record.command = c;
+  } else if (type == static_cast<std::uint8_t>(CmdType::KillSwitch)) {
+    if (payload != kKillPayload) corrupt("length does not match a kill switch record");
+    KillSwitch c{.seq_no = seq};
+    c.account_id = read_scope("kill switch");
+    const std::uint8_t engaged = r.u8();
+    const std::uint8_t cancel_open = r.u8();
+    if (engaged > 1 || cancel_open > 1) corrupt("kill switch flag is not 0 or 1");
+    c.engaged = engaged == 1;
+    c.cancel_open = cancel_open == 1;
     record.command = c;
   } else {
     corrupt("unknown command type " + std::to_string(type));

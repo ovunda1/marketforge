@@ -12,15 +12,17 @@
 // Golden scenarios (engine/tests/golden/*.cmds) with hand-derived expected output
 // (*.events). tests/test_golden.py runs the same files through the Python reference, so
 // both engines are checked against independently worked answers, not just each other.
+// Risk-gate scenarios (golden/risk/, M5) run against the C++ engine only: the Python
+// reference is book-only.
 
 namespace mf {
 namespace {
 
 namespace fs = std::filesystem;
 
-std::vector<std::string> golden_names() {
+std::vector<std::string> golden_names(const fs::path& dir = MF_GOLDEN_DIR) {
   std::vector<std::string> names;
-  for (const auto& entry : fs::directory_iterator(MF_GOLDEN_DIR)) {
+  for (const auto& entry : fs::directory_iterator(dir)) {
     if (entry.path().extension() == ".cmds") names.push_back(entry.path().stem().string());
   }
   std::sort(names.begin(), names.end());
@@ -34,13 +36,10 @@ std::vector<std::string> lines_of(const std::string& text) {
   return lines;
 }
 
-class Golden : public ::testing::TestWithParam<std::string> {};
-
-TEST_P(Golden, MatchesExpectedEvents) {
-  const fs::path dir = MF_GOLDEN_DIR;
-  std::ifstream cmds(dir / (GetParam() + ".cmds"));
-  std::ifstream expected_file(dir / (GetParam() + ".events"));
-  ASSERT_TRUE(cmds && expected_file) << "missing golden files for " << GetParam();
+void expect_golden(const fs::path& dir, const std::string& name) {
+  std::ifstream cmds(dir / (name + ".cmds"));
+  std::ifstream expected_file(dir / (name + ".events"));
+  ASSERT_TRUE(cmds && expected_file) << "missing golden files for " << name;
   std::stringstream expected_text;
   expected_text << expected_file.rdbuf();
 
@@ -57,9 +56,21 @@ TEST_P(Golden, MatchesExpectedEvents) {
   }
 }
 
-TEST(GoldenFiles, AreDiscovered) { EXPECT_GE(golden_names().size(), 12u); }
+class Golden : public ::testing::TestWithParam<std::string> {};
+class RiskGolden : public ::testing::TestWithParam<std::string> {};
+
+TEST_P(Golden, MatchesExpectedEvents) { expect_golden(MF_GOLDEN_DIR, GetParam()); }
+TEST_P(RiskGolden, MatchesExpectedEvents) { expect_golden(MF_RISK_GOLDEN_DIR, GetParam()); }
+
+TEST(GoldenFiles, AreDiscovered) {
+  EXPECT_GE(golden_names().size(), 12u);
+  EXPECT_GE(golden_names(MF_RISK_GOLDEN_DIR).size(), 7u);
+}
 
 INSTANTIATE_TEST_SUITE_P(Scenarios, Golden, ::testing::ValuesIn(golden_names()),
+                         [](const auto& info) { return info.param; });
+INSTANTIATE_TEST_SUITE_P(Scenarios, RiskGolden,
+                         ::testing::ValuesIn(golden_names(MF_RISK_GOLDEN_DIR)),
                          [](const auto& info) { return info.param; });
 
 }  // namespace

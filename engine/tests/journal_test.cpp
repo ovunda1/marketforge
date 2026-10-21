@@ -96,7 +96,8 @@ std::string reseal(std::string record) {
 // Expected bytes worked out independently with Python struct + zlib.crc32. Pins the
 // field order, widths, little-endian encoding, enum values and CRC coverage.
 TEST(JournalFormat, HeaderAndRecordsHaveExactBytes) {
-  EXPECT_EQ(encode_journal_header(), unhex("4d464a4f55524e4c010000006f4436da"));
+  EXPECT_EQ(encode_journal_header(), unhex("4d464a4f55524e4c0200000081eb83c8"));
+  EXPECT_EQ(encode_journal_header(1), unhex("4d464a4f55524e4c010000006f4436da"));
   EXPECT_EQ(encode_record(new_order(1, 1'000'000'000)),
             unhex("36000000" "0100000000000000" "00ca9a3b00000000" "01"
                   "2a00000000000000" "0700000000000000" "01" "00" "01" "00" "01"
@@ -219,15 +220,13 @@ TEST(JournalReader, RejectsBadHeaders) {
   EXPECT_EQ(p.error, Kind::BadHeader);
   EXPECT_NE(p.message.find("not a MarketForge journal"), std::string::npos) << p.message;
 
-  // Version 2 with a correct header CRC, so the version itself is what is reported.
-  std::string v2 = good.substr(0, 12);
-  v2[8] = 2;
-  const std::uint32_t crc = crc32(v2);
-  for (int i = 0; i < 4; ++i) v2 += static_cast<char>((crc >> (8 * i)) & 0xFF);
-  write_bytes(dir.file("v2.mfj"), v2);
-  p = read_until_error(dir.file("v2.mfj"));
+  // Version 3 with a correct header CRC, so the version itself is what is reported.
+  write_bytes(dir.file("v3.mfj"), encode_journal_header(3));
+  p = read_until_error(dir.file("v3.mfj"));
   EXPECT_EQ(p.error, Kind::BadHeader);
-  EXPECT_NE(p.message.find("version 2"), std::string::npos) << p.message;
+  EXPECT_NE(p.message.find("version 3"), std::string::npos) << p.message;
+  write_bytes(dir.file("v0.mfj"), encode_journal_header(0));
+  EXPECT_EQ(read_until_error(dir.file("v0.mfj")).error, Kind::BadHeader);
 
   std::string bad_crc = good;
   bad_crc[15] ^= 0x01;
@@ -355,6 +354,159 @@ TEST(JournalReader, RejectsTimestampsGoingBackwards) {
   const auto p = read_until_error(dir.file("ts.mfj"));
   EXPECT_EQ(p.records.size(), 2u);  // the equal timestamp is fine
   EXPECT_EQ(p.error, Kind::TimestampBackwards);
+}
+
+// --- Version 2: admin commands and DAY (M5) -----------------------------------------
+
+constexpr Timestamp kT = 1'000'000'000;
+
+std::vector<JournalRecord> admin_records() {
+  return {
+      {.timestamp = kT, .command = SetSession{.seq_no = 4, .state = SessionState::Closed}},
+      {.timestamp = kT,
+       .command = SetInstrumentLimits{.seq_no = 5,
+                                      .limits = {.max_qty = 1000, .reference_price = 10000}}},
+      {.timestamp = kT,
+       .command = SetAccountLimits{.seq_no = 6, .account_id = 7,
+                                   .limits = {.max_notional = 1'000'000,
+                                              .rate = RateLimit{.per_sec = 100, .burst = 20}}}},
+      {.timestamp = kT,
+       .command = KillSwitch{.seq_no = 7, .account_id = std::nullopt, .engaged = true,
+                             .cancel_open = true}},
+  };
+}
+
+// Expected bytes worked out independently with Python struct + zlib.crc32.
+TEST(JournalFormatV2, AdminRecordsHaveExactBytes) {
+  const auto r = admin_records();
+  EXPECT_EQ(encode_record(r[0]),
+            unhex("12000000" "0400000000000000" "00ca9a3b00000000" "04" "03" "dea18ee0"));
+  EXPECT_EQ(encode_record(r[1]),
+            unhex("2a000000" "0500000000000000" "00ca9a3b00000000" "05" "05"
+                  "e803000000000000" "0000000000000000" "1027000000000000" "027204d8"));
+  EXPECT_EQ(encode_record(r[2]),
+            unhex("4b000000" "0600000000000000" "00ca9a3b00000000" "06" "01"
+                  "0700000000000000" "11" "40420f0000000000" "0000000000000000"
+                  "0000000000000000" "0000000000000000" "6400000000000000"
+                  "1400000000000000" "30f9b74a"));
+  EXPECT_EQ(encode_record(r[3]),
+            unhex("1c000000" "0700000000000000" "00ca9a3b00000000" "07" "00"
+                  "0000000000000000" "01" "01" "b6e1793c"));
+}
+
+TEST(JournalV2, RoundTripsAdminCommandsAndDayOrders) {
+  TempDir dir;
+  constexpr auto kMaxI = std::numeric_limits<std::int64_t>::max();
+  constexpr Timestamp kLater = 2 * kT;  // after the sample records
+  std::vector<JournalRecord> records = sample_records();
+  auto day = new_order(4, kLater);
+  std::get<NewOrder>(day.command).tif = TimeInForce::Day;
+  records.push_back(day);
+  SeqNo seq = 5;
+  for (auto r : admin_records()) {
+    std::visit([&](auto& c) { c.seq_no = seq++; }, r.command);
+    r.timestamp = kLater;
+    records.push_back(r);
+  }
+  const std::vector<Command> more = {
+      SetSession{.state = SessionState::PreOpen},
+      SetSession{.state = SessionState::Continuous},
+      SetSession{.state = SessionState::Halted},
+      SetInstrumentLimits{.limits = {}},
+      SetInstrumentLimits{.limits = {.max_qty = kMaxI, .band_bps = -5, .reference_price = 0}},
+      SetAccountLimits{.account_id = std::nullopt, .limits = {}},
+      SetAccountLimits{.account_id = 0,
+                       .limits = {.max_notional = -1, .position_limit = kMaxI, .credit = 0,
+                                  .max_open_orders = 3, .rate = RateLimit{}}},
+      KillSwitch{.account_id = 9, .engaged = false, .cancel_open = false},
+      KillSwitch{.account_id = 0, .engaged = true, .cancel_open = false},
+  };
+  for (auto c : more) {
+    std::visit([&](auto& x) { x.seq_no = seq++; }, c);
+    records.push_back({.timestamp = kLater, .command = c});
+  }
+  EXPECT_EQ(read_all(write_journal(dir, records)), records);
+}
+
+TEST(JournalV2, ReadsVersion1Journals) {
+  TempDir dir;
+  std::string bytes = encode_journal_header(1);
+  for (const auto& r : sample_records()) bytes += encode_record(r);
+  write_bytes(dir.file("v1.mfj"), bytes);
+  EXPECT_EQ(read_all(dir.file("v1.mfj")), sample_records());
+}
+
+// Version 1 had no admin commands and no DAY: a v1 file containing them is damaged.
+TEST(JournalV2, Version1JournalsCannotHoldVersion2Commands) {
+  TempDir dir;
+  write_bytes(dir.file("admin.mfj"), encode_journal_header(1) + encode_record(cancel(1, 0)) +
+                                         encode_record({.timestamp = 0,
+                                                        .command = SetSession{.seq_no = 2}}));
+  auto p = read_until_error(dir.file("admin.mfj"));
+  EXPECT_EQ(p.error, Kind::Corrupt) << p.message;
+  EXPECT_EQ(p.records.size(), 1u);
+
+  auto day = new_order(1, 0);
+  std::get<NewOrder>(day.command).tif = TimeInForce::Day;
+  write_bytes(dir.file("day.mfj"), encode_journal_header(1) + encode_record(day));
+  p = read_until_error(dir.file("day.mfj"));
+  EXPECT_EQ(p.error, Kind::Corrupt) << p.message;
+}
+
+// Each command has exactly one encoding: unset fields must be zero, flags 0 or 1.
+TEST(JournalV2, RejectsBadAdminFieldsUnderAValidCrc) {
+  TempDir dir;
+  const auto check = [&](std::string record, const std::string& what) {
+    write_bytes(dir.file("f.mfj"), encode_journal_header() + reseal(std::move(record)));
+    const auto p = read_until_error(dir.file("f.mfj"));
+    EXPECT_EQ(p.error, Kind::Corrupt) << what << ": " << p.message;
+  };
+  const auto with_seq1 = [](JournalRecord r) {
+    std::visit([](auto& c) { c.seq_no = 1; }, r.command);
+    return encode_record(r);
+  };
+  constexpr std::size_t kPayload = 21;
+  const auto rs = admin_records();
+
+  std::string r = with_seq1(rs[0]);
+  r[kPayload] = 4;
+  check(r, "session state out of range");
+
+  const std::string ins = with_seq1(rs[1]);
+  r = ins;
+  r[kPayload] = 8;
+  check(r, "unknown instrument mask bit");
+  r = ins;
+  r[kPayload + 1 + 8] = 1;  // band_bps is unset but non-zero
+  check(r, "unset instrument field not zero");
+
+  const std::string acc = with_seq1(rs[2]);
+  r = acc;
+  r[kPayload] = 2;
+  check(r, "account scope out of range");
+  r = acc;
+  r[kPayload] = 0;  // defaults scope with account 7
+  check(r, "defaults scope with an account id");
+  r = acc;
+  r[kPayload + 9] = 0x20;
+  check(r, "unknown account mask bit");
+  r = acc;
+  r[kPayload + 10 + 8] = 1;  // position_limit unset but non-zero
+  check(r, "unset account field not zero");
+
+  const std::string kill = with_seq1(rs[3]);
+  r = kill;
+  r[kPayload] = 2;
+  check(r, "kill scope out of range");
+  r = kill;
+  r[kPayload + 1] = 1;  // global scope with an account id
+  check(r, "global scope with an account id");
+  r = kill;
+  r[kPayload + 9] = 2;
+  check(r, "engaged not 0 or 1");
+  r = kill;
+  r[kPayload + 10] = 2;
+  check(r, "cancel_open not 0 or 1");
 }
 
 }  // namespace

@@ -8,10 +8,21 @@ the Python reference (`reference/`). Used by golden files and the differential t
 One per line, positional, space separated. Blank lines and text after `#` are ignored.
 
 ```text
-N <seq> <id> <acct> <B|S> <LMT|MKT> <GTC|IOC|FOK> <post_only:0|1> <CN|CO|CB> <px> <qty>
+N <seq> <id> <acct> <B|S> <LMT|MKT> <GTC|IOC|FOK|DAY> <post_only:0|1> <CN|CO|CB> <px> <qty>
 C <seq> <id>
 R <seq> <id> <px> <qty>
+S <seq> <PRE_OPEN|CONTINUOUS|HALTED|CLOSED>
+L <seq> <max_qty> <band_bps> <ref_px>
+A <seq> <acct|*> <max_notional> <position> <credit> <max_open> <rate> <burst>
+K <seq> <acct|*> <ON|OFF> <CANCEL|KEEP>
+T <ns>
 ```
+
+`S`, `L`, `A` and `K` are the admin commands (M5, `docs/risk.md`). In `L` and `A`, `-`
+leaves a limit unset, and `*` means the defaults (`A`) or the global switch (`K`). A `T`
+line is not a command: it sets the timestamp of the commands after it (the rate
+limiter's clock). It starts at 0 and must never go backwards. The Python reference
+engine is book-only and understands `N`, `C` and `R` (without `DAY`).
 
 `CN`/`CO`/`CB` are the STP modes cancel-newest, cancel-oldest and cancel-both.
 Prices and quantities may be negative so invalid orders can be expressed.
@@ -28,17 +39,35 @@ TRD  seq= trade= px= qty= maker= taker= aggr=
 FILL seq= trade= id= acct= side= liq=M|T px= qty= leaves= cum=
 CXL  seq= id= qty= reason=USER|UNFILLED|SELF_TRADE
 RPL  seq= id= px= qty= leaves= prio=KEPT|LOST
+SES  seq= state=PRE_OPEN|CONTINUOUS|HALTED|CLOSED
+ADM  seq= kind=INSTRUMENT_LIMITS|ACCOUNT_LIMITS|KILL_SWITCH
+AREJ seq= reason=INVALID_TRANSITION|INVALID_LIMITS|INVALID_KILL_SWITCH
 BOOK seq= bid=<px>x<qty>|- ask=<px>x<qty>|-
 LVL  side=B|S px= qty= orders=<id>:<leaves>,...
 ```
 
 (Columns are aligned here for reading; the real format has one space after the tag.)
 
-Within one command the order is fixed: `ACK`/`RPL`/`REJ`; then per match `TRD`, maker
-`FILL`, taker `FILL`, with a resting order's STP `CXL` where it happens; then the
-incoming order's own `CXL`. Reject reasons: `INVALID_PRICE`, `INVALID_QTY`,
-`INVALID_ORDER_TYPE`, `DUPLICATE_ORDER_ID`, `UNKNOWN_ORDER`, `NO_LIQUIDITY`,
-`FOK_NOT_FILLABLE`, `POST_ONLY_WOULD_CROSS`, `REPLACE_QTY_TOO_LOW`.
+Within one command the order is fixed:
+1. `ACK`, `RPL` or `REJ`.
+2. Per match: `TRD`, maker `FILL`, taker `FILL`, with a resting order's STP `CXL` where
+   it happens.
+3. The incoming order's own `CXL`.
+
+An admin command emits `SES`, `ADM` or `AREJ`. After `SES state=CLOSED` comes one
+`CXL reason=EXPIRED` per DAY order; after a kill switch's `ADM` comes one
+`CXL reason=KILL_SWITCH` per cancelled order. Both run bids best first, then asks, FIFO
+within a level.
+
+Reject reasons:
+- **Book:** `INVALID_PRICE`, `INVALID_QTY`, `INVALID_ORDER_TYPE`, `DUPLICATE_ORDER_ID`,
+  `UNKNOWN_ORDER`, `NO_LIQUIDITY`, `FOK_NOT_FILLABLE`, `POST_ONLY_WOULD_CROSS`,
+  `REPLACE_QTY_TOO_LOW`.
+- **Risk gate (M5):** `MARKET_CLOSED`, `KILL_SWITCH`, `RATE_LIMIT`, `MAX_QTY`,
+  `PRICE_BAND`, `MAX_NOTIONAL`, `MAX_OPEN_ORDERS`, `POSITION_LIMIT`,
+  `INSUFFICIENT_CREDIT`.
+
+Cancel reasons: `USER`, `UNFILLED`, `SELF_TRADE`, `EXPIRED`, `KILL_SWITCH`.
 
 `BOOK` and `LVL` are written by the drivers, not emitted by the engine: comparing top of
 book after every command pins a divergence to the exact command that caused it, and the

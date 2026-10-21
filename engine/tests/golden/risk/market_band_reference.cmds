@@ -1,0 +1,8 @@
+# With a band configured, a market order needs a reference price to cap it.
+N 1 1 1 S LMT GTC 0 CN 100 5
+L 2 - 500 -
+# One-sided book, no trade, no configured reference: nothing to cap it at.
+N 3 2 2 B MKT IOC 0 CN 0 1
+# A configured reference (e.g. the previous close) makes it tradable: edge 105.
+L 4 - 500 100
+N 5 3 2 B MKT IOC 0 CN 0 3

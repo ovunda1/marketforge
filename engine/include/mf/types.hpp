@@ -23,9 +23,18 @@ enum class Side : std::uint8_t { Buy, Sell };
 // A market order has no price and sweeps the opposite side; it must be IOC.
 enum class OrderType : std::uint8_t { Limit, Market };
 
+// Notional values (price x qty) and sums of them. A product of two int64 values can
+// overflow int64, so risk arithmetic is done in 128 bits. __extension__ keeps
+// -Wpedantic quiet about the GCC/Clang builtin.
+__extension__ typedef __int128 Notional;
+
 // GTC rests until cancelled; IOC cancels what it cannot fill immediately; FOK fills
-// completely or is rejected. DAY arrives with session states in M4.
-enum class TimeInForce : std::uint8_t { GTC, IOC, FOK };
+// completely or is rejected. DAY rests like GTC and expires when the session closes.
+enum class TimeInForce : std::uint8_t { GTC, IOC, FOK, Day };
+
+// Trading session of one symbol (docs/risk.md). Only Continuous accepts new orders and
+// replaces; cancels are accepted in every state.
+enum class SessionState : std::uint8_t { PreOpen, Continuous, Halted, Closed };
 
 // Self-trade prevention: what happens when an incoming order reaches a resting order of
 // the same account. The incoming order's mode decides. The gateway fills it in from the
