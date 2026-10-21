@@ -16,6 +16,9 @@ option(MF_BUILD_BINDINGS "Build the pybind11 mfengine module" OFF)
 # O(N) book consistency walk after every command. On by default for correctness;
 # benchmark builds (M6) turn it off. The seq_no check is always on.
 option(MF_CHECK_INVARIANTS "Check order book invariants after every command" ON)
+# Benchmarks (M6): Google Benchmark, HdrHistogram and the bench/ harness. Off by default;
+# `make bench` builds them in build-bench/ (Release, invariant walk off).
+option(MF_BUILD_BENCH "Build the benchmark harness in bench/" OFF)
 # AddressSanitizer + UndefinedBehaviorSanitizer for everything built here, including
 # third-party code, so a bad access anywhere is reported. Any finding aborts.
 option(MF_SANITIZE "Build with ASan and UBSan" OFF)
@@ -30,6 +33,10 @@ if(MF_BUILD_TESTS)
 endif()
 
 add_subdirectory(engine)
+
+if(MF_BUILD_BENCH)
+  add_subdirectory(bench)
+endif()
 
 if(MF_BUILD_BINDINGS)
   add_subdirectory(bindings)

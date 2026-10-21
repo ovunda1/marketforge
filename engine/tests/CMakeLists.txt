@@ -16,6 +16,7 @@ add_executable(mf_engine_tests
   journal_test.cpp
   order_book_test.cpp
   order_types_test.cpp
+  price_levels_test.cpp
   replay_test.cpp
   risk_config_test.cpp
   risk_replay_test.cpp
@@ -30,6 +31,7 @@ target_compile_definitions(mf_engine_tests PRIVATE
   MF_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
   MF_RISK_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden/risk"
   MF_JOURNAL_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/journal"
+  MF_OPTION_CHECK_INVARIANTS=$<BOOL:${MF_CHECK_INVARIANTS}>
 )
 
 include(GoogleTest)

@@ -26,7 +26,7 @@ from itertools import zip_longest
 from pathlib import Path
 
 from reference.commands import parse_command
-from reference.generator import generate
+from reference.generator import PROFILES, generate
 from reference.run import run_lines
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -145,28 +145,29 @@ def _report(m: Mismatch, seed: int, n: int) -> None:
 
 
 def difftest(
-    seed: int, n: int, driver: Path, workdir: Path, regressions_dir: Path
+    seed: int, n: int, driver: Path, workdir: Path, regressions_dir: Path, profile: str = "narrow"
 ) -> Mismatch | None:
     """Generates `n` commands from `seed`, runs both engines and compares their output."""
     start = time.monotonic()
-    commands = generate(seed, n)
-    cmds_path = workdir / f"seed-{seed}.cmds"
+    commands = generate(seed, n, profile)
+    name = f"seed-{seed}" if profile == "narrow" else f"{profile}-seed-{seed}"
+    cmds_path = workdir / f"{name}.cmds"
     cmds_path.write_text("\n".join(commands) + "\n")
-    events_path = workdir / f"seed-{seed}.engine.events"
+    events_path = workdir / f"{name}.engine.events"
     try:
         _run_driver_to(driver, cmds_path, events_path)
     except DriverError as e:
         m = Mismatch(0, None, "<engine output>", f"<driver failed: {e}>", None, [])
         _report(m, seed, n)
-        print(f"  saved regression: {save_regression(commands, None, f'seed-{seed}', regressions_dir)}")
+        print(f"  saved regression: {save_regression(commands, None, name, regressions_dir)}")
         return m
 
     m, lines = _compare(run_lines(commands), _lines(events_path), commands)
     if m is not None:
         _report(m, seed, n)
-        print(f"  saved regression: {save_regression(commands, m.seq, f'seed-{seed}', regressions_dir)}")
+        print(f"  saved regression: {save_regression(commands, m.seq, name, regressions_dir)}")
         return m
-    print(f"difftest ok: seed {seed}, {n} commands, {lines} output lines identical "
+    print(f"difftest ok: {profile} profile, seed {seed}, {n} commands, {lines} output lines identical "
           f"({time.monotonic() - start:.1f}s)")
     return None
 
@@ -177,6 +178,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--n", type=int, default=100_000)
     parser.add_argument("--regressions-dir", type=Path, default=DEFAULT_REGRESSIONS_DIR)
+    parser.add_argument("--profile", choices=PROFILES, default="narrow")
     parser.add_argument("--replay", action="store_true", help="replay saved regressions only")
     args = parser.parse_args(argv)
 
@@ -189,7 +191,7 @@ def main(argv: list[str]) -> int:
         return 1 if failed else 0
 
     with tempfile.TemporaryDirectory() as tmp:
-        m = difftest(args.seed, args.n, args.driver, Path(tmp), args.regressions_dir)
+        m = difftest(args.seed, args.n, args.driver, Path(tmp), args.regressions_dir, args.profile)
     return 1 if m else 0
 
 

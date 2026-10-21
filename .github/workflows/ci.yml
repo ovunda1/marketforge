@@ -56,6 +56,43 @@ jobs:
       - name: Test (pytest, sanitized tools)
         run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest
 
+  # Benchmarks (M6) as a smoke test: the suite on the Release benchmark build (walk off),
+  # including the pinned workload digests, then every benchmark at tiny sizes with its
+  # results schema checked. No speed assertion: CI runners are too noisy for that.
+  bench-smoke:
+    name: Bench smoke (${{ matrix.compiler.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { name: gcc, cc: gcc, cxx: g++ }
+          - { name: clang, cc: clang, cxx: clang++ }
+    env:
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Configure
+        run: cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DMF_CHECK_INVARIANTS=OFF -DMF_BUILD_BENCH=ON
+      - name: Build
+        run: cmake --build build-bench -j
+      - name: Test (GoogleTest, benchmark build)
+        run: ctest --test-dir build-bench --output-on-failure --no-tests=error
+      - name: Smoke-run every benchmark
+        run: python -m bench.run --build-dir build-bench --smoke
+      - name: Workloads replayed with the invariant walk on
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DMF_BUILD_TESTS=OFF
+          cmake --build build -j --target mf-replay
+          python -m bench.crosscheck --bench-dir build-bench --replay build/engine/tools/mf-replay
+
   bindings:
     name: pybind11 stub
     runs-on: ubuntu-latest

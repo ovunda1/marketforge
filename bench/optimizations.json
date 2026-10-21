@@ -1,0 +1,5 @@
+{
+  "_comment": "Optimizations measured for bench/OPTIMIZATIONS.md. Each one's before and after are git tags (pushed, so `make bench-ab` works from a fresh clone); bench/results/ab/<id>.json holds the A/B results. keep_threshold: the flat price-level array is kept only if the geometric mean of its end-to-end throughput ratios on the two workloads reaches it.",
+  "keep_threshold": 1.05,
+  "optimizations": []
+}

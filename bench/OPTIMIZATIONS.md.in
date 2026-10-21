@@ -1,0 +1,18 @@
+# Optimization log
+
+<!-- Generated from OPTIMIZATIONS.md.in by `make bench-docs` out of bench/results/ab/*.json.
+Do not edit OPTIMIZATIONS.md by hand: every number here comes from the JSON. -->
+
+Each optimization is one commit between two git tags, `m6-opt-<n>-before` and
+`m6-opt-<n>-after`. Before it is measured it must pass `make gate`: the full test suite
+with the invariant walk on, ASan and UBSan, the long differential test on both generator
+profiles, the suite again on the Release benchmark build, and the benchmark workloads
+replayed with the invariant walk on. Correctness gates every speedup.
+
+`make bench-ab OPT=<id>` builds both tags in git worktrees and runs them in interleaved
+rounds (A B, B A, ...), so temperature and clock drift hit both sides. Each round runs
+both workloads end to end and the microbenchmarks. Ratios are paired by round. A change
+counts as faster or slower only if every round agrees; otherwise it is "no measurable
+effect". Before and after must produce the same event digest.
+
+No optimization has been measured yet.
