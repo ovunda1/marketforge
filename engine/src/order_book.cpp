@@ -126,8 +126,7 @@ bool OrderBook::match(Levels& opposite, Aggressor& taker, std::vector<Event>& ou
 
   bool stp_stop = false;
   while (taker.leaves > 0 && !stp_stop && !opposite.empty()) {
-    const auto level_it = opposite.begin();
-    Level& level = level_it->second;
+    Level& level = *opposite.first();
     if (!crosses(level.price)) break;
 
     while (taker.leaves > 0 && level.head != nullptr) {
@@ -178,7 +177,7 @@ bool OrderBook::match(Levels& opposite, Aggressor& taker, std::vector<Event>& ou
         release(maker);  // destroys maker; not used below
       }
     }
-    if (level.head == nullptr) opposite.erase(level_it);
+    if (level.head == nullptr) opposite.erase(level);
   }
   return stp_stop;
 }
@@ -189,12 +188,13 @@ bool OrderBook::match(Levels& opposite, Aggressor& taker, std::vector<Event>& ou
 template <class Levels>
 bool OrderBook::fok_fillable(const Levels& opposite, const Aggressor& taker) const {
   Qty available = 0;
-  for (const auto& [price, level] : opposite) {
+  for (const Level* level = opposite.first(); level != nullptr; level = opposite.after(*level)) {
+    const Price price = level->price;
     if (taker.limit &&
         (taker.side == Side::Buy ? price > *taker.limit : price < *taker.limit)) {
       break;
     }
-    for (const Order* o = level.head; o != nullptr; o = o->next) {
+    for (const Order* o = level->head; o != nullptr; o = o->next) {
       if (o->account_id == taker.account_id) {
         if (taker.stp == StpMode::CancelOldest) continue;
         return false;
@@ -207,8 +207,8 @@ bool OrderBook::fok_fillable(const Levels& opposite, const Aggressor& taker) con
 }
 
 bool OrderBook::crosses_opposite(Side side, Price price) const {
-  if (side == Side::Buy) return !asks_.empty() && asks_.begin()->first <= price;
-  return !bids_.empty() && bids_.begin()->first >= price;
+  if (side == Side::Buy) return !asks_.empty() && asks_.first()->price <= price;
+  return !bids_.empty() && bids_.first()->price >= price;
 }
 
 bool OrderBook::opposite_empty(Side side) const {
@@ -224,9 +224,7 @@ void OrderBook::rest(const Aggressor& taker, Qty original_qty) {
       .stp = taker.stp, .tif = taker.tif});
   orders_.try_emplace(taker.order_id, &resting);
 
-  Level& level = taker.side == Side::Buy
-                     ? bids_.try_emplace(price, Level{.price = price}).first->second
-                     : asks_.try_emplace(price, Level{.price = price}).first->second;
+  Level& level = taker.side == Side::Buy ? bids_.get_or_create(price) : asks_.get_or_create(price);
   append(level, resting);
 }
 
@@ -299,10 +297,9 @@ void OrderBook::on_replace(const Replace& replace, std::vector<Event>& out) {
 void OrderBook::remove(Order& order) {
   Level& level = *order.level;
   const Side side = order.side;
-  const Price price = order.price;
   unlink(level, order);
   release(order);
-  if (level.head == nullptr) erase_level(side, price);
+  if (level.head == nullptr) erase_level(side, level);
 }
 
 void OrderBook::release(Order& order) {
@@ -310,11 +307,11 @@ void OrderBook::release(Order& order) {
   pool_.destroy(&order);
 }
 
-void OrderBook::erase_level(Side side, Price price) {
+void OrderBook::erase_level(Side side, Level& level) {
   if (side == Side::Buy) {
-    bids_.erase(price);
+    bids_.erase(level);
   } else {
-    asks_.erase(price);
+    asks_.erase(level);
   }
 }
 
@@ -357,21 +354,16 @@ void OrderBook::unlink(Level& level, Order& order) {
 
 std::optional<Price> OrderBook::best_bid() const {
   if (bids_.empty()) return std::nullopt;
-  return bids_.begin()->first;
+  return bids_.first()->price;
 }
 
 std::optional<Price> OrderBook::best_ask() const {
   if (asks_.empty()) return std::nullopt;
-  return asks_.begin()->first;
+  return asks_.first()->price;
 }
 
 const OrderBook::Level* OrderBook::find_level(Side side, Price price) const {
-  if (side == Side::Buy) {
-    const auto it = bids_.find(price);
-    return it == bids_.end() ? nullptr : &it->second;
-  }
-  const auto it = asks_.find(price);
-  return it == asks_.end() ? nullptr : &it->second;
+  return side == Side::Buy ? bids_.find(price) : asks_.find(price);
 }
 
 Qty OrderBook::level_qty(Side side, Price price) const {
@@ -398,10 +390,13 @@ std::size_t OrderBook::level_count(Side side) const {
 
 std::vector<Price> OrderBook::level_prices(Side side) const {
   std::vector<Price> prices;
+  const auto collect = [&](const auto& levels) {
+    for (const Level* l = levels.first(); l != nullptr; l = levels.after(*l)) prices.push_back(l->price);
+  };
   if (side == Side::Buy) {
-    for (const auto& [price, level] : bids_) prices.push_back(price);
+    collect(bids_);
   } else {
-    for (const auto& [price, level] : asks_) prices.push_back(price);
+    collect(asks_);
   }
   return prices;
 }
@@ -425,9 +420,10 @@ Notional OrderBook::sweep_notional(Side side, Qty qty, AccountId account_id,
   Notional total = 0;
   Qty left = qty;
   const auto walk = [&](const auto& opposite) {
-    for (const auto& [price, level] : opposite) {
+    for (const Level* level = opposite.first(); level != nullptr; level = opposite.after(*level)) {
+      const Price price = level->price;
       if (limit && (side == Side::Buy ? price > *limit : price < *limit)) return;
-      for (const Order* o = level.head; o != nullptr; o = o->next) {
+      for (const Order* o = level->head; o != nullptr; o = o->next) {
         if (o->account_id == account_id) continue;
         const Qty take = std::min(left, o->leaves_qty);
         total += Notional{price} * take;
@@ -452,8 +448,8 @@ void OrderBook::cancel_where(SeqNo seq_no,
   // Collect first: removing an order can erase the level being walked.
   std::vector<Order*> selected;
   const auto collect = [&](auto& levels) {
-    for (auto& [price, level] : levels) {
-      for (Order* o = level.head; o != nullptr; o = o->next) {
+    for (Level* level = levels.first(); level != nullptr; level = levels.after(*level)) {
+      for (Order* o = level->head; o != nullptr; o = o->next) {
         const OrderView view{.account_id = o->account_id, .side = o->side, .price = o->price,
                              .qty = o->original_qty, .leaves_qty = o->leaves_qty,
                              .filled_qty = o->filled_qty};
@@ -485,9 +481,9 @@ BookState OrderBook::state() const {
   used_ids_.for_each([&](OrderId id) { s.used_ids.push_back(id); });
   std::sort(s.used_ids.begin(), s.used_ids.end());  // hash order must not leak out
   const auto copy_side = [](const auto& levels, std::vector<BookState::Level>& out) {
-    for (const auto& [price, level] : levels) {
-      BookState::Level& l = out.emplace_back(BookState::Level{.price = price});
-      for (const Order* o = level.head; o != nullptr; o = o->next) {
+    for (const Level* level = levels.first(); level != nullptr; level = levels.after(*level)) {
+      BookState::Level& l = out.emplace_back(BookState::Level{.price = level->price});
+      for (const Order* o = level->head; o != nullptr; o = o->next) {
         l.orders.push_back({.order_id = o->order_id, .account_id = o->account_id,
                             .qty = o->original_qty, .leaves_qty = o->leaves_qty,
                             .filled_qty = o->filled_qty, .priority_seq_no = o->seq_no,
@@ -522,9 +518,8 @@ std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
         fail(where + "levels not strictly best price first");
       }
       if (l.orders.empty()) fail(where + "empty level");
-      Level& level = side == Side::Buy
-                         ? book->bids_.try_emplace(l.price, Level{.price = l.price}).first->second
-                         : book->asks_.try_emplace(l.price, Level{.price = l.price}).first->second;
+      Level& level = side == Side::Buy ? book->bids_.get_or_create(l.price)
+                                       : book->asks_.get_or_create(l.price);
       for (const auto& o : l.orders) {
         const std::string who = where + "order " + std::to_string(o.order_id) + ": ";
         if (o.leaves_qty <= 0 || o.filled_qty < 0 || o.filled_qty + o.leaves_qty != o.qty) {
@@ -555,14 +550,20 @@ std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
 // --- Invariants -------------------------------------------------------------------
 
 void OrderBook::check_invariants() const {
+  try {
+    bids_.check();
+    asks_.check();
+  } catch (const std::logic_error& e) {
+    fail(e.what());
+  }
   const std::size_t resting = check_side(bids_, Side::Buy) + check_side(asks_, Side::Sell);
   if (resting != orders_.size()) {
     fail("levels hold " + std::to_string(resting) + " orders but index holds " +
          std::to_string(orders_.size()));
   }
-  if (!bids_.empty() && !asks_.empty() && bids_.begin()->first >= asks_.begin()->first) {
-    fail("book crossed: bid " + std::to_string(bids_.begin()->first) + " >= ask " +
-         std::to_string(asks_.begin()->first));
+  if (!bids_.empty() && !asks_.empty() && bids_.first()->price >= asks_.first()->price) {
+    fail("book crossed: bid " + std::to_string(bids_.first()->price) + " >= ask " +
+         std::to_string(asks_.first()->price));
   }
 }
 
@@ -570,9 +571,16 @@ void OrderBook::check_invariants() const {
 template <class Levels>
 std::size_t OrderBook::check_side(const Levels& levels, Side side) const {
   std::size_t total_orders = 0;
-  for (const auto& [price, level] : levels) {
+  std::optional<Price> previous;
+  for (const Level* l = levels.first(); l != nullptr; l = levels.after(*l)) {
+    const Level& level = *l;
+    const Price price = level.price;
     const std::string where = "level " + std::to_string(price) + ": ";
-    if (level.price != price) fail(where + "level price does not match its key");
+    if (previous && (side == Side::Buy ? price >= *previous : price <= *previous)) {
+      fail(where + "levels not in strict best-first order");
+    }
+    previous = price;
+    if (levels.find(price) != l) fail(where + "level not found at its own price");
     if (level.head == nullptr) fail(where + "empty level left on the book");
 
     Qty sum = 0;

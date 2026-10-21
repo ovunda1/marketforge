@@ -14,6 +14,7 @@
 #include "mf/events.hpp"
 #include "mf/flat_hash_map.hpp"
 #include "mf/object_pool.hpp"
+#include "mf/price_levels.hpp"
 #include "mf/types.hpp"
 
 namespace mf {
@@ -129,8 +130,8 @@ class OrderBook {
   template <class F>
   void for_each_order(F&& f) const {
     const auto walk = [&](const auto& levels) {
-      for (const auto& [price, level] : levels) {
-        for (const Order* o = level.head; o != nullptr; o = o->next) {
+      for (const Level* level = levels.first(); level != nullptr; level = levels.after(*level)) {
+        for (const Order* o = level->head; o != nullptr; o = o->next) {
           f(o->order_id, OrderView{.account_id = o->account_id, .side = o->side,
                                    .price = o->price, .qty = o->original_qty,
                                    .leaves_qty = o->leaves_qty, .filled_qty = o->filled_qty});
@@ -214,10 +215,11 @@ class OrderBook {
     Qty filled{};
   };
 
-  // begin() is the best price on both sides. std::map nodes never move, so the
-  // Level* stored in each Order stays valid while other levels come and go.
-  using BidLevels = std::map<Price, Level, std::greater<Price>>;
-  using AskLevels = std::map<Price, Level, std::less<Price>>;
+  // first() is the best price on both sides: a flat window of tick slots around it,
+  // ordered overflow beyond (price_levels.hpp). Level objects never move, so the Level*
+  // stored in each Order stays valid while other levels come and go.
+  using BidLevels = PriceLevels<Level, true>;
+  using AskLevels = PriceLevels<Level, false>;
 
   void on_new_order(const NewOrder& order, std::optional<Price> market_limit,
                     std::vector<Event>& out);
@@ -240,7 +242,7 @@ class OrderBook {
   void remove(Order& order);
   // Drops an unlinked order from the index and returns it to the pool.
   void release(Order& order);
-  void erase_level(Side side, Price price);
+  void erase_level(Side side, Level& level);
 
   static void append(Level& level, Order& order);
   static void unlink(Level& level, Order& order);

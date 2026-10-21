@@ -19,6 +19,7 @@ add_executable(mf_engine_tests
   order_book_test.cpp
   order_types_test.cpp
   price_levels_test.cpp
+  price_levels_unit_test.cpp
   replay_test.cpp
   risk_config_test.cpp
   risk_replay_test.cpp
