@@ -120,6 +120,10 @@ class Probe {
     while (suspect && attempt < o_.max_attempts) {
       ++attempt;
       std::this_thread::sleep_for(std::chrono::milliseconds(o_.cooldown_ms));
+      // The core clocks down while asleep: a first probe brings it back up and is
+      // discarded, so the probe compares steady states (as the measured run does, after
+      // its untimed warm-up).
+      calibrate();
       before = calibrate();
       result = rep();
       after = calibrate();

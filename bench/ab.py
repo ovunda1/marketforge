@@ -1,7 +1,9 @@
 """A/B comparison of two tagged builds for bench/OPTIMIZATIONS.md.
 
 Each side of an optimization (its before and after tags, bench/optimizations.json) is
-checked out into a git worktree under .bench-ab/ and built like `make bench`. The two
+checked out into a git worktree under .bench-ab/ and built like `make bench`, with the
+current bench/ copied over the tag's: both sides run the same measurement code, and only
+the engine (and its build flags) differs. The two
 builds then run in interleaved rounds (A B, B A, A B, ...) so that drift in temperature
 or clock speed hits both equally. Every round runs both workloads end to end (one
 repetition each: throughput and latency) and the microbenchmarks. Ratios are paired by
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,7 +44,11 @@ def build(ref: str) -> tuple[Path, str]:
         WORKTREES.mkdir(exist_ok=True)
         _git("worktree", "add", "--detach", str(tree), commit)
     else:
-        subprocess.run(["git", "-C", str(tree), "checkout", "--quiet", "--detach", commit], check=True)
+        subprocess.run(["git", "-C", str(tree), "checkout", "--quiet", "--force", "--detach", commit],
+                       check=True)
+    # The same harness on both sides: today's bench/ over the tag's.
+    shutil.copytree(REPO_ROOT / "bench", tree / "bench", dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("results", "__pycache__", "*.md", "*.md.in"))
     build_dir = tree / "build-bench"
     cmd = ["cmake", "-S", str(tree), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release",
            "-DMF_CHECK_INVARIANTS=OFF", "-DMF_BUILD_BENCH=ON", "-DMF_BUILD_TESTS=OFF"]
@@ -116,6 +123,7 @@ def compare(opt: dict, rounds: int, n: int, forced: bool) -> dict:
         "before": {"ref": opt["before"], "commit": sides["before"]["commit"],
                    "build": per["before"]["replay"][run.PROFILES[0]][0]["build"]},
         "after": {"ref": opt["after"], "commit": sides["after"]["commit"]},
+        "harness": machine.git_info(),
         "machine": machine.machine(forced=forced), "build": after_first["build"],
         "timer": after_first["timer"],
         "settings": {"rounds": rounds, "n": n, "reps_per_round": 1, "micro_min_time": "0.1s",
