@@ -1,6 +1,7 @@
 add_library(mf_engine
   src/events.cpp
   src/order_book.cpp
+  src/text_format.cpp
   src/version.cpp
 )
 add_library(mf::engine ALIAS mf_engine)
@@ -16,6 +17,9 @@ target_compile_options(mf_engine PRIVATE
 )
 # Position-independent so the library can be linked into the Python extension.
 set_target_properties(mf_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Differential-test driver; always built (it is small and the Python tests use it).
+add_subdirectory(tools)
 
 if(MF_BUILD_TESTS)
   add_subdirectory(tests)

@@ -54,6 +54,8 @@ class OrderBook {
   std::vector<OrderId> level_orders(Side side, Price price) const;
   // Number of distinct price levels on one side.
   std::size_t level_count(Side side) const;
+  // Prices of the levels on one side, best first.
+  std::vector<Price> level_prices(Side side) const;
 
   std::size_t order_count() const { return orders_.size(); }
   // Open quantity of a resting order, or nullopt if it is not on the book.
@@ -73,10 +75,12 @@ class OrderBook {
     AccountId account_id{};
     Side side{};
     Price price{};
-    Qty original_qty{};
+    Qty original_qty{};  // current total quantity (a replace changes it)
     Qty leaves_qty{};
     Qty filled_qty{};
-    SeqNo seq_no{};
+    SeqNo seq_no{};  // command that last set its time priority
+    bool post_only{};
+    StpMode stp{};
     Level* level{};
     Order* prev{};
     Order* next{};
@@ -90,6 +94,19 @@ class OrderBook {
     Order* tail{};  // newest order
   };
 
+  // The incoming side of a match: a new order, or a resting order re-priced by a replace.
+  struct Aggressor {
+    SeqNo seq_no{};
+    OrderId order_id{};
+    AccountId account_id{};
+    Side side{};
+    std::optional<Price> limit;  // nullopt for a market order
+    bool post_only{};
+    StpMode stp{};
+    Qty leaves{};
+    Qty filled{};
+  };
+
   // begin() is the best price on both sides. std::map nodes never move, so the
   // Level* stored in each Order stays valid while other levels come and go.
   using BidLevels = std::map<Price, Level, std::greater<Price>>;
@@ -97,11 +114,22 @@ class OrderBook {
 
   void on_new_order(const NewOrder& order, std::vector<Event>& out);
   void on_cancel(const Cancel& cancel, std::vector<Event>& out);
+  void on_replace(const Replace& replace, std::vector<Event>& out);
 
+  // Matches the aggressor, then cancels its remainder (STP or non-GTC) or rests it.
+  void execute(Aggressor& taker, TimeInForce tif, Qty original_qty, std::vector<Event>& out);
+  // Returns true when self-trade prevention cancelled the aggressor's remainder.
   template <class Levels>
-  void match(Levels& opposite, const NewOrder& taker, Qty& leaves, Qty& filled,
-             std::vector<Event>& out);
-  void rest(const NewOrder& order, Qty leaves, Qty filled);
+  bool match(Levels& opposite, Aggressor& taker, std::vector<Event>& out);
+  // Read-only walk: could the aggressor be filled completely, given its STP mode?
+  template <class Levels>
+  bool fok_fillable(const Levels& opposite, const Aggressor& taker) const;
+  // Would a limit order at `price` on `side` take liquidity?
+  bool crosses_opposite(Side side, Price price) const;
+  bool opposite_empty(Side side) const;
+  void rest(const Aggressor& taker, Qty original_qty);
+  // Unlinks a resting order, erases its level if now empty, and drops it from the index.
+  void remove(Order& order);
   void erase_level(Side side, Price price);
 
   static void append(Level& level, Order& order);

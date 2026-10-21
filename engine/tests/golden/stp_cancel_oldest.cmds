@@ -1,0 +1,10 @@
+# Acct 2 owns orders 1 and 3 in the sweep path and order 6 beyond the limit.
+N 1 1 2 S LMT GTC 0 CN 100 2
+N 2 2 1 S LMT GTC 0 CN 100 3
+N 3 3 2 S LMT GTC 0 CN 101 4
+N 4 4 1 S LMT GTC 0 CN 101 1
+N 5 5 1 S LMT GTC 0 CN 103 6
+N 6 6 2 S LMT GTC 0 CN 103 1
+# Acct 2 buys 6 @101, cancel-oldest: own orders 1 and 3 are cancelled as they are reached,
+# 3 + 1 fills, and the remaining 2 rests @101. Order 6 is beyond the limit and untouched.
+N 7 7 2 B LMT GTC 0 CO 101 6

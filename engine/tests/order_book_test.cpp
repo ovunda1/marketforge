@@ -1,28 +1,31 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
-#include <ostream>
 #include <random>
 #include <vector>
 
 #include "mf/order_book.hpp"
+#include "test_helpers.hpp"
 
 namespace mf {
-
-// Lets GoogleTest print events readably when an expectation fails.
-void PrintTo(const Event& event, std::ostream* os) { *os << to_string(event); }
-
 namespace {
 
-constexpr AccountId kAcct = 1;
+using test::events_of;
+using test::run;
 
-NewOrder buy(SeqNo seq, OrderId id, Price price, Qty qty, AccountId acct = kAcct) {
+// Buys and sells default to different accounts so they trade; self-trade prevention is
+// covered in order_types_test.cpp.
+constexpr AccountId kBuyer = 1;
+constexpr AccountId kSeller = 2;
+
+NewOrder buy(SeqNo seq, OrderId id, Price price, Qty qty, AccountId acct = kBuyer) {
   return {.seq_no = seq, .order_id = id, .account_id = acct, .side = Side::Buy,
           .price = price, .qty = qty};
 }
 
-NewOrder sell(SeqNo seq, OrderId id, Price price, Qty qty, AccountId acct = kAcct) {
+NewOrder sell(SeqNo seq, OrderId id, Price price, Qty qty, AccountId acct = kSeller) {
   return {.seq_no = seq, .order_id = id, .account_id = acct, .side = Side::Sell,
           .price = price, .qty = qty};
 }
@@ -35,23 +38,8 @@ std::vector<Event> only_reject(SeqNo seq, OrderId id, RejectReason reason) {
 }
 
 std::vector<Event> only_cancelled(SeqNo seq, OrderId id, Qty qty) {
-  return {Cancelled{.seq_no = seq, .order_id = id, .cancelled_qty = qty}};
-}
-
-// Processes one command and returns only the events it produced.
-std::vector<Event> run(OrderBook& book, const Command& command) {
-  std::vector<Event> out;
-  book.process(command, out);
-  return out;
-}
-
-template <class T>
-std::vector<T> events_of(const std::vector<Event>& events) {
-  std::vector<T> result;
-  for (const auto& e : events) {
-    if (const auto* p = std::get_if<T>(&e)) result.push_back(*p);
-  }
-  return result;
+  return {Cancelled{.seq_no = seq, .order_id = id, .cancelled_qty = qty,
+                    .reason = CancelReason::User}};
 }
 
 // --- Validation -------------------------------------------------------------------
@@ -324,12 +312,12 @@ TEST(OrderBook, TradeIdsIncrementAndAreSharedByTradeAndBothFills) {
   EXPECT_EQ(second[0].trade_id, 3u);
 }
 
-// Self-trade prevention is M3. Until then two orders from the same account match like
-// any others; this pins that behavior so adding STP is a deliberate test change.
-TEST(OrderBook, SelfTradeCurrentlyAllowedUntilStpInM3) {
+// Orders from different accounts trade; same-account behavior is covered in
+// order_types_test.cpp (self-trade prevention).
+TEST(OrderBook, DifferentAccountsTrade) {
   OrderBook book;
   run(book, sell(1, 1, 100, 5, /*acct=*/42));
-  const auto events = run(book, buy(2, 2, 100, 5, /*acct=*/42));
+  const auto events = run(book, buy(2, 2, 100, 5, /*acct=*/43));
   EXPECT_EQ(events_of<Trade>(events).size(), 1u);
 }
 
@@ -425,15 +413,16 @@ TEST(OrderBook, NonIncreasingSeqNoThrowsBeforeTouchingBook) {
 }
 
 // Every unit of every order is accounted for exactly once: filled, cancelled, or
-// still resting.
+// still resting. A Replaced event resets the order's total to its new quantity.
 void expect_conservation(const OrderBook& book, const std::vector<Event>& events,
-                         const std::map<OrderId, Qty>& original_qty) {
+                         std::map<OrderId, Qty> total_qty) {
   std::map<OrderId, Qty> accounted;
   for (const auto& e : events) {
     if (const auto* f = std::get_if<Fill>(&e)) accounted[f->order_id] += f->qty;
     if (const auto* c = std::get_if<Cancelled>(&e)) accounted[c->order_id] += c->cancelled_qty;
+    if (const auto* r = std::get_if<Replaced>(&e)) total_qty[r->order_id] = r->qty;
   }
-  for (const auto& [id, qty] : original_qty) {
+  for (const auto& [id, qty] : total_qty) {
     const Qty resting = book.leaves_qty(id).value_or(0);
     EXPECT_EQ(accounted[id] + resting, qty) << "order " << id;
   }
@@ -460,9 +449,10 @@ TEST(OrderBook, QuantityIsConservedAcrossFillsAndCancels) {
   expect_conservation(book, events, original);
 }
 
-// Seeded random flow around a mid price so many orders cross. Uses raw mt19937_64
-// output (fully specified by the standard) rather than std::uniform_int_distribution,
-// whose output differs between libstdc++ and libc++.
+// Seeded random flow around a mid price so many orders cross, covering every order
+// type, STP mode, cancel and replace. Uses raw mt19937_64 output (fully specified by the
+// standard) rather than std::uniform_int_distribution, whose output differs between
+// libstdc++ and libc++. Rejected orders never enter original_qty.
 std::vector<Event> random_session(std::uint64_t seed, int commands, OrderBook& book,
                                   std::map<OrderId, Qty>& original_qty) {
   std::mt19937_64 rng(seed);
@@ -472,18 +462,36 @@ std::vector<Event> random_session(std::uint64_t seed, int commands, OrderBook& b
   std::vector<OrderId> issued;
   OrderId next_id = 1;
   for (SeqNo seq = 1; seq <= static_cast<SeqNo>(commands); ++seq) {
-    if (!issued.empty() && uniform(10) < 3) {
+    const std::uint64_t roll = uniform(100);
+    const std::size_t before = events.size();
+    if (!issued.empty() && roll < 20) {
       book.process(cancel(seq, issued[uniform(issued.size())]), events);
+    } else if (!issued.empty() && roll < 35) {
+      // Recent ids are more likely to still be resting.
+      const std::size_t back = uniform(std::min<std::size_t>(issued.size(), 20));
+      book.process(Replace{.seq_no = seq, .order_id = issued[issued.size() - 1 - back],
+                           .price = 990 + static_cast<Price>(uniform(21)),
+                           .qty = 1 + static_cast<Qty>(uniform(100))},
+                   events);
     } else {
       const OrderId id = next_id++;
-      const Side side = uniform(2) == 0 ? Side::Buy : Side::Sell;
-      const Price price = 990 + static_cast<Price>(uniform(21));
-      const Qty qty = 1 + static_cast<Qty>(uniform(100));
-      original_qty[id] = qty;
+      NewOrder order{.seq_no = seq, .order_id = id, .account_id = 1 + uniform(5),
+                     .side = uniform(2) == 0 ? Side::Buy : Side::Sell,
+                     .stp = static_cast<StpMode>(uniform(3)),
+                     .price = 990 + static_cast<Price>(uniform(21)),
+                     .qty = 1 + static_cast<Qty>(uniform(100))};
+      switch (uniform(8)) {
+        case 0: order.tif = TimeInForce::IOC; break;
+        case 1: order.tif = TimeInForce::FOK; break;
+        case 2: order.type = OrderType::Market; order.tif = TimeInForce::IOC; order.price = 0; break;
+        case 3: order.post_only = true; break;
+        default: break;
+      }
       issued.push_back(id);
-      book.process(NewOrder{.seq_no = seq, .order_id = id, .account_id = 1 + uniform(5),
-                            .side = side, .price = price, .qty = qty},
-                   events);
+      book.process(order, events);
+      if (events.size() > before && std::holds_alternative<Ack>(events[before])) {
+        original_qty[id] = order.qty;
+      }
     }
     book.check_invariants();
   }
@@ -497,6 +505,11 @@ TEST(OrderBook, RandomFlowKeepsInvariantsAndConservesQuantity) {
 
   EXPECT_GT(events_of<Trade>(events).size(), 1000u);  // the flow actually crosses
   EXPECT_GT(events_of<Cancelled>(events).size(), 100u);
+  EXPECT_GT(events_of<Replaced>(events).size(), 100u);
+  std::map<CancelReason, int> cancel_reasons;
+  for (const auto& c : events_of<Cancelled>(events)) ++cancel_reasons[c.reason];
+  EXPECT_GT(cancel_reasons[CancelReason::Unfilled], 50);
+  EXPECT_GT(cancel_reasons[CancelReason::SelfTrade], 50);
   expect_conservation(book, events, original);
 }
 

@@ -1,0 +1,11 @@
+N 1 1 1 S LMT GTC 0 CN 101 5
+# Post-only bid below the ask rests normally.
+N 2 2 2 B LMT GTC 1 CN 100 4
+# Post-only bid at the ask price would trade -> reject (no re-pricing).
+N 3 3 2 B LMT GTC 1 CN 101 4
+# Post-only bid through the ask -> reject.
+N 4 4 2 B LMT GTC 1 CN 105 4
+# The crossing liquidity is the same account's: still a reject (crossing is about the book, not STP).
+N 5 5 1 B LMT GTC 1 CN 101 1
+# Post-only sell at a non-crossing price rests.
+N 6 6 3 S LMT GTC 1 CN 102 2

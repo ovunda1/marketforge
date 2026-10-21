@@ -10,10 +10,16 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(mf_engine_tests
+  golden_test.cpp
   order_book_test.cpp
+  order_types_test.cpp
   test_placeholder.cpp
+  text_format_test.cpp
 )
 target_link_libraries(mf_engine_tests PRIVATE mf::engine GTest::gtest_main)
+target_compile_definitions(mf_engine_tests PRIVATE
+  MF_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/golden"
+)
 
 include(GoogleTest)
 gtest_discover_tests(mf_engine_tests)

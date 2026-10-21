@@ -1,0 +1,7 @@
+N 1 1 1 S LMT GTC 0 CN 102 4
+N 2 2 2 S LMT GTC 0 CN 103 3
+N 3 3 3 B LMT GTC 0 CN 100 10
+# Partially fills bid 3: filled 2, leaves 8.
+N 4 4 4 S LMT GTC 0 CN 100 2
+# Re-price bid 3 to 103 with total qty 12 (2 filled -> leaves 10): cancel + new, so it can match.
+R 5 3 103 12

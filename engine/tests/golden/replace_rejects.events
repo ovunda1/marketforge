@@ -1,0 +1,28 @@
+ACK seq=1 id=1 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=10
+BOOK seq=1 bid=100x10 ask=-
+ACK seq=2 id=2 side=S type=LMT tif=GTC po=0 stp=CN px=100 qty=4
+TRD seq=2 trade=1 px=100 qty=4 maker=1 taker=2 aggr=S
+FILL seq=2 trade=1 id=1 acct=1 side=B liq=M px=100 qty=4 leaves=6 cum=4
+FILL seq=2 trade=1 id=2 acct=2 side=S liq=T px=100 qty=4 leaves=0 cum=4
+BOOK seq=2 bid=100x6 ask=-
+REJ seq=3 id=1 reason=REPLACE_QTY_TOO_LOW
+BOOK seq=3 bid=100x6 ask=-
+REJ seq=4 id=1 reason=REPLACE_QTY_TOO_LOW
+BOOK seq=4 bid=100x6 ask=-
+REJ seq=5 id=2 reason=UNKNOWN_ORDER
+BOOK seq=5 bid=100x6 ask=-
+REJ seq=6 id=1 reason=INVALID_PRICE
+BOOK seq=6 bid=100x6 ask=-
+REJ seq=7 id=1 reason=INVALID_QTY
+BOOK seq=7 bid=100x6 ask=-
+ACK seq=8 id=3 side=S type=LMT tif=GTC po=0 stp=CN px=105 qty=5
+BOOK seq=8 bid=100x6 ask=105x5
+ACK seq=9 id=4 side=B type=LMT tif=GTC po=1 stp=CN px=101 qty=2
+BOOK seq=9 bid=101x2 ask=105x5
+REJ seq=10 id=4 reason=POST_ONLY_WOULD_CROSS
+BOOK seq=10 bid=101x2 ask=105x5
+RPL seq=11 id=1 px=100 qty=5 leaves=1 prio=KEPT
+BOOK seq=11 bid=101x2 ask=105x5
+LVL side=B px=101 qty=2 orders=4:2
+LVL side=B px=100 qty=1 orders=1:1
+LVL side=S px=105 qty=5 orders=3:5

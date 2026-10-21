@@ -1,0 +1,20 @@
+ACK seq=1 id=1 side=S type=LMT tif=GTC po=0 stp=CN px=100 qty=2
+BOOK seq=1 bid=- ask=100x2
+ACK seq=2 id=2 side=S type=LMT tif=GTC po=0 stp=CN px=100 qty=3
+BOOK seq=2 bid=- ask=100x5
+ACK seq=3 id=3 side=S type=LMT tif=GTC po=0 stp=CN px=100 qty=5
+BOOK seq=3 bid=- ask=100x10
+REJ seq=4 id=4 reason=FOK_NOT_FILLABLE
+BOOK seq=4 bid=- ask=100x10
+REJ seq=5 id=5 reason=FOK_NOT_FILLABLE
+BOOK seq=5 bid=- ask=100x10
+ACK seq=6 id=6 side=B type=LMT tif=FOK po=0 stp=CO px=100 qty=6
+TRD seq=6 trade=1 px=100 qty=2 maker=1 taker=6 aggr=B
+FILL seq=6 trade=1 id=1 acct=1 side=S liq=M px=100 qty=2 leaves=0 cum=2
+FILL seq=6 trade=1 id=6 acct=2 side=B liq=T px=100 qty=2 leaves=4 cum=2
+CXL seq=6 id=2 qty=3 reason=SELF_TRADE
+TRD seq=6 trade=2 px=100 qty=4 maker=3 taker=6 aggr=B
+FILL seq=6 trade=2 id=3 acct=1 side=S liq=M px=100 qty=4 leaves=1 cum=4
+FILL seq=6 trade=2 id=6 acct=2 side=B liq=T px=100 qty=4 leaves=0 cum=6
+BOOK seq=6 bid=- ask=100x1
+LVL side=S px=100 qty=1 orders=3:1

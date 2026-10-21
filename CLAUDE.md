@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 2 (Core book)
+## Current milestone: 3 (Order types)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -16,7 +16,9 @@ one has passing tests in CI and a commit.
 ```sh
 make venv     # create .venv with python3.12 and install dev deps
 make build    # configure + build the C++ engine with CMake (build/)
-make test     # run GoogleTest (ctest) and pytest
+make test     # run GoogleTest (ctest) and pytest (includes the 100k-command difftest)
+make difftest-long   # C++ engine vs Python reference on 1M commands (SEED=…)
+make difftest-replay # replay saved failing cases in tests/difftest/regressions/
 make clean    # remove build artifacts
 ```
 
@@ -30,6 +32,10 @@ The pybind11 stub (`bindings/`) is off by default: build it with
 `MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency
 walk after every command; benchmark builds turn it off. The `seq_no` monotonicity
 check in `OrderBook::process` is always on.
+
+Golden scenarios live in `engine/tests/golden/` (`*.cmds` + hand-derived `*.events`)
+and run against both engines. Formats: `docs/event-format.md`; order-type rules:
+`docs/order-types.md`.
 
 Later milestones add `bench`, `lint`, `fmt`, `up`, `down`, `replay` and `demo` targets.
 

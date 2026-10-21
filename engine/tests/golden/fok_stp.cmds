@@ -1,0 +1,9 @@
+N 1 1 1 S LMT GTC 0 CN 100 2
+N 2 2 2 S LMT GTC 0 CN 100 3
+N 3 3 1 S LMT GTC 0 CN 100 5
+# Acct 2 FOK buy 6, cancel-newest: the walk reaches its own order 2 with only 2 available -> reject.
+N 4 4 2 B LMT FOK 0 CN 100 6
+# Cancel-both stops at its own order too -> reject. Order 2 is untouched by both rejects.
+N 5 5 2 B LMT FOK 0 CB 100 6
+# Cancel-oldest skips its own order: 2 + 5 = 7 >= 6 -> fills; order 2 is cancelled mid-sweep.
+N 6 6 2 B LMT FOK 0 CO 100 6

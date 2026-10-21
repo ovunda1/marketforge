@@ -1,0 +1,6 @@
+# Market buy sweeps two ask levels best-first; the remainder is cancelled, never rests.
+N 1 1 1 S LMT GTC 0 CN 101 5
+N 2 2 2 S LMT GTC 0 CN 102 3
+N 3 3 3 B MKT IOC 0 CN 0 10
+# Market sell into an empty bid side: the contract can't be honored -> reject.
+N 4 4 3 S MKT IOC 0 CN 0 4
