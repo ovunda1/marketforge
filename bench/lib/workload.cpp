@@ -91,22 +91,33 @@ class Generator {
     } else if (r < 110 && live > 0) {
       replace();
     } else if (r < 550) {
+      // Every random draw gets its own statement: the evaluation order of function
+      // arguments is unspecified (gcc and clang differ), and the stream must not be.
       ++w_.stats.new_passive;
       const Side side = random_side();
       const bool day = rng_.chance(1, 16);
-      new_order(side, OrderType::Limit, day ? TimeInForce::Day : TimeInForce::GTC,
-                rng_.chance(1, 10), passive_price(side), qty());
+      const bool post_only = rng_.chance(1, 10);
+      const Price price = passive_price(side);
+      const Qty q = qty();
+      new_order(side, OrderType::Limit, day ? TimeInForce::Day : TimeInForce::GTC, post_only,
+                price, q);
     } else if (r < 630) {
       ++w_.stats.new_aggressive;
       const Side side = random_side();
-      new_order(side, OrderType::Limit, TimeInForce::GTC, false, aggressive_price(side), qty());
+      const Price price = aggressive_price(side);
+      const Qty q = qty();
+      new_order(side, OrderType::Limit, TimeInForce::GTC, false, price, q);
     } else if (r < 710) {
       ++w_.stats.new_ioc;
       const Side side = random_side();
-      new_order(side, OrderType::Limit, TimeInForce::IOC, false, aggressive_price(side), qty());
+      const Price price = aggressive_price(side);
+      const Qty q = qty();
+      new_order(side, OrderType::Limit, TimeInForce::IOC, false, price, q);
     } else {
       ++w_.stats.new_market;
-      new_order(random_side(), OrderType::Market, TimeInForce::IOC, false, 0, rng_.between(1, 50));
+      const Side side = random_side();
+      const Qty q = rng_.between(1, 50);
+      new_order(side, OrderType::Market, TimeInForce::IOC, false, 0, q);
     }
   }
 
