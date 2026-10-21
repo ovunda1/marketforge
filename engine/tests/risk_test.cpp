@@ -561,8 +561,8 @@ TEST_F(Risk, InvalidLimitsAreRefusedAndChangeNothing) {
   const std::vector<InstrumentLimits> bad_instrument = {
       {.max_qty = 0}, {.band_bps = -1}, {.band_bps = kMaxBandBps + 1}, {.reference_price = 0}};
   for (const auto& l : bad_instrument) {
-    EXPECT_EQ(send(SetInstrumentLimits{.limits = l}),
-              (std::vector<Event>{AdminReject{.seq_no = seq,
+    const auto ev = send(SetInstrumentLimits{.limits = l});  // before reading seq
+    EXPECT_EQ(ev, (std::vector<Event>{AdminReject{.seq_no = seq,
                                               .reason = AdminRejectReason::InvalidLimits}}));
   }
   const std::vector<AccountLimits> bad_account = {
@@ -572,8 +572,8 @@ TEST_F(Risk, InvalidLimitsAreRefusedAndChangeNothing) {
       {.rate = RateLimit{.per_sec = kMaxRate + 1, .burst = 1}},
       {.rate = RateLimit{.per_sec = 1, .burst = kMaxRate + 1}}};
   for (const auto& l : bad_account) {
-    EXPECT_EQ(send(SetAccountLimits{.account_id = 1, .limits = l}),
-              (std::vector<Event>{AdminReject{.seq_no = seq,
+    const auto ev = send(SetAccountLimits{.account_id = 1, .limits = l});  // before reading seq
+    EXPECT_EQ(ev, (std::vector<Event>{AdminReject{.seq_no = seq,
                                               .reason = AdminRejectReason::InvalidLimits}}));
   }
   EXPECT_TRUE(rejected(limit(1, 1, B, 100, 11), RejectReason::MaxQty));

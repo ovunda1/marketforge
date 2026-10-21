@@ -77,7 +77,8 @@ TEST_F(Session, OnlyContinuousAcceptsNewOrdersAndReplacesButCancelsAlwaysWork) {
     EXPECT_TRUE(rejected(f.limit(3, 1, B, 100, 1), RejectReason::MarketClosed)) << int(state);
     EXPECT_TRUE(rejected(f.market(4, 2, S, 1), RejectReason::MarketClosed)) << int(state);
     EXPECT_TRUE(rejected(f.replace(1, 100, 4), RejectReason::MarketClosed)) << int(state);
-    EXPECT_EQ(f.cancel(1), (std::vector<Event>{Cancelled{.seq_no = f.seq, .order_id = 1,
+    const auto ev = f.cancel(1);  // before reading f.seq
+    EXPECT_EQ(ev, (std::vector<Event>{Cancelled{.seq_no = f.seq, .order_id = 1,
                                                           .cancelled_qty = 5,
                                                           .reason = CancelReason::User}}))
         << int(state);
