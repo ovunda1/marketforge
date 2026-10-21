@@ -222,7 +222,7 @@ void OrderBook::rest(const Aggressor& taker, Qty original_qty) {
       .price = price, .original_qty = original_qty, .leaves_qty = taker.leaves,
       .filled_qty = taker.filled, .seq_no = taker.seq_no, .post_only = taker.post_only,
       .stp = taker.stp, .tif = taker.tif});
-  orders_.emplace(taker.order_id, &resting);
+  orders_.try_emplace(taker.order_id, &resting);
 
   Level& level = taker.side == Side::Buy
                      ? bids_.try_emplace(price, Level{.price = price}).first->second
@@ -231,14 +231,15 @@ void OrderBook::rest(const Aggressor& taker, Qty original_qty) {
 }
 
 void OrderBook::on_cancel(const Cancel& cancel, std::vector<Event>& out) {
-  const auto it = orders_.find(cancel.order_id);
-  if (it == orders_.end()) {
+  Order* const* found = orders_.find(cancel.order_id);
+  if (found == nullptr) {
     out.push_back(Reject{.seq_no = cancel.seq_no, .order_id = cancel.order_id,
                          .reason = RejectReason::UnknownOrder});
     return;
   }
-  const Qty cancelled_qty = it->second->leaves_qty;
-  remove(*it->second);
+  Order& order = **found;
+  const Qty cancelled_qty = order.leaves_qty;
+  remove(order);
   out.push_back(Cancelled{.seq_no = cancel.seq_no, .order_id = cancel.order_id,
                           .cancelled_qty = cancelled_qty, .reason = CancelReason::User});
 }
@@ -249,9 +250,9 @@ void OrderBook::on_cancel(const Cancel& cancel, std::vector<Event>& out) {
 std::optional<RejectReason> OrderBook::validate_replace(const Replace& replace) const {
   if (replace.price <= 0) return RejectReason::InvalidPrice;
   if (replace.qty <= 0) return RejectReason::InvalidQty;
-  const auto it = orders_.find(replace.order_id);
-  if (it == orders_.end()) return RejectReason::UnknownOrder;
-  if (replace.qty <= it->second->filled_qty) return RejectReason::ReplaceQtyTooLow;
+  Order* const* found = orders_.find(replace.order_id);
+  if (found == nullptr) return RejectReason::UnknownOrder;
+  if (replace.qty <= (*found)->filled_qty) return RejectReason::ReplaceQtyTooLow;
   return std::nullopt;
 }
 
@@ -261,7 +262,7 @@ void OrderBook::on_replace(const Replace& replace, std::vector<Event>& out) {
         Reject{.seq_no = replace.seq_no, .order_id = replace.order_id, .reason = reason});
   };
   if (const auto reason = validate_replace(replace)) return reject(*reason);
-  Order& order = *orders_.find(replace.order_id)->second;
+  Order& order = **orders_.find(replace.order_id);
 
   const Qty new_leaves = replace.qty - order.filled_qty;
   if (replace.price == order.price) {
@@ -406,15 +407,15 @@ std::vector<Price> OrderBook::level_prices(Side side) const {
 }
 
 std::optional<Qty> OrderBook::leaves_qty(OrderId order_id) const {
-  const auto it = orders_.find(order_id);
-  if (it == orders_.end()) return std::nullopt;
-  return it->second->leaves_qty;
+  Order* const* found = orders_.find(order_id);
+  if (found == nullptr) return std::nullopt;
+  return (*found)->leaves_qty;
 }
 
 std::optional<OrderBook::OrderView> OrderBook::find(OrderId order_id) const {
-  const auto it = orders_.find(order_id);
-  if (it == orders_.end()) return std::nullopt;
-  const Order& o = *it->second;
+  Order* const* found = orders_.find(order_id);
+  if (found == nullptr) return std::nullopt;
+  const Order& o = **found;
   return OrderView{.account_id = o.account_id, .side = o.side, .price = o.price,
                    .qty = o.original_qty, .leaves_qty = o.leaves_qty, .filled_qty = o.filled_qty};
 }
@@ -473,7 +474,7 @@ void OrderBook::cancel_where(SeqNo seq_no,
 // Ids of resting orders stay used: a new order must not take a live order's id.
 void OrderBook::reset_used_ids() {
   used_ids_.clear();
-  for (const auto& [id, order] : orders_) used_ids_.insert(id);  // order-insensitive
+  orders_.for_each([&](OrderId id, Order*) { used_ids_.insert(id); });  // order-insensitive
 }
 
 // --- State capture and restore -----------------------------------------------------
@@ -540,7 +541,7 @@ std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
             .price = l.price, .original_qty = o.qty, .leaves_qty = o.leaves_qty,
             .filled_qty = o.filled_qty, .seq_no = o.priority_seq_no,
             .post_only = o.post_only, .stp = o.stp, .tif = o.tif});
-        book->orders_.emplace(o.order_id, &order);
+        book->orders_.try_emplace(o.order_id, &order);
         append(level, order);
       }
     }
@@ -583,8 +584,8 @@ std::size_t OrderBook::check_side(const Levels& levels, Side side) const {
       if (o->leaves_qty <= 0) fail(who + "resting with no open quantity");
       if (o->filled_qty + o->leaves_qty != o->original_qty) fail(who + "quantity not conserved");
       if (!rests(o->tif)) fail(who + "time in force that cannot rest");
-      const auto it = orders_.find(o->order_id);
-      if (it == orders_.end() || it->second != o) fail(who + "not in the order index");
+      Order* const* indexed = orders_.find(o->order_id);
+      if (indexed == nullptr || *indexed != o) fail(who + "not in the order index");
       sum += o->leaves_qty;
       ++count;
     }

@@ -12,6 +12,7 @@
 
 #include "mf/commands.hpp"
 #include "mf/events.hpp"
+#include "mf/flat_hash_map.hpp"
 #include "mf/object_pool.hpp"
 #include "mf/types.hpp"
 
@@ -252,10 +253,10 @@ class OrderBook {
   AskLevels asks_;
   // Every resting order lives in the pool: no heap allocation per order once the pool
   // has grown to the book's peak size, and a slot never moves, so the intrusive list
-  // pointers stay valid. orders_ indexes them by id; it is only used for lookup and
-  // counting, never iterated to produce output.
+  // pointers stay valid. orders_ indexes them by id in one flat array (no node per
+  // entry); it is only used for lookup and counting, never iterated to produce output.
   ObjectPool<Order> pool_;
-  std::unordered_map<OrderId, Order*> orders_;
+  FlatHashMap<OrderId, Order*> orders_;
   // Ids of every order acked this session: an id is never reused, even after the order
   // filled or was cancelled. A rejected order was never accepted, so its id stays free.
   // Lookup only, never iterated to produce output (snapshots sort it). Reset at session
