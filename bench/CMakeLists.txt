@@ -31,7 +31,7 @@ target_include_directories(mf_hdr_histogram PUBLIC ${hdrhistogram_SOURCE_DIR}/in
 
 # Compiler and flags of this build, written into every results file.
 string(TOUPPER "${CMAKE_BUILD_TYPE}" MF_BUILD_TYPE_UPPER)
-set(MF_BENCH_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${MF_BUILD_TYPE_UPPER}}")
+set(MF_BENCH_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${MF_BUILD_TYPE_UPPER}} ${MF_NATIVE_FLAG}")
 string(STRIP "${MF_BENCH_CXX_FLAGS}" MF_BENCH_CXX_FLAGS)
 configure_file(build_info.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/generated/mf_bench/build_info.hpp
                @ONLY)
