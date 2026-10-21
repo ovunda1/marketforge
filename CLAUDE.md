@@ -6,10 +6,16 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 3 (Order types)
+## Current milestone: 4 (Journal and replay)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
+
+At the end of every milestone, write `docs/learning/mN.md` (N = milestone number)
+covering: what was built; the key files and functions to read first; each design
+decision and why; the trade-offs and what was deliberately left out; and 5 questions
+an interviewer might ask about this milestone, with short answers. It ships in the
+milestone's commit.
 
 ## Build and test
 
@@ -19,6 +25,7 @@ make build    # configure + build the C++ engine with CMake (build/)
 make test     # run GoogleTest (ctest) and pytest (includes the 100k-command difftest)
 make difftest-long   # C++ engine vs Python reference on 1M commands (SEED=…)
 make difftest-replay # replay saved failing cases in tests/difftest/regressions/
+make replay JOURNAL=… [SNAPSHOT=…]  # mf-replay: SHA-256 of a journal's event stream
 make clean    # remove build artifacts
 ```
 
@@ -33,11 +40,17 @@ The pybind11 stub (`bindings/`) is off by default: build it with
 walk after every command; benchmark builds turn it off. The `seq_no` monotonicity
 check in `OrderBook::process` is always on.
 
+Journal and replay (M4): `mf-journal` turns canonical text commands into a binary
+journal, `mf-replay` replays one (optionally from a snapshot) and prints the SHA-256 of
+the event stream. Formats: `docs/journal-format.md`, `docs/snapshot-format.md`. Order
+ids are unique per session and checked in the book, not the sequencer, so replay
+reproduces the reject.
+
 Golden scenarios live in `engine/tests/golden/` (`*.cmds` + hand-derived `*.events`)
 and run against both engines. Formats: `docs/event-format.md`; order-type rules:
 `docs/order-types.md`.
 
-Later milestones add `bench`, `lint`, `fmt`, `up`, `down`, `replay` and `demo` targets.
+Later milestones add `bench`, `lint`, `fmt`, `up`, `down` and `demo` targets.
 
 ## Conventions
 

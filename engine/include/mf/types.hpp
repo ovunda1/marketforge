@@ -14,6 +14,10 @@ using AccountId = std::uint64_t;
 using SeqNo = std::uint64_t;
 using TradeId = std::uint64_t;
 
+// Nanoseconds since the Unix epoch, from an injected Clock (docs/journal-format.md).
+// Integer, like prices: exact and identical on every platform.
+using Timestamp = std::int64_t;
+
 enum class Side : std::uint8_t { Buy, Sell };
 
 // A market order has no price and sweeps the opposite side; it must be IOC.

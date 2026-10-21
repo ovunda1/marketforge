@@ -53,9 +53,9 @@ void OrderBook::on_new_order(const NewOrder& order, std::vector<Event>& out) {
       (order.post_only && order.tif != TimeInForce::GTC)) {
     return reject(RejectReason::InvalidOrderType);
   }
-  // Only resting orders are checked: an id of a filled or cancelled order may be reused
-  // until session-wide uniqueness is enforced by the sequencer (M4).
-  if (orders_.contains(order.order_id)) return reject(RejectReason::DuplicateOrderId);
+  // Session-wide: any id acked earlier is taken, even if that order has since filled or
+  // been cancelled. Checked here, not in the sequencer, so replay reproduces the reject.
+  if (used_ids_.contains(order.order_id)) return reject(RejectReason::DuplicateOrderId);
 
   Aggressor taker{.seq_no = order.seq_no, .order_id = order.order_id,
                   .account_id = order.account_id, .side = order.side,
@@ -71,6 +71,7 @@ void OrderBook::on_new_order(const NewOrder& order, std::vector<Event>& out) {
     if (!fillable) return reject(RejectReason::FokNotFillable);
   }
 
+  used_ids_.insert(order.order_id);
   out.push_back(Ack{.seq_no = order.seq_no, .order_id = order.order_id, .side = order.side,
                     .type = order.type, .tif = order.tif, .post_only = order.post_only,
                     .stp = order.stp, .price = order.price, .qty = order.qty});
@@ -380,6 +381,78 @@ std::optional<Qty> OrderBook::leaves_qty(OrderId order_id) const {
   return it->second.leaves_qty;
 }
 
+// --- State capture and restore -----------------------------------------------------
+
+BookState OrderBook::state() const {
+  BookState s{.last_seq_no = last_seq_no_.value_or(0), .next_trade_id = next_trade_id_};
+  s.used_ids.assign(used_ids_.begin(), used_ids_.end());
+  std::sort(s.used_ids.begin(), s.used_ids.end());  // hash order must not leak out
+  const auto copy_side = [](const auto& levels, std::vector<BookState::Level>& out) {
+    for (const auto& [price, level] : levels) {
+      BookState::Level& l = out.emplace_back(BookState::Level{.price = price});
+      for (const Order* o = level.head; o != nullptr; o = o->next) {
+        l.orders.push_back({.order_id = o->order_id, .account_id = o->account_id,
+                            .qty = o->original_qty, .leaves_qty = o->leaves_qty,
+                            .filled_qty = o->filled_qty, .priority_seq_no = o->seq_no,
+                            .post_only = o->post_only, .stp = o->stp});
+      }
+    }
+  };
+  copy_side(bids_, s.bids);
+  copy_side(asks_, s.asks);
+  return s;
+}
+
+std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
+  auto book = std::make_unique<OrderBook>();
+  if (s.next_trade_id == 0) fail("state: next_trade_id must be at least 1");
+  for (std::size_t i = 1; i < s.used_ids.size(); ++i) {
+    if (s.used_ids[i - 1] >= s.used_ids[i]) fail("state: used_ids not strictly ascending");
+  }
+  book->used_ids_.insert(s.used_ids.begin(), s.used_ids.end());
+  if (s.last_seq_no != 0) book->last_seq_no_ = s.last_seq_no;
+  book->next_trade_id_ = s.next_trade_id;
+
+  for (const Side side : {Side::Buy, Side::Sell}) {
+    const auto& levels = side == Side::Buy ? s.bids : s.asks;
+    for (std::size_t i = 0; i < levels.size(); ++i) {
+      const auto& l = levels[i];
+      const std::string where = "state: level " + std::to_string(l.price) + ": ";
+      if (l.price <= 0) fail(where + "non-positive price");
+      if (i > 0 && (side == Side::Buy ? l.price >= levels[i - 1].price
+                                      : l.price <= levels[i - 1].price)) {
+        fail(where + "levels not strictly best price first");
+      }
+      if (l.orders.empty()) fail(where + "empty level");
+      Level& level = side == Side::Buy
+                         ? book->bids_.try_emplace(l.price, Level{.price = l.price}).first->second
+                         : book->asks_.try_emplace(l.price, Level{.price = l.price}).first->second;
+      for (const auto& o : l.orders) {
+        const std::string who = where + "order " + std::to_string(o.order_id) + ": ";
+        if (o.leaves_qty <= 0 || o.filled_qty < 0 || o.filled_qty + o.leaves_qty != o.qty) {
+          fail(who + "bad quantities");
+        }
+        if (o.priority_seq_no == 0 || o.priority_seq_no > s.last_seq_no) {
+          fail(who + "priority seq_no outside the processed range");
+        }
+        if (!std::binary_search(s.used_ids.begin(), s.used_ids.end(), o.order_id)) {
+          fail(who + "resting but not in used_ids");
+        }
+        const auto [it, inserted] = book->orders_.try_emplace(
+            o.order_id, Order{.order_id = o.order_id, .account_id = o.account_id,
+                              .side = side, .price = l.price, .original_qty = o.qty,
+                              .leaves_qty = o.leaves_qty, .filled_qty = o.filled_qty,
+                              .seq_no = o.priority_seq_no, .post_only = o.post_only,
+                              .stp = o.stp});
+        if (!inserted) fail(who + "duplicate resting id");
+        append(level, it->second);
+      }
+    }
+  }
+  book->check_invariants();  // crossed book, cached totals
+  return book;
+}
+
 // --- Invariants -------------------------------------------------------------------
 
 void OrderBook::check_invariants() const {
@@ -427,3 +500,4 @@ std::size_t OrderBook::check_side(const Levels& levels, Side side) const {
 }
 
 }  // namespace mf
+

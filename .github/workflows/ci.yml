@@ -54,10 +54,11 @@ jobs:
           cache: pip
       - name: Install
         run: python -m pip install -e '.[dev]'
-      # The differential test (100k commands) and golden tests drive the C++ engine.
-      - name: Build mf_driver
+      # The differential test (100k commands), golden tests and replay tests drive the
+      # C++ tools.
+      - name: Build mf_driver, mf-journal, mf-replay
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DMF_BUILD_TESTS=OFF
-          cmake --build build -j --target mf_driver
+          cmake --build build -j --target mf_driver mf-journal mf-replay
       - name: Test
         run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest

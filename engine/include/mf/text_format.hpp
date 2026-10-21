@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "mf/commands.hpp"
 #include "mf/order_book.hpp"
@@ -30,6 +31,11 @@ std::string format_top_of_book(SeqNo seq_no, const OrderBook& book);
 // One "LVL side=<B|S> px=<px> qty=<qty> orders=<id>:<leaves>,..." line per price level,
 // bids best first then asks best first, orders in time priority. Each line ends in '\n'.
 std::string format_depth(const OrderBook& book);
+
+// Appends one command's canonical output to `out`: each event on its own line, then
+// the BOOK line. Shared by mf_driver and replay so the two streams cannot drift apart.
+void append_command_output(const std::vector<Event>& events, SeqNo seq_no,
+                           const OrderBook& book, std::string& out);
 
 // Runs every command in `in` through a fresh OrderBook and writes the canonical output
 // stream to `out`: each command's events, then its BOOK line, then the final depth.

@@ -3,9 +3,11 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "mf/commands.hpp"
@@ -27,6 +29,38 @@ inline constexpr bool kInvariantChecksEnabled = true;
 #else
 inline constexpr bool kInvariantChecksEnabled = false;
 #endif
+
+// Everything a book's future output depends on, as plain data: what a snapshot stores
+// (docs/snapshot-format.md). Levels are best price first and orders are in time
+// priority, so the FIFO queues are rebuilt exactly; level totals are recomputed.
+struct BookState {
+  struct RestingOrder {
+    OrderId order_id{};
+    AccountId account_id{};
+    Qty qty{};  // current total quantity
+    Qty leaves_qty{};
+    Qty filled_qty{};
+    SeqNo priority_seq_no{};  // command that last set its time priority
+    bool post_only{};
+    StpMode stp{};
+
+    bool operator==(const RestingOrder&) const = default;
+  };
+  struct Level {
+    Price price{};
+    std::vector<RestingOrder> orders;  // time priority, front of the queue first
+
+    bool operator==(const Level&) const = default;
+  };
+
+  SeqNo last_seq_no{};  // 0: no command processed yet
+  TradeId next_trade_id{1};
+  std::vector<OrderId> used_ids;  // ascending
+  std::vector<Level> bids;        // best (highest) first
+  std::vector<Level> asks;        // best (lowest) first
+
+  bool operator==(const BookState&) const = default;
+};
 
 // Single-symbol limit order book with price-time priority.
 //
@@ -60,6 +94,13 @@ class OrderBook {
   std::size_t order_count() const { return orders_.size(); }
   // Open quantity of a resting order, or nullopt if it is not on the book.
   std::optional<Qty> leaves_qty(OrderId order_id) const;
+
+  // Copies the complete state, for snapshots. O(N).
+  BookState state() const;
+  // Builds a book from a state. Throws InvariantViolation if the state is inconsistent
+  // (unsorted or empty levels, bad quantities, duplicate ids, a resting id missing from
+  // used_ids, a crossed book). Always validates, whatever MF_CHECK_INVARIANTS says.
+  static std::unique_ptr<OrderBook> from_state(const BookState& state);
 
   // Full O(N) consistency walk; throws InvariantViolation on failure. Runs after
   // every command when MF_CHECK_INVARIANTS is defined, and may be called directly.
@@ -145,6 +186,12 @@ class OrderBook {
   // stable across rehashing, so the intrusive list pointers into it stay valid.
   // It is only used for lookup and counting, never iterated to produce output.
   std::unordered_map<OrderId, Order> orders_;
+  // Ids of every order acked this session: an id is never reused, even after the order
+  // filled or was cancelled. A rejected order was never accepted, so its id stays free.
+  // Lookup only, never iterated to produce output (snapshots sort it). It grows with
+  // the session; it will be cleared at session open when session states arrive (M5),
+  // which bounds memory to one session's orders.
+  std::unordered_set<OrderId> used_ids_;
   std::optional<SeqNo> last_seq_no_;
   TradeId next_trade_id_{1};
 };

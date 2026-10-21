@@ -215,3 +215,32 @@ def test_user_cancel_and_unknown_cancel() -> None:
         "CXL seq=2 id=1 qty=5 reason=USER"
     ]
     assert events("C 1 9") == ["REJ seq=1 id=9 reason=UNKNOWN_ORDER"]
+
+
+def test_ids_are_unique_for_the_session() -> None:
+    # Filled, IOC-cancelled and user-cancelled ids are all used for good (M4).
+    filled = ("N 1 1 1 S LMT GTC 0 CN 100 5", "N 2 2 2 B LMT GTC 0 CN 100 5")
+    assert last_events(*filled, "N 3 1 1 S LMT GTC 0 CN 101 1") == [
+        "REJ seq=3 id=1 reason=DUPLICATE_ORDER_ID"
+    ]
+    assert last_events(*filled, "N 3 2 1 S LMT GTC 0 CN 101 1") == [
+        "REJ seq=3 id=2 reason=DUPLICATE_ORDER_ID"
+    ]
+    assert last_events("N 1 1 1 S LMT IOC 0 CN 100 5", "N 2 1 1 S LMT GTC 0 CN 100 5") == [
+        "REJ seq=2 id=1 reason=DUPLICATE_ORDER_ID"
+    ]
+    assert last_events("N 1 1 1 S LMT GTC 0 CN 100 5", "C 2 1", "N 3 1 1 S LMT GTC 0 CN 100 5") == [
+        "REJ seq=3 id=1 reason=DUPLICATE_ORDER_ID"
+    ]
+
+
+def test_rejected_order_does_not_use_its_id() -> None:
+    assert last_events("N 1 1 1 S LMT GTC 0 CN 100 0", "N 2 1 1 S LMT GTC 0 CN 100 5") == [
+        "ACK seq=2 id=1 side=S type=LMT tif=GTC po=0 stp=CN px=100 qty=5"
+    ]
+
+
+def test_field_errors_are_reported_before_a_reused_id() -> None:
+    assert last_events("N 1 1 1 S LMT GTC 0 CN 100 5", "C 2 1", "N 3 1 1 S LMT GTC 0 CN 0 5") == [
+        "REJ seq=3 id=1 reason=INVALID_PRICE"
+    ]
