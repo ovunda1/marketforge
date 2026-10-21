@@ -149,24 +149,4 @@ class FlatHashMap {
   Value max_value_{};
 };
 
-// A set of unsigned integer keys, on the same table.
-template <class Key>
-class FlatHashSet {
- public:
-  bool insert(Key key) { return map_.try_emplace(key, Empty{}).second; }
-  bool contains(Key key) const { return map_.contains(key); }
-  bool erase(Key key) { return map_.erase(key); }
-  void clear() { map_.clear(); }
-  void reserve(std::size_t n) { map_.reserve(n); }
-  std::size_t size() const { return map_.size(); }
-  template <class F>
-  void for_each(F&& f) const {
-    map_.for_each([&](Key key, const auto&) { f(key); });
-  }
-
- private:
-  struct Empty {};
-  FlatHashMap<Key, Empty> map_;
-};
-
 }  // namespace mf

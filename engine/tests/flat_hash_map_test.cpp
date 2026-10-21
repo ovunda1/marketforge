@@ -103,18 +103,6 @@ TEST(FlatHashMap, ReserveAvoidsRehashUpToTheReservedSize) {
   EXPECT_EQ(m.capacity(), capacity);
 }
 
-TEST(FlatHashSet, InsertContainsErase) {
-  FlatHashSet<std::uint64_t> s;
-  EXPECT_TRUE(s.insert(5));
-  EXPECT_FALSE(s.insert(5));
-  EXPECT_TRUE(s.contains(5));
-  EXPECT_TRUE(s.insert(kMax));
-  EXPECT_EQ(s.size(), 2u);
-  EXPECT_TRUE(s.erase(5));
-  EXPECT_FALSE(s.contains(5));
-  EXPECT_TRUE(s.contains(kMax));
-}
-
 // A seeded random mix of operations against std::unordered_map, keys from a small range
 // so that inserts, hits, misses and erases inside long probe runs all happen often.
 TEST(FlatHashMap, AgreesWithUnorderedMapOnARandomMix) {

@@ -13,6 +13,7 @@ add_executable(mf_engine_tests
   checksum_test.cpp
   clock_sequencer_test.cpp
   golden_test.cpp
+  id_set_test.cpp
   flat_hash_map_test.cpp
   journal_test.cpp
   object_pool_test.cpp

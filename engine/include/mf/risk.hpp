@@ -4,7 +4,6 @@
 #include <map>
 #include <optional>
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 #include "mf/commands.hpp"

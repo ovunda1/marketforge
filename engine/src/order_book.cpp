@@ -502,7 +502,6 @@ std::unique_ptr<OrderBook> OrderBook::from_state(const BookState& s) {
   for (std::size_t i = 1; i < s.used_ids.size(); ++i) {
     if (s.used_ids[i - 1] >= s.used_ids[i]) fail("state: used_ids not strictly ascending");
   }
-  book->used_ids_.reserve(s.used_ids.size());
   for (const OrderId id : s.used_ids) book->used_ids_.insert(id);
   if (s.last_seq_no != 0) book->last_seq_no_ = s.last_seq_no;
   book->next_trade_id_ = s.next_trade_id;

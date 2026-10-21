@@ -6,13 +6,12 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "mf/commands.hpp"
 #include "mf/events.hpp"
 #include "mf/flat_hash_map.hpp"
+#include "mf/id_set.hpp"
 #include "mf/object_pool.hpp"
 #include "mf/price_levels.hpp"
 #include "mf/types.hpp"
@@ -262,9 +261,10 @@ class OrderBook {
   // Ids of every order acked this session: an id is never reused, even after the order
   // filled or was cancelled. A rejected order was never accepted, so its id stays free.
   // Lookup only, never iterated to produce output (snapshots sort it). Reset at session
-  // open (keeping resting ids), which bounds memory to one session's orders. Flat: an
-  // insert allocates only when the table doubles.
-  FlatHashSet<OrderId> used_ids_;
+  // open (keeping resting ids), which bounds memory to one session's orders. A paged
+  // bitmap (id_set.hpp): ids are mostly sequential, so a new id's bit shares a cache
+  // line with the previous one's.
+  IdSet used_ids_;
   std::optional<SeqNo> last_seq_no_;
   TradeId next_trade_id_{1};
 };
