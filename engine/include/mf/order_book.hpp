@@ -12,6 +12,7 @@
 
 #include "mf/commands.hpp"
 #include "mf/events.hpp"
+#include "mf/object_pool.hpp"
 #include "mf/types.hpp"
 
 namespace mf {
@@ -236,6 +237,8 @@ class OrderBook {
   void rest(const Aggressor& taker, Qty original_qty);
   // Unlinks a resting order, erases its level if now empty, and drops it from the index.
   void remove(Order& order);
+  // Drops an unlinked order from the index and returns it to the pool.
+  void release(Order& order);
   void erase_level(Side side, Price price);
 
   static void append(Level& level, Order& order);
@@ -247,10 +250,12 @@ class OrderBook {
 
   BidLevels bids_;
   AskLevels asks_;
-  // Owns every resting order. unordered_map is node-based: element addresses are
-  // stable across rehashing, so the intrusive list pointers into it stay valid.
-  // It is only used for lookup and counting, never iterated to produce output.
-  std::unordered_map<OrderId, Order> orders_;
+  // Every resting order lives in the pool: no heap allocation per order once the pool
+  // has grown to the book's peak size, and a slot never moves, so the intrusive list
+  // pointers stay valid. orders_ indexes them by id; it is only used for lookup and
+  // counting, never iterated to produce output.
+  ObjectPool<Order> pool_;
+  std::unordered_map<OrderId, Order*> orders_;
   // Ids of every order acked this session: an id is never reused, even after the order
   // filled or was cancelled. A rejected order was never accepted, so its id stays free.
   // Lookup only, never iterated to produce output (snapshots sort it). Reset at session

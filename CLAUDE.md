@@ -27,6 +27,11 @@ make difftest-long   # C++ engine vs Python reference on 1M commands (SEED=…)
 make difftest-replay # replay saved failing cases in tests/difftest/regressions/
 make sanitize        # ASan + UBSan build (build-asan/): ctest, then pytest on it (as CI)
 make replay JOURNAL=… [SNAPSHOT=…]  # mf-replay: SHA-256 of a journal's event stream
+make bench           # benchmarks (build-bench/: Release, walk off) -> bench/results/*.json + docs
+make bench-smoke     # suite on the bench build, every benchmark at tiny sizes (as CI)
+make bench-ab OPT=opt-N  # interleaved before/after of a logged optimization
+make bench-docs      # re-render the *.md.in templates from bench/results/
+make gate            # what every optimization must pass before it is measured
 make clean    # remove build artifacts
 ```
 
@@ -56,11 +61,21 @@ timestamp (`T <ns>` lines in text files). A fresh engine is CONTINUOUS with no l
 (M4 behavior). Risk goldens (`engine/tests/golden/risk/`) are C++ only: the Python
 reference stays book-only.
 
+Benchmarks (M6, `bench/`; results in `bench/RESULTS.md`, log in `bench/OPTIMIZATIONS.md`):
+timing code lives only in `bench/` (the wall-clock scan covers all of `engine/`). Docs that
+quote measurements are rendered from `*.md.in` templates out of `bench/results/*.json`:
+never type a number into them (a test lints the templates and checks the rendered files are
+current). `make bench` refuses to run on battery or in Low Power Mode (`FORCE=1` overrides
+and is recorded). `bench/expected_digests.json` pins each workload's event stream: an
+optimization must leave it unchanged. Each optimization: tests first, `make gate`, one
+commit between tags `m6-opt-N-before`/`-after` (pushed), `make bench-ab OPT=opt-N`, an
+entry in `bench/optimizations.json`.
+
 Golden scenarios live in `engine/tests/golden/` (`*.cmds` + hand-derived `*.events`)
 and run against both engines. Formats: `docs/event-format.md`; order-type rules:
 `docs/order-types.md`.
 
-Later milestones add `bench`, `lint`, `fmt`, `up`, `down` and `demo` targets.
+Later milestones add `lint`, `fmt`, `up`, `down` and `demo` targets.
 
 ## Conventions
 

@@ -14,6 +14,7 @@ add_executable(mf_engine_tests
   clock_sequencer_test.cpp
   golden_test.cpp
   journal_test.cpp
+  object_pool_test.cpp
   order_book_test.cpp
   order_types_test.cpp
   price_levels_test.cpp
