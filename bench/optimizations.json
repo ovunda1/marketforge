@@ -1,5 +1,55 @@
 {
   "_comment": "Optimizations measured for bench/OPTIMIZATIONS.md. Each one's before and after are git tags (pushed, so `make bench-ab` works from a fresh clone); bench/results/ab/<id>.json holds the A/B results. keep_threshold: the flat price-level array is kept only if the geometric mean of its end-to-end throughput ratios on the two workloads reaches it.",
   "keep_threshold": 1.05,
-  "optimizations": []
+  "optimizations": [
+    {
+      "id": "opt-1",
+      "title": "Object pool for resting orders",
+      "before": "m6-opt-1-before",
+      "after": "m6-opt-1-after"
+    },
+    {
+      "id": "opt-2",
+      "title": "Open-addressing hash map for the order index",
+      "before": "m6-opt-2-before",
+      "after": "m6-opt-2-after"
+    },
+    {
+      "id": "opt-3",
+      "title": "Flat tables for used order ids and the risk gate's open orders",
+      "before": "m6-opt-3-before",
+      "after": "m6-opt-3-after"
+    },
+    {
+      "id": "opt-4",
+      "title": "Flat tick array for price levels",
+      "before": "m6-opt-4-before",
+      "after": "m6-opt-4-after",
+      "rule": "keep_threshold"
+    },
+    {
+      "id": "opt-5",
+      "title": "Paged bitmap for the session's used order ids",
+      "before": "m6-opt-5-before",
+      "after": "m6-opt-5-after"
+    },
+    {
+      "id": "opt-6",
+      "title": "Host-CPU code generation and LTO for benchmark builds",
+      "before": "m6-opt-6-before",
+      "after": "m6-opt-6-after"
+    },
+    {
+      "id": "opt-7",
+      "title": "Flat account table in the risk gate",
+      "before": "m6-opt-7-before",
+      "after": "m6-opt-7-after"
+    },
+    {
+      "id": "total",
+      "title": "Baseline to final engine",
+      "before": "m6-opt-1-before",
+      "after": "m6-opt-7-after"
+    }
+  ]
 }

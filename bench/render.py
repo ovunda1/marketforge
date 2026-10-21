@@ -177,10 +177,22 @@ def latency_table(sources: dict, _: str) -> str:
     return _table(["Workload", "p50", "p90", "p99", "p99.9", "max (worst rep)"], rows)
 
 
+# Registration order of bench/micro.cpp; the JSON follows run order, which is shuffled.
+MICRO_ORDER = ["AddExistingLevel", "AddNewLevel", "CancelKeepsLevel", "CancelRemovesLevel",
+               "ReplaceQtyDown", "ReplaceReprice", "MatchOneLevel/1", "MatchOneLevel/8",
+               "MatchMultiLevel/2", "MatchMultiLevel/8", "MatchMultiLevel/32", "RiskCheck",
+               "RiskCheckNoLimits", "EngineAdd"]
+
+
+def _micro_sorted(names) -> list[str]:
+    return sorted(names, key=lambda n: (MICRO_ORDER.index(n) if n in MICRO_ORDER else len(MICRO_ORDER), n))
+
+
 def micro_table(sources: dict, _: str) -> str:
     d = sources["micro"]
-    rows = [[f"`{name}`", _range(b["ns_per_op"], "ns"), FORMATS["fraction"](b["ns_per_op"]["cv"])]
-            for name, b in d["benchmarks"].items()]
+    rows = [[f"`{name}`", _range(d["benchmarks"][name]["ns_per_op"], "ns"),
+             FORMATS["fraction"](d["benchmarks"][name]["ns_per_op"]["cv"])]
+            for name in _micro_sorted(d["benchmarks"])]
     return _table(["Benchmark", "Time per operation, median (min – max)", "CV"], rows)
 
 
@@ -212,7 +224,8 @@ def ab_table(sources: dict, opt: str) -> str:
 def ab_micro_table(sources: dict, opt: str) -> str:
     d = sources["ab"][opt]
     rows = []
-    for name, m in d["micro"].items():
+    for name in _micro_sorted(d["micro"]):
+        m = d["micro"][name]
         rows.append([f"`{name}`", FORMATS["ns"](stats.summary(m["before"])["median"]),
                      FORMATS["ns"](stats.summary(m["after"])["median"]), _ratio(m["ratio"]),
                      m["verdict"]])
@@ -246,6 +259,9 @@ def headline(sources: dict, _: str) -> str:
             f"{FORMATS['ns'](pr['latency']['p99']['median'])}, p99.9 "
             f"{FORMATS['ns'](pr['latency']['p999']['median'])}"
         )
+    lines.append(f"- Latency percentiles are quantised to the clock's step of "
+                 f"{FORMATS['ns'](d['timer']['min_step_ns'])}: a p50 of one step means most commands "
+                 f"finish within one tick (see Reading the low percentiles in `bench/RESULTS.md`)")
     m = d["machine"]
     lines.append(f"- Measured on {m['cpu']}, {d['build']['compiler']}, "
                  f"`{d['build']['cxx_flags']}`; median of {d['settings']['reps']} repetitions "

@@ -24,11 +24,11 @@ with every limit configured and generous (so every check runs and almost every o
 passes), in front of the order book. The flow is cancel-heavy, like real order flow, and
 the generator picks cancels and replaces from orders that are really resting.
 
-- **narrow**: a fixed mid and limit prices within a few ticks of it. The book holds about
-  {{ replay:profiles.narrow.workload.max_resting|int }} orders on few, deep levels.
+- **narrow**: a fixed mid and limit prices within a few ticks of it: few, deep levels.
+  Most orders resting at once: {{ replay:profiles.narrow.workload.max_resting|int }}.
 - **wide**: the mid drifts, prices spread over thousands of ticks (log-uniform distance
-  from the mid) and one order in a hundred rests far away. The book holds up to
-  {{ replay:profiles.wide.workload.max_resting|int }} orders on many shallow levels.
+  from the mid) and one order in a hundred rests far away: many shallow levels. Most
+  orders resting at once: {{ replay:profiles.wide.workload.max_resting|int }}.
 
 Each repetition replays {{ replay:settings.n|int }} commands on a fresh engine; the first
 {{ replay:settings.warmup|int }} of each are processed but not measured (cold caches,
@@ -56,10 +56,12 @@ one read costs {{ replay:timer.cost_ns|f1 }} ns and the clock moves in steps of
 {{ replay:timer.min_step_ns|ns }}: two back-to-back reads return the same value
 {{ replay:timer.zero_fraction|fraction }} of the time. A command shorter than one step
 reads as zero or one step, so p50 and p90 are quantised to that step and each sample
-includes about one clock read. Throughput (batch timing) does not have this problem; the
-per-command mean, less one read, differs from the batch mean by
-{{ replay:profiles.narrow.cross_check.relative_difference|pct_signed }} and
-{{ replay:profiles.wide.cross_check.relative_difference|pct_signed }}.
+includes about one clock read. The per-command mean, less one read, differs from the batch
+mean by {{ replay:profiles.narrow.cross_check.relative_difference|pct_signed }} and
+{{ replay:profiles.wide.cross_check.relative_difference|pct_signed }}: it comes out lower,
+not higher. A clock read does not stop the processor, so part of one command's work
+overlaps the reads around it and is counted in no sample. Read the histogram for the shape
+of the distribution and its tail, and the batch figure (throughput) for the mean.
 
 ## Microbenchmarks
 
@@ -73,8 +75,12 @@ repetitions (range in brackets).
 - `Add*`, `Cancel*`, `Replace*` and `Match*` drive the `OrderBook` alone.
 - `RiskCheck` is `RiskGate::check_new` with every limit set, against `RiskCheckNoLimits`.
 - `EngineAdd` is the same passive add as `AddExistingLevel` through the whole `Engine`
-  (gate, book and the risk update from the events): the difference between the two is
-  what the risk gate costs per order.
+  (gate, book and the risk update from the events). On this build it measures *below*
+  `AddExistingLevel`, although it does strictly more work, repeatably, and this is not
+  explained (code layout and alignment effects are the usual suspects; Apple Silicon's
+  performance counters are not available to confirm it). So the pair does not price the
+  gate. `RiskCheck` against `RiskCheckNoLimits` prices the checks; the end-to-end effect
+  of the gate's account lookups is opt-7 in `OPTIMIZATIONS.md`.
 
 ## Method
 

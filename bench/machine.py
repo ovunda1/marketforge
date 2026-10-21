@@ -83,13 +83,14 @@ def machine(forced: bool) -> dict:
     return info
 
 
-# What `make bench` itself writes: changes there do not make the measured code dirty.
-GENERATED = ("bench/results", "bench/RESULTS.md", "bench/OPTIMIZATIONS.md", "docs/learning/m6.md")
+# The code a measurement depends on: "dirty" means some of it differs from the commit.
+# Docs, templates and results do not count.
+MEASURED = ("engine", "bench/lib", "bench/*.cpp", "bench/*.hpp", "bench/build_info.hpp.in", "bench/CMakeLists.txt",
+            "CMakeLists.txt")
 
 
 def git_info(root: Path = REPO_ROOT) -> dict:
     commit = _run("git", "-C", str(root), "rev-parse", "HEAD")
-    excludes = [f":(exclude){p}" for p in GENERATED]
-    dirty = bool(_run("git", "-C", str(root), "status", "--porcelain", "--untracked-files=no",
-                      "--", ".", *excludes))
+    dirty = bool(_run("git", "-C", str(root), "status", "--porcelain", "--untracked-files=all",
+                      "--", *MEASURED))
     return {"commit": commit, "dirty": dirty}
