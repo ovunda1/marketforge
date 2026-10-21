@@ -1,0 +1,6 @@
+N 1 1 1 S LMT GTC 0 CN 100 4
+N 2 2 1 S LMT GTC 0 CN 101 4
+# IOC buy @100 fills 4 at 100, does not trade through to 101, cancels the rest.
+N 3 3 2 B LMT IOC 0 CN 100 6
+# IOC that does not cross is acked then cancelled in full: within its contract.
+N 4 4 2 B LMT IOC 0 CN 99 5

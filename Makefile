@@ -5,8 +5,11 @@ VENV       := .venv
 VENV_PY    := $(VENV)/bin/python
 BUILD_DIR  := build
 BUILD_TYPE ?= RelWithDebInfo
+DRIVER     := $(BUILD_DIR)/engine/tools/mf_driver
+# Seed for the long differential test; override with `make difftest-long SEED=7`.
+SEED       ?= 20261020
 
-.PHONY: venv build test test-cpp test-py clean
+.PHONY: venv build test test-cpp test-py difftest difftest-long difftest-replay clean
 
 venv: $(VENV)/.installed
 
@@ -25,8 +28,18 @@ test: test-cpp test-py
 test-cpp: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure --no-tests=error
 
-test-py: venv
-	$(VENV_PY) -m pytest
+# pytest includes the 100k-command differential test, which needs mf_driver.
+test-py: venv build
+	MF_DRIVER=$(DRIVER) $(VENV_PY) -m pytest
+
+difftest: venv build
+	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 100000
+
+difftest-long: venv build
+	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 1000000
+
+difftest-replay: venv build
+	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --replay
 
 clean:
 	rm -rf $(BUILD_DIR)

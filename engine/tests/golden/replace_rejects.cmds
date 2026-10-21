@@ -1,0 +1,17 @@
+N 1 1 1 B LMT GTC 0 CN 100 10
+# Fills 4 of order 1: filled 4, leaves 6.
+N 2 2 2 S LMT GTC 0 CN 100 4
+# New total at or below the filled quantity is rejected; the order is unchanged.
+R 3 1 100 4
+R 4 1 101 3
+# Unknown order: 2 was fully filled.
+R 5 2 100 5
+# Field checks come before the order lookup.
+R 6 1 0 5
+R 7 1 100 0
+# A resting post-only order cannot be re-priced to cross; the original is kept.
+N 8 3 3 S LMT GTC 0 CN 105 5
+N 9 4 4 B LMT GTC 1 CN 101 2
+R 10 4 105 2
+# Valid decrease: total 5 with 4 filled leaves 1, priority kept.
+R 11 1 100 5

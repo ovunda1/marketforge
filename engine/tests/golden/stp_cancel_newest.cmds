@@ -1,0 +1,8 @@
+N 1 1 1 S LMT GTC 0 CN 100 3
+N 2 2 2 S LMT GTC 0 CN 101 2
+# Acct 3's own order, queued behind order 2 at 101.
+N 3 3 3 S LMT GTC 0 CN 101 4
+N 4 4 1 S LMT GTC 0 CN 102 5
+# Acct 3 buys 10 @102, cancel-newest: fills 3 @100 and 2 @101, then reaches its own order 3.
+# Its remaining 5 is cancelled (it does not rest); order 3 and the 102 level are untouched.
+N 5 5 3 B LMT GTC 0 CN 102 10

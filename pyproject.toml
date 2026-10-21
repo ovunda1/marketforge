@@ -13,9 +13,9 @@ dependencies = []
 dev = ["pytest>=8"]
 
 [tool.setuptools]
-# No Python packages yet; research/, services/ and reference/ arrive in later milestones.
-packages = []
+packages = ["reference"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra"

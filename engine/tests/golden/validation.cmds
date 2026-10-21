@@ -1,0 +1,20 @@
+# Check order: price, qty, type combination, duplicate id, then type-specific checks.
+N 1 1 1 B LMT GTC 0 CN 0 5
+# A market order must carry price 0.
+N 2 2 1 B MKT IOC 0 CN 100 5
+N 3 3 1 B LMT GTC 0 CN 100 0
+# Qty is checked before the type combination.
+N 4 4 1 B MKT GTC 0 CN 0 0
+N 5 5 1 B MKT GTC 0 CN 0 5
+N 6 6 1 B MKT FOK 0 CN 0 5
+N 7 7 1 B MKT IOC 1 CN 0 5
+N 8 8 1 B LMT IOC 1 CN 100 5
+N 9 9 1 B LMT FOK 1 CN 100 5
+N 10 10 1 B LMT GTC 0 CN 100 5
+# Type combination is checked before the duplicate id.
+N 11 10 1 S MKT GTC 0 CN 0 5
+N 12 10 2 S LMT GTC 0 CN 105 5
+# Duplicate id is checked before NO_LIQUIDITY (asks are empty).
+N 13 10 2 B MKT IOC 0 CN 0 1
+C 14 99
+C 15 10

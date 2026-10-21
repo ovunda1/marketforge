@@ -1,0 +1,15 @@
+ACK seq=1 id=1 side=S type=LMT tif=GTC po=0 stp=CN px=101 qty=5
+BOOK seq=1 bid=- ask=101x5
+ACK seq=2 id=2 side=B type=LMT tif=GTC po=1 stp=CN px=100 qty=4
+BOOK seq=2 bid=100x4 ask=101x5
+REJ seq=3 id=3 reason=POST_ONLY_WOULD_CROSS
+BOOK seq=3 bid=100x4 ask=101x5
+REJ seq=4 id=4 reason=POST_ONLY_WOULD_CROSS
+BOOK seq=4 bid=100x4 ask=101x5
+REJ seq=5 id=5 reason=POST_ONLY_WOULD_CROSS
+BOOK seq=5 bid=100x4 ask=101x5
+ACK seq=6 id=6 side=S type=LMT tif=GTC po=1 stp=CN px=102 qty=2
+BOOK seq=6 bid=100x4 ask=101x5
+LVL side=B px=100 qty=4 orders=2:4
+LVL side=S px=101 qty=5 orders=1:5
+LVL side=S px=102 qty=2 orders=6:2

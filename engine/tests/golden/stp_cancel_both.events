@@ -1,0 +1,17 @@
+ACK seq=1 id=1 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=4
+BOOK seq=1 bid=100x4 ask=-
+ACK seq=2 id=2 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=5
+BOOK seq=2 bid=100x9 ask=-
+ACK seq=3 id=3 side=B type=LMT tif=GTC po=0 stp=CN px=99 qty=5
+BOOK seq=3 bid=100x9 ask=-
+ACK seq=4 id=4 side=S type=MKT tif=IOC po=0 stp=CB px=0 qty=8
+TRD seq=4 trade=1 px=100 qty=4 maker=1 taker=4 aggr=S
+FILL seq=4 trade=1 id=1 acct=1 side=B liq=M px=100 qty=4 leaves=0 cum=4
+FILL seq=4 trade=1 id=4 acct=2 side=S liq=T px=100 qty=4 leaves=4 cum=4
+CXL seq=4 id=2 qty=5 reason=SELF_TRADE
+CXL seq=4 id=4 qty=4 reason=SELF_TRADE
+BOOK seq=4 bid=99x5 ask=-
+ACK seq=5 id=5 side=S type=MKT tif=IOC po=0 stp=CN px=0 qty=2
+CXL seq=5 id=5 qty=2 reason=SELF_TRADE
+BOOK seq=5 bid=99x5 ask=-
+LVL side=B px=99 qty=5 orders=3:5

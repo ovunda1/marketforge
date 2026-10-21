@@ -1,0 +1,9 @@
+N 1 1 1 S LMT GTC 0 CN 100 3
+N 2 2 1 S LMT GTC 0 CN 101 4
+N 3 3 1 S LMT GTC 0 CN 102 10
+# FOK buy 8 @101: only 3 + 4 = 7 within the limit (102 is beyond it) -> reject, book unchanged.
+N 4 4 2 B LMT FOK 0 CN 101 8
+# FOK buy 7 @101: exactly fillable across two levels.
+N 5 5 2 B LMT FOK 0 CN 101 7
+# FOK into an empty side is rejected.
+N 6 6 2 S LMT FOK 0 CN 100 1
