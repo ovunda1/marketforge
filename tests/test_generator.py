@@ -42,3 +42,15 @@ def test_covers_every_command_shape() -> None:
         "MKT-IOC-po0", "MKT-GTC-po0", "stp-CN", "stp-CO", "stp-CB", "invalid-field",
     ):
         assert kinds[kind] > 0, kind
+
+
+def test_reuses_ids_of_orders_that_are_gone() -> None:
+    # Exercises session-wide id uniqueness (M4): new orders with ids that were cancelled.
+    cancelled: set[int] = set()
+    reused = 0
+    for c in map(parse_command, generate(1, 20_000)):
+        if isinstance(c, Cancel):
+            cancelled.add(c.order_id)
+        elif isinstance(c, NewOrder) and c.order_id in cancelled:
+            reused += 1
+    assert reused > 50

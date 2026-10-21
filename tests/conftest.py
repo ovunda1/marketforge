@@ -19,3 +19,13 @@ def driver() -> Path:
     if not path.is_file():
         pytest.fail(f"mf_driver not found at {path}: run `make build` or set MF_DRIVER")
     return path
+
+
+@pytest.fixture(scope="session")
+def tools(driver: Path) -> dict[str, Path]:
+    """mf-journal and mf-replay, built next to mf_driver."""
+    found = {name: driver.parent / name for name in ("mf-journal", "mf-replay")}
+    for name, path in found.items():
+        if not path.is_file():
+            pytest.fail(f"{name} not found at {path}: run `make build`")
+    return found

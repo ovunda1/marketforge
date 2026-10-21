@@ -6,10 +6,11 @@ VENV_PY    := $(VENV)/bin/python
 BUILD_DIR  := build
 BUILD_TYPE ?= RelWithDebInfo
 DRIVER     := $(BUILD_DIR)/engine/tools/mf_driver
+REPLAY     := $(BUILD_DIR)/engine/tools/mf-replay
 # Seed for the long differential test; override with `make difftest-long SEED=7`.
 SEED       ?= 20261020
 
-.PHONY: venv build test test-cpp test-py difftest difftest-long difftest-replay clean
+.PHONY: venv build test test-cpp test-py difftest difftest-long difftest-replay replay clean
 
 venv: $(VENV)/.installed
 
@@ -40,6 +41,12 @@ difftest-long: venv build
 
 difftest-replay: venv build
 	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --replay
+
+# Replay a journal and print the SHA-256 of its event stream:
+#   make replay JOURNAL=run.mfj [SNAPSHOT=snap-000000001000.mfsnap]
+replay: build
+	@test -n "$(JOURNAL)" || { echo "usage: make replay JOURNAL=<file> [SNAPSHOT=<file>]"; exit 1; }
+	$(REPLAY) $(JOURNAL) $(if $(SNAPSHOT),--snapshot $(SNAPSHOT))
 
 clean:
 	rm -rf $(BUILD_DIR)

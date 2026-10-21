@@ -33,7 +33,11 @@ Both engines check a new order in this order and report the first failure:
 2. Quantity: `qty > 0` (`INVALID_QTY`).
 3. Type combination: a market order must be IOC and not post-only; a post-only order
    must be a GTC limit (`INVALID_ORDER_TYPE`).
-4. Duplicate id: the id is already resting (`DUPLICATE_ORDER_ID`).
+4. Duplicate id: an order with this id was acked earlier in the session, even if it has
+   since filled or been cancelled (`DUPLICATE_ORDER_ID`). A rejected order was never
+   accepted, so its id stays free. The check lives in the book, not the sequencer, so
+   replay reproduces it (M4). The set of used ids is reset at session open once session
+   states arrive (M5), which bounds its memory to one session.
 5. Type-specific: market into an empty side (`NO_LIQUIDITY`), crossing post-only
    (`POST_ONLY_WOULD_CROSS`), unfillable FOK (`FOK_NOT_FILLABLE`).
 

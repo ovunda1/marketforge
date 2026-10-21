@@ -89,24 +89,52 @@ TEST(OrderBook, RejectsDuplicateIdOfRestingOrder) {
   EXPECT_EQ(book.best_ask(), std::nullopt);
 }
 
-// Pins current M2 behavior: only ids of *resting* orders are checked. Reusing the id
-// of a filled or cancelled order is accepted; the sequencer enforces session-wide
-// uniqueness from M4. Change this test deliberately when that lands.
-TEST(OrderBook, ReusingIdOfFilledOrCancelledOrderIsAcceptedInM2) {
+// Order ids are unique for the whole session (M4): once an order has been acked, its id
+// can never be used again, even after it filled or was cancelled.
+TEST(OrderBook, ReusingIdOfFilledOrderIsRejected) {
   OrderBook book;
   run(book, sell(1, 10, 100, 5));
   run(book, buy(2, 11, 100, 5));  // fills order 10 completely
   ASSERT_EQ(book.leaves_qty(10), std::nullopt);
+  EXPECT_EQ(run(book, buy(3, 10, 90, 1)), only_reject(3, 10, RejectReason::DuplicateOrderId));
+  EXPECT_EQ(run(book, sell(4, 11, 120, 1)),  // the taker's id is used too
+            only_reject(4, 11, RejectReason::DuplicateOrderId));
+  EXPECT_EQ(book.order_count(), 0u);
+}
 
-  auto events = run(book, buy(3, 10, 90, 1));
+TEST(OrderBook, ReusingIdOfCancelledOrderIsRejected) {
+  OrderBook book;
+  run(book, buy(1, 10, 100, 5));
+  run(book, cancel(2, 10));
+  EXPECT_EQ(run(book, buy(3, 10, 90, 2)), only_reject(3, 10, RejectReason::DuplicateOrderId));
+  EXPECT_EQ(book.order_count(), 0u);
+}
+
+TEST(OrderBook, ReusingIdOfUnfilledIocIsRejected) {
+  OrderBook book;
+  NewOrder ioc = buy(1, 10, 100, 5);
+  ioc.tif = TimeInForce::IOC;
+  ASSERT_EQ(run(book, ioc).size(), 2u);  // Ack + Cancelled(UNFILLED)
+  EXPECT_EQ(run(book, buy(2, 10, 100, 5)), only_reject(2, 10, RejectReason::DuplicateOrderId));
+}
+
+// A rejected order was never accepted, so its id stays free.
+TEST(OrderBook, IdOfRejectedOrderCanBeUsed) {
+  OrderBook book;
+  EXPECT_EQ(run(book, buy(1, 10, 100, 0)), only_reject(1, 10, RejectReason::InvalidQty));
+  const auto events = run(book, buy(2, 10, 100, 5));
   ASSERT_EQ(events.size(), 1u);
   EXPECT_TRUE(std::holds_alternative<Ack>(events[0]));
+  EXPECT_EQ(book.leaves_qty(10), std::optional<Qty>{5});
+}
 
-  run(book, cancel(4, 10));
-  events = run(book, buy(5, 10, 90, 2));
-  ASSERT_EQ(events.size(), 1u);
-  EXPECT_TRUE(std::holds_alternative<Ack>(events[0]));
-  EXPECT_EQ(book.leaves_qty(10), std::optional<Qty>{2});
+// The duplicate check keeps its place in the validation order.
+TEST(OrderBook, FieldErrorsAreReportedBeforeAReusedId) {
+  OrderBook book;
+  run(book, buy(1, 10, 100, 5));
+  run(book, cancel(2, 10));
+  EXPECT_EQ(run(book, buy(3, 10, 0, 5)), only_reject(3, 10, RejectReason::InvalidPrice));
+  EXPECT_EQ(run(book, buy(4, 10, 100, 0)), only_reject(4, 10, RejectReason::InvalidQty));
 }
 
 // --- Resting and aggregation ------------------------------------------------------

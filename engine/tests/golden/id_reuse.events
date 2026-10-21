@@ -1,0 +1,22 @@
+ACK seq=1 id=1 side=S type=LMT tif=GTC po=0 stp=CN px=100 qty=5
+BOOK seq=1 bid=- ask=100x5
+ACK seq=2 id=2 side=B type=LMT tif=GTC po=0 stp=CN px=100 qty=5
+TRD seq=2 trade=1 px=100 qty=5 maker=1 taker=2 aggr=B
+FILL seq=2 trade=1 id=1 acct=1 side=S liq=M px=100 qty=5 leaves=0 cum=5
+FILL seq=2 trade=1 id=2 acct=2 side=B liq=T px=100 qty=5 leaves=0 cum=5
+BOOK seq=2 bid=- ask=-
+REJ seq=3 id=1 reason=DUPLICATE_ORDER_ID
+BOOK seq=3 bid=- ask=-
+ACK seq=4 id=3 side=S type=LMT tif=IOC po=0 stp=CN px=101 qty=2
+CXL seq=4 id=3 qty=2 reason=UNFILLED
+BOOK seq=4 bid=- ask=-
+REJ seq=5 id=3 reason=DUPLICATE_ORDER_ID
+BOOK seq=5 bid=- ask=-
+REJ seq=6 id=4 reason=INVALID_QTY
+BOOK seq=6 bid=- ask=-
+ACK seq=7 id=4 side=S type=LMT tif=GTC po=0 stp=CN px=101 qty=2
+BOOK seq=7 bid=- ask=101x2
+CXL seq=8 id=4 qty=2 reason=USER
+BOOK seq=8 bid=- ask=-
+REJ seq=9 id=4 reason=DUPLICATE_ORDER_ID
+BOOK seq=9 bid=- ask=-

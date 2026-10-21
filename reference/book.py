@@ -55,6 +55,9 @@ class ReferenceBook:
     def __init__(self) -> None:
         self.orders: list[Resting] = []
         self.next_trade_id = 1
+        # Ids of every acked order: unique for the session, even after the order is gone.
+        # A rejected order never used its id. (Reset at session open from M5.)
+        self.used_ids: set[int] = set()
 
     # --- Commands -----------------------------------------------------------------
 
@@ -80,7 +83,7 @@ class ReferenceBook:
             reason = "INVALID_ORDER_TYPE"
         elif o.post_only and o.tif != "GTC":
             reason = "INVALID_ORDER_TYPE"
-        elif self._find(o.order_id) is not None:
+        elif o.order_id in self.used_ids:
             reason = "DUPLICATE_ORDER_ID"
         elif is_market and not any(r.side != o.side for r in self.orders):
             reason = "NO_LIQUIDITY"
@@ -92,6 +95,7 @@ class ReferenceBook:
             out.append(f"REJ seq={o.seq} id={o.order_id} reason={reason}")
             return
 
+        self.used_ids.add(o.order_id)
         out.append(
             f"ACK seq={o.seq} id={o.order_id} side={o.side} type={o.type} tif={o.tif} "
             f"po={int(o.post_only)} stp={o.stp} px={o.price} qty={o.qty}"

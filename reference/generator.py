@@ -17,7 +17,7 @@ import sys
 
 from reference.commands import Cancel, NewOrder, Replace, format_command
 
-GENERATOR_VERSION = 1
+GENERATOR_VERSION = 2  # 2: reuses ids of cancelled and rejected orders (M4)
 MID = 1000
 BAND = 8  # prices within MID +/- BAND ticks, so most orders interact
 ACCOUNTS = 4  # few accounts, so self-trades are common
@@ -29,6 +29,9 @@ def generate(seed: int, n: int) -> list[str]:
     lines = [f"# marketforge difftest seed={seed} n={n} generator={GENERATOR_VERSION}"]
     # (seq issued, id, price, total qty) for GTC limits that may still be resting.
     maybe_resting: list[tuple[int, int, int, int]] = []
+    # Ids that are likely gone (cancelled) or never accepted (invalid orders), for
+    # exercising session-wide id uniqueness: the first are duplicates, the second free.
+    retired: list[int] = []
     next_id = 1
 
     def new_id() -> int:
@@ -46,9 +49,11 @@ def generate(seed: int, n: int) -> list[str]:
         r = rng.random()
         if maybe_resting and seq - maybe_resting[0][0] > MAX_AGE:
             _, oid, _, _ = maybe_resting.pop(0)
+            retired.append(oid)
             cmd: NewOrder | Cancel | Replace = Cancel(seq, oid)
         elif r < 0.18 and maybe_resting:
             _, oid, _, _ = maybe_resting.pop(rng.randrange(len(maybe_resting)))
+            retired.append(oid)
             cmd = Cancel(seq, oid)
         elif r < 0.20:
             cmd = Cancel(seq, rng.randint(1, next_id + 5))  # often unknown
@@ -71,7 +76,8 @@ def generate(seed: int, n: int) -> list[str]:
             maybe_resting[i] = (issued, oid, new_px, new_qty)
             cmd = Replace(seq, oid, new_px, new_qty)
         elif r < 0.37:
-            cmd = _invalid_order(rng, seq, new_id(), maybe_resting)
+            cmd = _invalid_order(rng, seq, new_id(), maybe_resting, retired)
+            retired.append(cmd.order_id)
         else:
             side = rng.choice("BS")
             kind = rng.random()
@@ -102,7 +108,11 @@ def generate(seed: int, n: int) -> list[str]:
 
 
 def _invalid_order(
-    rng: random.Random, seq: int, oid: int, maybe_resting: list[tuple[int, int, int, int]]
+    rng: random.Random,
+    seq: int,
+    oid: int,
+    maybe_resting: list[tuple[int, int, int, int]],
+    retired: list[int],
 ) -> NewOrder:
     side = rng.choice("BS")
     account = rng.randint(1, ACCOUNTS)
@@ -120,8 +130,12 @@ def _invalid_order(
         return NewOrder(seq, oid, account, side, "MKT", "IOC", True, "CN", 0, 5)
     if v == 5:
         return NewOrder(seq, oid, account, side, "LMT", rng.choice(("IOC", "FOK")), True, "CN", px, 5)
-    # Reuse an id that may still be resting: DUPLICATE_ORDER_ID if it is.
-    dup = maybe_resting[rng.randrange(len(maybe_resting))][1] if maybe_resting else oid
+    # Reuse an id that may still be resting, or one that is gone: DUPLICATE_ORDER_ID if
+    # it was ever acked, accepted if its order was rejected.
+    if retired and (not maybe_resting or rng.random() < 0.5):
+        dup = rng.choice(retired)
+    else:
+        dup = maybe_resting[rng.randrange(len(maybe_resting))][1] if maybe_resting else oid
     tif = rng.choice(("IOC", "FOK", "IOC"))
     if v == 6:
         return NewOrder(seq, dup, account, side, "LMT", tif, False, "CN", px, 5)

@@ -1,0 +1,15 @@
+# Order ids are unique for the session (M4): an acked id is never reused, even after the
+# order filled or was cancelled; a rejected order's id stays free.
+N 1 1 1 S LMT GTC 0 CN 100 5
+N 2 2 2 B LMT GTC 0 CN 100 5
+# Id 1 filled completely: duplicate.
+N 3 1 1 S LMT GTC 0 CN 101 3
+# An IOC with nothing to fill is acked, so its id is used.
+N 4 3 1 S LMT IOC 0 CN 101 2
+N 5 3 1 S LMT GTC 0 CN 101 2
+# Rejected for its quantity: id 4 stays free and the next order may take it.
+N 6 4 1 S LMT GTC 0 CN 101 0
+N 7 4 1 S LMT GTC 0 CN 101 2
+C 8 4
+# Id 4 was cancelled: duplicate.
+N 9 4 1 S LMT GTC 0 CN 102 1

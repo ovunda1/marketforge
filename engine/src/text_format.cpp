@@ -153,6 +153,12 @@ std::string format_depth(const OrderBook& book) {
   return out;
 }
 
+void append_command_output(const std::vector<Event>& events, SeqNo seq_no,
+                           const OrderBook& book, std::string& out) {
+  for (const auto& e : events) (out += to_string(e)) += '\n';
+  (out += format_top_of_book(seq_no, book)) += '\n';
+}
+
 void run_commands(std::istream& in, std::ostream& out) {
   OrderBook book;
   std::vector<Event> events;
@@ -169,9 +175,8 @@ void run_commands(std::istream& in, std::ostream& out) {
     events.clear();
     book.process(*command, events);
     text.clear();
-    for (const auto& e : events) (text += to_string(e)) += '\n';
     const SeqNo seq_no = std::visit([](const auto& c) { return c.seq_no; }, *command);
-    (text += format_top_of_book(seq_no, book)) += '\n';
+    append_command_output(events, seq_no, book, text);
     out << text;
   }
   out << format_depth(book);

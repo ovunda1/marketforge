@@ -1,6 +1,12 @@
 add_library(mf_engine
+  src/checksum.cpp
+  src/clock.cpp
   src/events.cpp
+  src/journal.cpp
   src/order_book.cpp
+  src/replay.cpp
+  src/sequencer.cpp
+  src/snapshot.cpp
   src/text_format.cpp
   src/version.cpp
 )
