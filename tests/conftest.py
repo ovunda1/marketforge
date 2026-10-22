@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from pathlib import Path
 
 import pytest
@@ -47,3 +48,23 @@ def tools(driver: Path) -> dict[str, Path]:
         if not path.is_file():
             pytest.fail(f"{name} not found at {path}: run `make build`")
     return found
+
+
+class NetworkBlocked(RuntimeError):
+    """A test tried to reach the network: everything must run offline (M8)."""
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test runs offline. Downloads and the Tiingo client take an injected
+    transport in tests; a real connection attempt fails the test. Unix sockets (local
+    IPC) stay allowed."""
+    real_connect = socket.socket.connect
+
+    def guarded(self: socket.socket, address: object) -> None:
+        if self.family == socket.AF_UNIX:
+            return real_connect(self, address)
+        raise NetworkBlocked(f"network access in a test: {address!r}")
+
+    monkeypatch.setattr(socket.socket, "connect", guarded)
+    monkeypatch.setattr(socket.socket, "connect_ex", guarded)

@@ -1,0 +1,18 @@
+{
+  "name": "binance-um-kncusdt-2024-03-12",
+  "source": "binance",
+  "license": "Binance Terms of Use; free to download, no redistribution grant. Never committed (docs/data.md).",
+  "instrument": {"symbol": "KNCUSDT", "tick_size": "0.0001", "lot_size": "1"},
+  "files": [
+    {
+      "kind": "quotes",
+      "url": "https://data.binance.vision/data/futures/um/daily/bookTicker/KNCUSDT/KNCUSDT-bookTicker-2024-03-12.zip",
+      "sha256": "cc0b6aa3427ab6f845f08923ac5f584c95d6e2d93f6efa6284ca3423a6f07251"
+    },
+    {
+      "kind": "trades",
+      "url": "https://data.binance.vision/data/futures/um/daily/trades/KNCUSDT/KNCUSDT-trades-2024-03-12.zip",
+      "sha256": "1aded7f040ca2424859434012cff6159cc12c9c1999c7a945892ee9ce8e22d98"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# Cross-sectional 12-1 momentum on synthetic daily bars, walk-forward.
+kind = "walkforward"
+seed = 0
+
+[data.synthetic_bars]
+seed = 8
+symbols = ["A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10", "A11", "A12"]
+n_days = 2500
+start = "2012-01-03"
+split_every = 500
+dividend_every = 63
+
+[execution]
+capital = 1_000_000_000_000
+lag = 1
+price = "open"
+
+[strategy]
+name = "xsmom"
+
+[strategy.grid]
+lookback_months = [6, 12]
+skip_months = [1]
+quantile = [0.2, 0.3]
+
+[walkforward]
+train = 750
+test = 250

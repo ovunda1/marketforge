@@ -1,0 +1,29 @@
+# Order-book momentum, event-driven through the engine, on 10 minutes of synthetic
+# agent flow replayed as history. Parameters were fixed before the first run, not tuned.
+kind = "event"
+seed = 1
+
+[data.synthetic]
+seed = 2026
+duration_ns = 600_000_000_000
+
+[broker]
+latency_ns = 1_000_000  # 1 ms to the exchange
+jitter_ns = 500_000
+
+[replay]  # the conservative defaults, written out
+queue = "pessimistic"
+consumed_liquidity = "stays_removed"
+
+[strategy]
+name = "obmom"
+
+[strategy.params]
+horizon_ns = 2_000_000_000
+return_weight = 1.0
+imbalance_weight = 2.0
+threshold = 3.0
+qty = 5
+max_position = 20
+max_hold_ns = 30_000_000_000
+flatten_before_end_ns = 10_000_000_000

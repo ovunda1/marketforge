@@ -26,7 +26,8 @@ ASAN_PRELOAD_VAR = $(if $(filter Darwin,$(shell uname)),DYLD_INSERT_LIBRARIES,LD
 SEED       ?= 20261020
 
 .PHONY: venv venv-release build test test-cpp test-py sanitize difftest difftest-long difftest-replay \
-        replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean
+        replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean \
+        backtest reproduce examples data-binance data-tiingo
 
 venv: $(VENV)/.installed
 
@@ -131,6 +132,42 @@ bench-bindings: venv venv-release
 	$(VENV_PY) -m bench.bindings --out bench/results/bindings-dev.json $(if $(FORCE),--force)
 	$(RELEASE_PY) -m bench.bindings --out bench/results/bindings-release.json $(if $(FORCE),--force)
 	$(VENV_PY) -m bench.render
+
+# --- Research (M8, research/) -----------------------------------------------------------
+
+# Runs use the release install (Release, invariant walk off); `make venv-release` after
+# changing engine or binding sources. Records and results land in runs/ (git-ignored).
+#   make backtest CONFIG=research/examples/tsmom_walkforward.toml
+backtest:
+	@test -n "$(CONFIG)" || { echo "usage: make backtest CONFIG=<config.toml>"; exit 1; }
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	$(RELEASE_PY) -m research run $(CONFIG) --out runs
+
+#   make reproduce RECORD=runs/<run>/record.json
+reproduce:
+	@test -n "$(RECORD)" || { echo "usage: make reproduce RECORD=<record.json>"; exit 1; }
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	$(RELEASE_PY) -m research reproduce $(RECORD)
+
+# Regenerate the committed example runs (research/examples/runs/), which the test suite
+# reproduces byte for byte. Only after a deliberate change to results.
+EXAMPLES := obmom_synthetic tsmom_walkforward xsmom_walkforward
+examples:
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	rm -rf research/examples/runs
+	for c in $(EXAMPLES); do \
+	  $(RELEASE_PY) -m research run research/examples/$$c.toml --out research/examples/runs --name $$c || exit 1; \
+	done
+	rm -f research/examples/runs/*/journal.mfj
+
+# Real data (docs/data.md): downloaded into data/ (git-ignored), checked against pinned
+# checksums, normalized to Parquet. Tiingo needs TIINGO_API_KEY in the environment; the
+# first download needs UPDATE_PINS=1, then commit the manifest.
+data-binance: venv
+	$(VENV_PY) -m research.data.download research/data/manifests/binance-um-kncusdt-2024-03-12.json
+
+data-tiingo: venv
+	$(VENV_PY) -m research.data.download research/data/manifests/tiingo-etf-daily.json $(if $(UPDATE_PINS),--update-pins)
 
 # What every optimization must pass before it is measured: the full suite with the
 # invariant walk on, the sanitizers, the long difftest on both profiles, the suite on

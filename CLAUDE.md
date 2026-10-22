@@ -52,6 +52,28 @@ before any state changes; any other exception from `Engine::process` fails the b
 Engine, and later calls raise `EngineFailed`. Stubs: `bindings/mfengine/_core.pyi`,
 checked by a test (names both ways, and mypy stubtest).
 
+Data and backtester (M8, `research/`, docs/learning/m8.md): `docs/data.md` (sources,
+terms, normalized Parquet schemas, validation on every load) and `docs/backtesting.md`
+(event-driven replay through the engine, bar backtester, walk-forward, run records).
+Prices stay integers end to end (`research.ticks`: Decimal text onto the tick grid, never
+a float); bars are stored unadjusted with corporate actions as columns. Never commit
+downloaded data (`data/` is git-ignored): manifests in `research/data/manifests/` pin
+checksums; `TIINGO_API_KEY` comes from the environment only. Tests run offline (a
+conftest fixture blocks sockets). Backtest assumptions that could flatter a strategy
+default to the conservative choice (pessimistic queue, taken liquidity stays taken,
+history wins ties) and are recorded in every run record. Bar strategies must pass
+`check_causal`; sweeps report out-of-sample only. Runs use the release install
+(`make backtest CONFIG=…`, `make reproduce RECORD=…`); `make examples` regenerates the
+committed example runs, which the suite reproduces byte for byte. Costs are M9
+(`research/backtest/costs.py` is the interface; M8 results are gross).
+
+```sh
+make backtest CONFIG=research/examples/tsmom_walkforward.toml
+make reproduce RECORD=runs/<run>/record.json
+make examples        # regenerate research/examples/runs/ (only after a deliberate change)
+make data-binance    # one pinned Binance day; make data-tiingo [UPDATE_PINS=1] needs the key
+```
+
 `MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency
 walk after every command; benchmark builds turn it off. The `seq_no` monotonicity
 check in `OrderBook::process` is always on.
