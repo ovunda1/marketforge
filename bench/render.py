@@ -269,7 +269,33 @@ def headline(sources: dict, _: str) -> str:
     return "\n".join(lines)
 
 
+def bindings_table(sources: dict, _: str) -> str:
+    """Per-command cost of the Python bindings (M7) on the dev and release installs."""
+    rows = []
+    for name in ("bindings-dev", "bindings-release"):
+        d = sources[name]
+        b, ns = d["build"], d["ns_per_command"]
+        rows.append([f"{b['build_type']}, invariant walk {'on' if b['invariant_checks'] else 'off'}",
+                     *[_range(ns[k], "ns") for k in ("single", "batch", "batch_and_read_events", "build_batch")],
+                     FORMATS["ratio"](d["single_over_batch"])])
+    return _table(["Install", "One `process()` per command", "`process_batch()`",
+                   "Batch, then read every event", "Building the `CommandBatch`",
+                   "Single / batch"], rows)
+
+
+def bindings_settings(sources: dict, _: str) -> str:
+    d = sources["bindings-release"]
+    m, s = d["machine"], d["settings"]
+    return (f"Workload: the `{s['workload']}` generator stream (`reference/generator.py`, seed "
+            f"`{s['seed']}`), {FORMATS['int'](s['n'])} commands and {FORMATS['int'](s['events'])} "
+            f"events, commands built as Python objects before timing; median (min – max) of "
+            f"{s['reps']} repetitions per install, nanoseconds per command. Measured on "
+            f"{m['cpu']}, {m['os']}, {m['power']['source']}, Python {d['build']['python']}, "
+            f"commit `{d['git']['commit'][:12]}`.")
+
+
 BLOCKS: dict[str, Callable[[dict, str], str]] = {
+    "bindings_table": bindings_table, "bindings_settings": bindings_settings,
     "machine_table": machine_table, "throughput_table": throughput_table,
     "latency_table": latency_table, "micro_table": micro_table, "ab_table": ab_table,
     "ab_micro_table": ab_micro_table, "ab_settings": ab_settings, "ab_geomean": ab_geomean,
@@ -283,7 +309,7 @@ BLOCKS: dict[str, Callable[[dict, str], str]] = {
 def load_sources(root: Path = REPO_ROOT) -> dict:
     results = root / "bench" / "results"
     sources: dict[str, Any] = {"ab": {}}
-    for name in ("replay", "micro"):
+    for name in ("replay", "micro", "bindings-dev", "bindings-release"):
         path = results / f"{name}.json"
         if path.exists():
             sources[name] = json.loads(path.read_text())

@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "generated_by": "make bench-bindings",
+  "machine": {
+    "cpu": "Apple M5",
+    "model": "Mac17,2",
+    "performance_cores": 4,
+    "efficiency_cores": 6,
+    "logical_cpus": 10,
+    "memory_bytes": 17179869184,
+    "os": "macOS 26.2 (25C56), Darwin 25.2.0",
+    "thermal": "Note: No thermal warning level has been recorded Note: No performance warning level has been recorded Note: No CPU power status has been recorded",
+    "power": {
+      "source": "AC Power",
+      "low_power_mode": false,
+      "forced": false
+    }
+  },
+  "git": {
+    "commit": "7c20f586abf56c3824cfd2dadffc62d76d18d7e8",
+    "dirty": false
+  },
+  "build": {
+    "build_type": "Release",
+    "invariant_checks": false,
+    "python": "3.12.15",
+    "mfengine": "0.1.0"
+  },
+  "settings": {
+    "workload": "difftest",
+    "seed": 20261020,
+    "n": 200000,
+    "reps": 7,
+    "events": 361942
+  },
+  "ns_per_command": {
+    "single": {
+      "n": 7,
+      "median": 458.230625,
+      "min": 448.709165,
+      "max": 471.769375,
+      "mean": 458.9770828571428,
+      "stddev": 7.180153673515566,
+      "cv": 0.01564381739676183
+    },
+    "batch": {
+      "n": 7,
+      "median": 52.97,
+      "min": 52.66792,
+      "max": 79.88646,
+      "mean": 59.81202428571429,
+      "stddev": 9.587749379783121,
+      "cv": 0.16029802525966494
+    },
+    "batch_and_read_events": {
+      "n": 7,
+      "median": 312.945205,
+      "min": 287.93854,
+      "max": 411.80896,
+      "mean": 324.10398785714284,
+      "stddev": 37.24138551172088,
+      "cv": 0.11490566888098883
+    },
+    "build_batch": {
+      "n": 7,
+      "median": 140.77625,
+      "min": 136.49125,
+      "max": 151.980835,
+      "mean": 142.28366071428573,
+      "stddev": 6.161229815402947,
+      "cv": 0.043302440944185935
+    }
+  },
+  "single_over_batch": 8.650757504247688
+}
