@@ -41,7 +41,10 @@ client -> Sequencer -----------------> Engine::process(command, timestamp)
 The rate limiter is the only part of the engine that uses time. It takes the journal
 record's timestamp, which the sequencer stamped from the injected `Clock`. On replay the
 timestamp comes from the record, so no clock is read. The journal guarantees timestamps
-never decrease; a decrease reaching the engine is an `InvariantViolation`.
+never decrease; a decrease reaching the engine is a `SequenceError` (an
+`InvariantViolation`), thrown by `Engine::process` before anything changes, for every
+command and not only rate-limited ones (M7). An engine restored from a snapshot takes
+the snapshot's timestamp as the bound.
 
 In text command files, a `T <ns>` line sets the time for the commands after it. Time
 starts at 0. `mf_driver` and `mf-journal` (step 0 by default) treat these lines

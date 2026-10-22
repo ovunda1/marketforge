@@ -1,0 +1,10 @@
+# mypy stubtest allowlist for mfengine (M7). Entries are regexes on full names.
+#
+# Class objects only (not their members): every pybind11 class has the metaclass
+# pybind11_builtins.pybind11_type, which a stub cannot name. Members are still checked,
+# and tests/bindings/test_mfengine_stubs.py checks the class names both ways.
+mfengine\._core\.[A-Za-z]+
+
+# Result-only classes: Python cannot construct them (pybind11's placeholder __init__
+# raises TypeError), so the stub gives them no constructor.
+mfengine\._core\.(EventBatch|Exposure|OrderView|ReplayResult|Snapshot)\.__init__

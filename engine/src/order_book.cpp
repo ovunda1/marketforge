@@ -20,8 +20,8 @@ bool rests(TimeInForce tif) { return tif == TimeInForce::GTC || tif == TimeInFor
 void OrderBook::check_seq_no(SeqNo seq_no) const {
   // Always on: the sequencer contract is cheap to check and replay depends on it.
   if (last_seq_no_ && seq_no <= *last_seq_no_) {
-    fail("seq_no " + std::to_string(seq_no) + " does not exceed previous " +
-         std::to_string(*last_seq_no_));
+    throw SequenceError("seq_no " + std::to_string(seq_no) + " does not exceed previous " +
+                        std::to_string(*last_seq_no_));
   }
 }
 

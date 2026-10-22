@@ -48,13 +48,25 @@ jobs:
       - name: Install
         run: python -m pip install -e '.[dev]'
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DMF_SANITIZE=ON
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DMF_SANITIZE=ON -DMF_BUILD_BINDINGS=ON -DPython_EXECUTABLE="$(which python)"
       - name: Build
         run: cmake --build build -j
       - name: Test (GoogleTest)
         run: ctest --test-dir build --output-on-failure --no-tests=error
       - name: Test (pytest, sanitized tools)
         run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest
+      # The sanitized mfengine in-process (M7). Python is not instrumented: the ASan
+      # runtime is preloaded, and leak checks are off (the interpreter's own allocations
+      # would be reported at exit). A venv without mfengine runs it, since the editable
+      # install's import hook would win over PYTHONPATH; MF_EXPECT_MFENGINE checks it.
+      - name: Test (pytest, sanitized bindings)
+        run: |
+          python -m venv /tmp/asan-venv
+          /tmp/asan-venv/bin/pip install -q 'pytest>=8' 'mypy>=1.11'
+          LD_PRELOAD="$(bindings/asan_runtime.sh clang++)" \
+          ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 PYTHONMALLOC=malloc \
+          PYTHONPATH=build/bindings/python MF_EXPECT_MFENGINE=build \
+          MF_DRIVER=build/engine/tools/mf_driver /tmp/asan-venv/bin/python -m pytest tests/bindings
 
   # Benchmarks (M6) as a smoke test: the suite on the Release benchmark build (walk off),
   # including the pinned workload digests, then every benchmark at tiny sizes with its
@@ -93,20 +105,29 @@ jobs:
           cmake --build build -j --target mf-replay
           python -m bench.crosscheck --bench-dir build-bench --replay build/engine/tools/mf-replay
 
-  bindings:
-    name: pybind11 stub
+  # The release install for backtests (M7): Release, invariant walk off, not editable.
+  # The full binding suite runs on it, against the tools built the same way.
+  bindings-release:
+    name: Python bindings (release build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build mfengine
+          cache: pip
+      - name: Install mfengine (Release, invariant checks off)
         run: |
-          cmake -S . -B build -DMF_BUILD_BINDINGS=ON -DMF_BUILD_TESTS=OFF -DPython_EXECUTABLE="$(which python)"
-          cmake --build build -j
-      - name: Import mfengine
-        run: PYTHONPATH=build/bindings python -c "import mfengine; print(mfengine.version())"
+          python -m pip install 'scikit-build-core>=0.10'
+          python -m pip install --no-build-isolation -Cbuild-dir=build-py-release \
+            -Ccmake.build-type=Release -Ccmake.define.MF_CHECK_INVARIANTS=OFF '.[dev]'
+          python -c "import mfengine; assert not mfengine.INVARIANT_CHECKS and mfengine.BUILD_TYPE == 'Release'"
+      - name: Build mf_driver, mf-journal, mf-replay
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMF_CHECK_INVARIANTS=OFF -DMF_BUILD_TESTS=OFF
+          cmake --build build -j --target mf_driver mf-journal mf-replay
+      - name: Test
+        run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest tests/bindings
 
   python:
     name: Python (pytest)
@@ -119,8 +140,8 @@ jobs:
           cache: pip
       - name: Install
         run: python -m pip install -e '.[dev]'
-      # The differential test (100k commands), golden tests and replay tests drive the
-      # C++ tools.
+      # The install builds mfengine (M7, invariant checks on). The differential test
+      # (100k commands), golden tests and replay tests drive the C++ tools.
       - name: Build mf_driver, mf-journal, mf-replay
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DMF_BUILD_TESTS=OFF

@@ -25,6 +25,15 @@ class InvariantViolation : public std::logic_error {
   using std::logic_error::logic_error;
 };
 
+// The caller-contract part: a seq_no that does not exceed the previous one, or a
+// timestamp earlier than the previous command's (Engine). Always detected before any
+// state changes, so the book or engine is unchanged and still usable. Any other
+// InvariantViolation may come after a command began changing state.
+class SequenceError : public InvariantViolation {
+ public:
+  using InvariantViolation::InvariantViolation;
+};
+
 // True when the O(N) invariant walk runs after every command (MF_CHECK_INVARIANTS).
 #ifdef MF_CHECK_INVARIANTS
 inline constexpr bool kInvariantChecksEnabled = true;
@@ -99,7 +108,7 @@ class OrderBook {
   // Records a command that does not reach process() (a risk reject or an admin
   // command), so seq_nos stay strictly increasing across both. Throws like process().
   void skip_seq_no(SeqNo seq_no);
-  // Throws InvariantViolation unless seq_no exceeds the last one; changes nothing.
+  // Throws SequenceError unless seq_no exceeds the last one; changes nothing.
   void check_seq_no(SeqNo seq_no) const;
 
   // --- Checks the Engine runs in its own order (docs/risk.md) -----------------------

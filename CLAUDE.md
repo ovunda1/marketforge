@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 6 (Benchmarks)
+## Current milestone: 7 (Python bindings)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -32,6 +32,8 @@ make bench-smoke     # suite on the bench build, every benchmark at tiny sizes (
 make bench-ab OPT=opt-N  # interleaved before/after of a logged optimization
 make bench-docs      # re-render the *.md.in templates from bench/results/
 make gate            # what every optimization must pass before it is measured
+make venv-release    # .venv-release: mfengine in Release, invariant walk off (backtests)
+make bench-bindings  # single-call vs batch cost of mfengine, dev and release installs
 make clean    # remove build artifacts
 ```
 
@@ -39,8 +41,16 @@ Python always runs from `.venv` (python3.12). `make venv` prefers a uv-managed 3
 (`uv python install 3.12`) because Homebrew's python@3.12 has a broken `pyexpat` on
 macOS 26; override with `make PYTHON=/path/to/python3.12`.
 
-The pybind11 stub (`bindings/`) is off by default: build it with
-`cmake -S . -B build -DMF_BUILD_BINDINGS=ON`.
+Python bindings (M7, `bindings/`, package `mfengine`, docs/learning/m7.md): built by
+scikit-build-core from `pyproject.toml`. `make venv` installs it editable with the
+invariant walk on, rebuilt on import when sources change (build tree `build-py/`);
+`make venv-release` is the Release, walk-off install for backtests, and
+`mfengine.INVARIANT_CHECKS` says which one is loaded. The glue is thin: no matching or
+risk logic in `bindings/`. Values cross by copy (events are checked plain values,
+`mf/plain_value.hpp`). `SequenceError` (stale seq_no, backwards timestamp) is thrown
+before any state changes; any other exception from `Engine::process` fails the binding
+Engine, and later calls raise `EngineFailed`. Stubs: `bindings/mfengine/_core.pyi`,
+checked by a test (names both ways, and mypy stubtest).
 
 `MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency
 walk after every command; benchmark builds turn it off. The `seq_no` monotonicity

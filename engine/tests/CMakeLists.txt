@@ -11,6 +11,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(mf_engine_tests
   checksum_test.cpp
+  engine_test.cpp
   clock_sequencer_test.cpp
   golden_test.cpp
   id_set_test.cpp
@@ -19,6 +20,7 @@ add_executable(mf_engine_tests
   object_pool_test.cpp
   order_book_test.cpp
   order_types_test.cpp
+  plain_value_test.cpp
   price_levels_test.cpp
   price_levels_unit_test.cpp
   replay_test.cpp

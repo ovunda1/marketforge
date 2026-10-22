@@ -1,18 +1,25 @@
 #include "mf/engine.hpp"
 
 #include <span>
+#include <string>
 #include <type_traits>
 
 namespace mf {
 
 Engine::Engine() : book_(std::make_unique<OrderBook>()) {}
 
-// Order: seq_no check, risk gate (which runs the book's static checks in its own
-// order), book, then risk state from the command's events. A risk reject never reaches
-// the book; admin commands only touch the book through session or kill-switch actions.
+// Order: seq_no and timestamp checks (nothing has changed if they throw), risk gate
+// (which runs the book's static checks in its own order), book, then risk state from
+// the command's events. A risk reject never reaches the book; admin commands only touch
+// the book through session or kill-switch actions.
 void Engine::process(const Command& command, Timestamp timestamp, std::vector<Event>& out) {
   const SeqNo seq = seq_no_of(command);
   book_->check_seq_no(seq);
+  if (last_timestamp_ && timestamp < *last_timestamp_) {
+    throw SequenceError("timestamp " + std::to_string(timestamp) + " is before " +
+                        std::to_string(*last_timestamp_));
+  }
+  last_timestamp_ = timestamp;
   const std::size_t first = out.size();
   AccountId new_order_account = 0;
 
@@ -105,10 +112,17 @@ void Engine::on_kill_switch(const KillSwitch& c, std::vector<Event>& out) {
 
 EngineState Engine::state() const { return {.book = book_->state(), .risk = risk_.state()}; }
 
-std::unique_ptr<Engine> Engine::from_state(const EngineState& state) {
+std::unique_ptr<Engine> Engine::from_state(const EngineState& state,
+                                           std::optional<Timestamp> last_timestamp) {
   auto engine = std::make_unique<Engine>();
   engine->book_ = OrderBook::from_state(state.book);
   engine->risk_ = RiskGate::from_state(state.risk, state.book);
+  // A bucket's refill time is a timestamp the engine has seen: an earlier command would
+  // otherwise get past the checks and fail in the rate limiter.
+  for (const auto& b : state.risk.buckets) {
+    if (!last_timestamp || b.last_refill > *last_timestamp) last_timestamp = b.last_refill;
+  }
+  engine->last_timestamp_ = last_timestamp;
   return engine;
 }
 

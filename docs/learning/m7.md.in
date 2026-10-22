@@ -1,0 +1,213 @@
+# M7: Python bindings
+
+<!-- Generated from m7.md.in by `make bench-docs` (or `make bench-bindings`): every
+number comes from bench/results/bindings-*.json. Edit the template, not m7.md. -->
+
+## What was built
+
+Python drives the real C++ `Engine` through pybind11, packaged as `mfengine` with
+scikit-build-core. This replaces the M1 stub. The M8 backtester builds on it, so a
+strategy's orders are matched by the same code that runs the live exchange.
+
+- **Values.** Every command, event, limit set and query result is an immutable Python
+  class with keyword-only construction, `==`, `hash` and a dataclass-style `repr`. An
+  event's `str()` is its canonical line (`docs/event-format.md`). Enums are real
+  `enum.Enum` classes (`Side.BUY`, `RejectReason.PRICE_BAND`).
+- **Engine.** `process(command, timestamp)` returns the command's events. The book
+  queries are `best_bid`, `best_ask`, `depth`, `level_orders`, `order`, `order_count`
+  and `last_seq_no`. The risk queries are `session`, `position`, `positions` and
+  `exposure`. Snapshots go through `snapshot()` and `Engine.from_snapshot()`.
+- **Batches.** `process_batch(CommandBatch)` runs many commands with the GIL released
+  and returns an `EventBatch` that indexes events per command.
+- **Journal, replay, snapshots, config.** `JournalWriter`, `JournalReader`, `replay()`
+  (the same hash as `mf-replay`), snapshot bytes and files, and
+  `load_risk_config`/`parse_risk_config`, which return admin commands.
+- **Errors.** Every engine exception maps to a `MarketForgeError` subclass. Ints out of
+  range raise `OverflowError` naming the field. Floats and bools where an int is
+  expected raise `TypeError`.
+- **Stubs.** `bindings/mfengine/_core.pyi` plus `py.typed`. A test checks the names
+  both ways and runs mypy's stubtest.
+- **Two installs.** `make venv` is editable, with the invariant walk on, and rebuilds
+  on import. `make venv-release` is Release with the walk off, for backtests.
+  `mfengine.INVARIANT_CHECKS` says which one is loaded.
+
+The key test (`tests/bindings/test_mfengine_parity.py`) builds the difftest stream as
+Python objects field by field. It drives that stream through `mfengine`, rebuilds the
+canonical stream from `str(event)`, `format_top_of_book` and `format_depth`, and
+requires the bytes and SHA-256 to equal `mf_driver`'s. It also runs every golden
+scenario (book and risk), a risk stream with clock lines, and a YAML config run
+against `mf_driver --config`. It checks that batches give the same events as one call
+per command.
+
+## Read these first
+
+1. `bindings/src/bindings.hpp`: the binding `Engine` (failed state, busy flag),
+   `CommandBatch` and `EventBatch`. All the state the glue adds is here.
+2. `bindings/src/engine.cpp`: `Engine::process` and `Engine::process_batch`, covering
+   the GIL release and how an exception becomes `SequenceError`, `InvariantViolation`
+   plus a failed engine, or a pass-through.
+3. `bindings/src/convert.hpp`: `to_int` (range-checked, never wrapping) and
+   `ValueClass`, which turns a field list into an immutable Python class.
+4. `bindings/src/errors.cpp`: the exception classes and the one translator.
+5. `engine/include/mf/plain_value.hpp` and the `static_assert` in `events.hpp`: the
+   compile-time proof that copying an event out is safe.
+6. `engine/src/engine.cpp`, the top of `Engine::process`: the `seq_no` and timestamp
+   checks that throw `SequenceError` before anything changes.
+
+## Design decisions
+
+**Events are copied once, and Python owns the copy.** `process()` runs the engine into
+a buffer the binding `Engine` reuses, then converts the whole buffer to a list. Each
+event becomes a Python object holding its own copy of the small C++ struct. Nothing in
+Python points into the engine: its buffers are reused on the next call, and book
+internals move as levels are added. Every attribute read returns a copy too
+(`def_property_readonly`, not a reference into the parent). A
+`static_assert(is_plain_value_v<…>)` over every event type makes the safety argument
+checkable. The trait counts an aggregate's members through aggregate initialization,
+names them with a structured binding, and requires each one to be arithmetic or an
+enum. A pointer, reference, `std::string` or nested class member stops the build.
+
+**A batch API in C++, not a Python loop.** `CommandBatch` holds
+`(Command, Timestamp)` pairs in a C++ vector, so `process_batch` converts nothing on
+the way in. `EventBatch` owns the events, and the engine appends straight into it. It
+keeps `offsets` (where each command's events start), so `events_of(k)` gives one
+command's events. Indexing creates Python objects only for what is read. Iterating
+converts everything in one pass: the first version used pybind11's `make_iterator`,
+and its call per event made "batch, then read every event" cost more than single
+calls. Converting in one pass fixed that (the table below). A batch can be built once
+and reused, for example the background order flow between two strategy decisions.
+
+**The GIL.** `process()` keeps the GIL: releasing and taking it back costs about as
+much as matching one order. `process_batch` releases it around the C++ loop only,
+after the inputs are in C++ and before any output becomes Python. `replay`,
+`JournalReader.read_all` and snapshot file I/O release it as well. With the GIL
+released, another thread could call the same `Engine`, and the book has a single
+writer and no locks. So the binding `Engine` sets a busy flag for the length of the
+batch. Any call from another thread meanwhile raises `RuntimeError` instead of
+racing. The test for this doubles as the proof that the GIL is released: the main
+thread can only see the flag set if it runs while the batch is inside C++.
+
+**Errors before any change versus after: `SequenceError` and `EngineFailed`.** A stale
+`seq_no` or a timestamp going backwards is the caller's mistake, and it can be
+detected before anything changes. M7 made that a guarantee: `Engine::process` checks
+both first and throws `SequenceError`, a subclass of `InvariantViolation`. The engine
+is untouched and the caller can carry on. Before M7, a backwards timestamp was caught
+only by the rate limiter, only for accounts with a rate limit, and only after other
+checks had run. The engine now tracks the last timestamp. `from_state` takes the
+snapshot's timestamp and never goes below a rate bucket's last refill, so a restored
+engine enforces the same bound. Any other exception from `process()` (the
+post-command invariant walk, a broken internal invariant, a failed allocation) may
+come after the command began changing state. The binding `Engine` then records the
+failure, and every later call raises `EngineFailed` naming it, because results from a
+half-applied command would be silently wrong. Only the binding fails; other engines
+are unaffected. Tests cover both paths. The "after" path uses a test hook,
+`_inject_fault_after_next_command`, because a correct engine never fails its walk.
+
+**Mid-batch errors.** Commands before the failing one stay applied (the engine cannot
+roll back), and the exception carries `.command_index` and `.events`, the
+`EventBatch` of the commands that completed. The same split applies:
+`SequenceError` leaves the engine usable, anything else fails it.
+
+**Integers are checked, never wrapped.** pybind11's own int conversion fails with an
+unhelpful "incompatible function arguments". `to_int<T>` instead reads the Python int
+exactly (with an unsigned path above `int64`) and range-checks it with
+`std::in_range`. It raises `OverflowError("price=… is out of range for int64")`.
+Floats are refused with `TypeError`, in line with the project rule that prices and
+quantities are never floating point. So are bools, even though `bool` is an `int`
+subclass in Python. Exposure totals are `int128` in C++ and come back as exact Python
+ints.
+
+**One field list drives each value class.** `ValueClass<T>` takes
+`field("price", &NewOrder::price, Arg::Optional)` lines and generates the keyword
+constructor (unknown and missing arguments raise `TypeError`), read-only attributes,
+`==`, `hash` and `repr`. The C++ structs keep their defaults. Commands get
+`with_seq_no()`, because config commands arrive with `seq_no=0` and the caller numbers
+them, as `mf_driver --config` does.
+
+**Packaging.** One wheel ships `mfengine` and the pure-Python `reference` package.
+scikit-build-core configures the top-level CMake project with bindings on and tests
+off, and builds only `_core`. The dev install is editable, built without build
+isolation, and rebuilds on import, so a C++ change shows up in the next pytest run.
+The release install is a normal wheel in `.venv-release`, so both coexist and the
+overhead measurement can run on each.
+
+**Sanitizers reach the bindings.** `make sanitize` and CI also build `_core` with ASan
+and UBSan and run the binding tests in-process. Python is not instrumented, so the
+ASan runtime is preloaded (`bindings/asan_runtime.sh` finds it for the toolchain), and
+leak checks are off (the interpreter's own allocations would be reported at exit).
+The first attempt ran the sanitized tree through `PYTHONPATH`, and the editable
+install's import hook silently took precedence. `MF_EXPECT_MFENGINE` now makes
+pytest refuse to start unless `mfengine` loaded from the expected tree. The sanitized
+tests run from a venv without `mfengine` installed.
+
+## Overhead: single calls versus a batch
+
+{{ block:bindings_settings }}
+
+{{ block:bindings_table }}
+
+On the release install, one `process()` call per command costs
+{{ bindings-release:ns_per_command.single.median|ns }}. `process_batch()` costs
+{{ bindings-release:ns_per_command.batch.median|ns }}, or
+{{ bindings-release:single_over_batch|ratio }} less per command. The difference is
+Python call overhead: argument conversion, the list of events, and the interpreter
+loop. Reading every event back as a Python object brings the batch to
+{{ bindings-release:ns_per_command.batch_and_read_events.median|ns }}. That cost is
+per event, so a backtest that reads only the fills, or only the top of book, pays
+less. On the dev install the invariant walk after every command dominates (about
+{{ bindings-dev:ns_per_command.batch.median|ns }} per command even in a batch). That
+is why backtests use `make venv-release`, while tests keep the walk on.
+
+## Trade-offs and what was left out
+
+- **No NumPy columnar batches yet.** They are deferred to M8, which can add them on
+  top of the same C++ `CommandBatch`/`EventBatch` if profiling of real backtests asks
+  for it.
+- **`Sequencer` and `Clock` are not bound.** Backtests and replay pass explicit
+  `seq_no`s and timestamps. The live path (M10) is where a sequencer belongs.
+- **Copies, not views.** Copying a few dozen bytes per event is cheap, and it removes
+  every lifetime question. A zero-copy view would need the engine's buffers to stay
+  put, which they don't.
+- **A failed engine stays failed.** There is no "reset" short of
+  `Engine.from_snapshot` from a good snapshot, or replaying the journal.
+  `check_invariants()` failing on its own does not mark the engine failed: it changes
+  nothing, and the caller decides.
+- **The failing command's partial events are dropped** from a mid-batch error's
+  `.events`. Only completed commands are reported, so `.events` always lines up with
+  `command_index`.
+- **The busy flag is a guard, not a lock.** A second thread gets an error, not a wait.
+  The engine stays single-writer, and the glue never blocks.
+- **Leak checks are off for the in-process sanitizer run**, and the stubtest
+  subprocess is skipped there: macOS ASan removes itself from `DYLD_INSERT_LIBRARIES`,
+  so a child process would load the instrumented extension without its runtime.
+  Stubtest runs in every other run.
+- **The stubs are hand-written.** They are kept honest by the names-both-ways test and
+  stubtest, not generated: generated stubs from pybind11 lose the keyword-only
+  signatures and the unions.
+
+## Interview questions
+
+1. *Who owns an event's memory once it reaches Python?* Python does. Each event is
+   copied into its own Python object, and every attribute read is a copy too. The
+   engine's buffers are reused on the next call, so a reference into them would
+   dangle. A compile-time trait checks that event types hold only scalars, so a copy
+   owns everything it holds.
+2. *Why release the GIL in `process_batch` but not in `process`?* Releasing and taking
+   back the GIL costs about as much as matching one order, so for one command it is
+   pure overhead. A batch amortizes it and lets other Python threads run. The engine
+   has a single writer, so a busy flag turns a concurrent call into an error instead
+   of a data race.
+3. *How do you know an exception left the engine usable?* By contract, enforced in C++:
+   `SequenceError` is thrown only by the checks at the top of `Engine::process`,
+   before anything changes. Any other exception may come after state changed, so the
+   binding marks the engine failed and every later call raises `EngineFailed`.
+4. *How do you prove the Python path matches the C++ path?* Build the same commands as
+   Python objects and drive them through `mfengine`. Rebuild the canonical stream from
+   the events, and compare bytes and SHA-256 with `mf_driver` on the same commands,
+   including risk configs and clock lines. A journal written from Python must also
+   replay to that hash in `mf-replay`.
+5. *What does a Python call cost, and what did you do about it?* On the release build,
+   one call per command costs {{ bindings-release:ns_per_command.single.median|ns }}
+   against {{ bindings-release:ns_per_command.batch.median|ns }} per command in a
+   batch. Hence the batch API. Measuring it also caught a per-event iterator that cost
+   more than the batch saved, which was then replaced by a one-pass conversion.

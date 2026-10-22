@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "mf/commands.hpp"
@@ -30,15 +31,21 @@ class Engine {
   Engine& operator=(const Engine&) = delete;
 
   // Applies one command with its journal timestamp and appends its events. Throws
-  // InvariantViolation on a non-increasing seq_no or a timestamp going backwards.
+  // SequenceError, before changing anything, on a non-increasing seq_no or a timestamp
+  // earlier than the previous command's. Any other exception (an InvariantViolation
+  // from the invariant walk) may come after the command began changing state.
   void process(const Command& command, Timestamp timestamp, std::vector<Event>& events_out);
 
   const OrderBook& book() const { return *book_; }
   const RiskGate& risk() const { return risk_; }
+  // Timestamp of the last command processed (or the restored lower bound).
+  std::optional<Timestamp> last_timestamp() const { return last_timestamp_; }
 
   EngineState state() const;
-  // Throws InvariantViolation if the state is inconsistent.
-  static std::unique_ptr<Engine> from_state(const EngineState& state);
+  // Throws InvariantViolation if the state is inconsistent. Later commands may not be
+  // earlier than `last_timestamp` (a snapshot's) or than any rate bucket's last refill.
+  static std::unique_ptr<Engine> from_state(const EngineState& state,
+                                            std::optional<Timestamp> last_timestamp = std::nullopt);
 
   // Book invariants plus risk exposure == exposure rebuilt from the book. O(N).
   void check_invariants() const;
@@ -49,6 +56,7 @@ class Engine {
 
   std::unique_ptr<OrderBook> book_;
   RiskGate risk_;
+  std::optional<Timestamp> last_timestamp_;
 };
 
 }  // namespace mf
