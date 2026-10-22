@@ -7,7 +7,8 @@ name = "marketforge"
 version = "0.1.0"
 description = "Simulated exchange and research backtester"
 requires-python = ">=3.12"
-dependencies = []
+# The research layer (M8): NumPy and pandas for bars and analytics, pyarrow for Parquet.
+dependencies = ["numpy>=2.0", "pandas>=2.2", "pyarrow>=16"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "mypy>=1.11"]
@@ -22,7 +23,7 @@ cmake.build-type = "RelWithDebInfo"
 build-dir = "build-py/{wheel_tag}"
 build.targets = ["_core"]
 install.components = ["mfengine"]
-wheel.packages = ["bindings/mfengine", "reference"]
+wheel.packages = ["bindings/mfengine", "reference", "research"]
 editable.mode = "redirect"
 editable.verbose = false
 

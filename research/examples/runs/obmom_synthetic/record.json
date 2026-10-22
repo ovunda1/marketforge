@@ -1,0 +1,160 @@
+{
+ "assumptions": {
+  "consumed_liquidity": "stays_removed",
+  "cost_model": "zero",
+  "depth": "L1",
+  "flow": "historical_replay",
+  "jitter_ns": 500000,
+  "latency_ns": 1000000,
+  "mark": "exit_side",
+  "market_data_latency_ns": 0,
+  "queue": "pessimistic",
+  "quotes_take_strategy_liquidity": false,
+  "same_timestamp": "trades_before_quotes",
+  "tie_break": "historical_first"
+ },
+ "config": {
+  "broker": {
+   "jitter_ns": 500000,
+   "latency_ns": 1000000
+  },
+  "costs": {
+   "model": "zero"
+  },
+  "data": {
+   "synthetic": {
+    "duration_ns": 600000000000,
+    "seed": 2026
+   }
+  },
+  "kind": "event",
+  "replay": {
+   "consumed_liquidity": "stays_removed",
+   "queue": "pessimistic"
+  },
+  "risk": {},
+  "seed": 1,
+  "strategy": {
+   "name": "obmom",
+   "params": {
+    "flatten_before_end_ns": 10000000000,
+    "horizon_ns": 2000000000,
+    "imbalance_weight": 2.0,
+    "max_hold_ns": 30000000000,
+    "max_position": 20,
+    "qty": 5,
+    "return_weight": 1.0,
+    "threshold": 3.0
+   }
+  }
+ },
+ "data": [
+  {
+   "generated": {
+    "duration_ns": 600000000000,
+    "fair": {
+     "max_step_ticks": 1,
+     "step_ns": 100000000
+    },
+    "lot_size": "1",
+    "market_maker": {
+     "half_spread_ticks": 2,
+     "inventory_per_tick": 20,
+     "max_inventory": 200,
+     "qty": 20,
+     "requote_ns": 200000000
+    },
+    "momentum": {
+     "cooldown_ns": 2000000000,
+     "count": 2,
+     "fast_halflife_ns": 1000000000,
+     "max_position": 50,
+     "qty": 5,
+     "slow_halflife_ns": 10000000000,
+     "threshold_ticks": 1.0
+    },
+    "noise": {
+     "accounts": 16,
+     "max_offset_ticks": 8,
+     "max_qty": 10,
+     "p_cancel": 0.3,
+     "p_market": 0.1,
+     "rate_per_sec": 50.0
+    },
+    "seed": 2026,
+    "start_price": 10000,
+    "tick_size": "0.01"
+   },
+   "name": "quotes",
+   "path": null,
+   "rows": 11285,
+   "sha256": "086bbb73d6e28664d4f18816ed1e3310c96f35b0a1d2852a71ec437416a216ba"
+  },
+  {
+   "generated": {
+    "duration_ns": 600000000000,
+    "fair": {
+     "max_step_ticks": 1,
+     "step_ns": 100000000
+    },
+    "lot_size": "1",
+    "market_maker": {
+     "half_spread_ticks": 2,
+     "inventory_per_tick": 20,
+     "max_inventory": 200,
+     "qty": 20,
+     "requote_ns": 200000000
+    },
+    "momentum": {
+     "cooldown_ns": 2000000000,
+     "count": 2,
+     "fast_halflife_ns": 1000000000,
+     "max_position": 50,
+     "qty": 5,
+     "slow_halflife_ns": 10000000000,
+     "threshold_ticks": 1.0
+    },
+    "noise": {
+     "accounts": 16,
+     "max_offset_ticks": 8,
+     "max_qty": 10,
+     "p_cancel": 0.3,
+     "p_market": 0.1,
+     "rate_per_sec": 50.0
+    },
+    "seed": 2026,
+    "start_price": 10000,
+    "tick_size": "0.01"
+   },
+   "name": "trades",
+   "path": null,
+   "rows": 10697,
+   "sha256": "3fe07c5e112bf23e7f3cf3f8b3dcd14908ef0ce93259c9681098c7ee364b6ead"
+  }
+ ],
+ "engine": {
+  "build_type": "Release",
+  "invariant_checks": false,
+  "version": "0.1.0"
+ },
+ "git": {
+  "commit": "c567cb9eb5619bf285d9220206b17cf7dd5d6df5",
+  "dirty": true
+ },
+ "kind": "event",
+ "platform": {
+  "machine": "arm64",
+  "system": "Darwin"
+ },
+ "record_version": 1,
+ "results_file": "results.json",
+ "results_sha256": "3748bb1be3119bc18baa8dc0e89b2a0c50d84a38c45afd6f3872b9343489fb83",
+ "run_id": "6d81589461e0",
+ "seed": 1,
+ "versions": {
+  "numpy": "2.5.4",
+  "pandas": "3.0.6",
+  "pyarrow": "26.0.0",
+  "python": "3.12.15"
+ }
+}

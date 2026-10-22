@@ -3,7 +3,13 @@
 # uninstrumented Python that imports a sanitized mfengine (make sanitize, CI). The name
 # differs by toolchain: Apple clang, clang's per-target and older layouts, and gcc.
 set -eu
-cxx=${1:-c++}
+cxx=${1-c++}
+# An empty argument is a failed lookup (make sanitize reads it from the CMake cache), not
+# a request for the default compiler.
+if [ -z "$cxx" ]; then
+  echo "asan_runtime.sh: empty compiler argument" >&2
+  exit 1
+fi
 for name in libclang_rt.asan_osx_dynamic.dylib libclang_rt.asan.so \
             "libclang_rt.asan-$(uname -m).so" libasan.so; do
   path=$("$cxx" -print-file-name="$name")

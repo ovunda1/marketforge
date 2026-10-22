@@ -18,14 +18,16 @@ BENCH_CMAKE := -DCMAKE_BUILD_TYPE=Release -DMF_CHECK_INVARIANTS=OFF -DMF_BUILD_B
 DRIVER     := $(BUILD_DIR)/engine/tools/mf_driver
 REPLAY     := $(BUILD_DIR)/engine/tools/mf-replay
 # The ASan runtime to preload into Python for the sanitized bindings, from the compiler
-# that built them.
-CXX_FOR_ASAN = $(shell cmake -LA -N $(ASAN_DIR) 2>/dev/null | sed -n 's/^CMAKE_CXX_COMPILER:[A-Z]*=//p')
+# that built them. A shell command, not $(shell ...): Make expands a recipe before its
+# first line runs, which on a fresh tree is before CMake has written the cache.
+CXX_FOR_ASAN = $$(cmake -LA -N $(ASAN_DIR) | sed -n 's/^CMAKE_CXX_COMPILER:[A-Z]*=//p')
 ASAN_PRELOAD_VAR = $(if $(filter Darwin,$(shell uname)),DYLD_INSERT_LIBRARIES,LD_PRELOAD)
 # Seed for the long differential test; override with `make difftest-long SEED=7`.
 SEED       ?= 20261020
 
 .PHONY: venv venv-release build test test-cpp test-py sanitize difftest difftest-long difftest-replay \
-        replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean
+        replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean \
+        backtest reproduce examples data-binance data-tiingo
 
 venv: $(VENV)/.installed
 
@@ -75,7 +77,8 @@ sanitize: venv
 	MF_DRIVER=$(ASAN_DIR)/engine/tools/mf_driver $(VENV_PY) -m pytest
 	test -x $(ASAN_PY) || $(PYTHON) -m venv $(ASAN_VENV)
 	$(ASAN_PY) -m pip install -q 'pytest>=8' 'mypy>=1.11'
-	$(ASAN_PRELOAD_VAR)=$$(bindings/asan_runtime.sh $(or $(CXX_FOR_ASAN),c++)) ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+	preload=$$(bindings/asan_runtime.sh "$(CXX_FOR_ASAN)") && \
+	$(ASAN_PRELOAD_VAR)=$$preload ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
 	  PYTHONMALLOC=malloc PYTHONPATH=$(ASAN_DIR)/bindings/python MF_EXPECT_MFENGINE=$(ASAN_DIR) \
 	  MF_DRIVER=$(ASAN_DIR)/engine/tools/mf_driver $(ASAN_PY) -m pytest tests/bindings
 
@@ -129,6 +132,42 @@ bench-bindings: venv venv-release
 	$(VENV_PY) -m bench.bindings --out bench/results/bindings-dev.json $(if $(FORCE),--force)
 	$(RELEASE_PY) -m bench.bindings --out bench/results/bindings-release.json $(if $(FORCE),--force)
 	$(VENV_PY) -m bench.render
+
+# --- Research (M8, research/) -----------------------------------------------------------
+
+# Runs use the release install (Release, invariant walk off); `make venv-release` after
+# changing engine or binding sources. Records and results land in runs/ (git-ignored).
+#   make backtest CONFIG=research/examples/tsmom_walkforward.toml
+backtest:
+	@test -n "$(CONFIG)" || { echo "usage: make backtest CONFIG=<config.toml>"; exit 1; }
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	$(RELEASE_PY) -m research run $(CONFIG) --out runs
+
+#   make reproduce RECORD=runs/<run>/record.json
+reproduce:
+	@test -n "$(RECORD)" || { echo "usage: make reproduce RECORD=<record.json>"; exit 1; }
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	$(RELEASE_PY) -m research reproduce $(RECORD)
+
+# Regenerate the committed example runs (research/examples/runs/), which the test suite
+# reproduces byte for byte. Only after a deliberate change to results.
+EXAMPLES := obmom_synthetic tsmom_walkforward xsmom_walkforward
+examples:
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	rm -rf research/examples/runs
+	for c in $(EXAMPLES); do \
+	  $(RELEASE_PY) -m research run research/examples/$$c.toml --out research/examples/runs --name $$c || exit 1; \
+	done
+	rm -f research/examples/runs/*/journal.mfj
+
+# Real data (docs/data.md): downloaded into data/ (git-ignored), checked against pinned
+# checksums, normalized to Parquet. Tiingo needs TIINGO_API_KEY in the environment; the
+# first download needs UPDATE_PINS=1, then commit the manifest.
+data-binance: venv
+	$(VENV_PY) -m research.data.download research/data/manifests/binance-um-kncusdt-2024-03-12.json
+
+data-tiingo: venv
+	$(VENV_PY) -m research.data.download research/data/manifests/tiingo-etf-daily.json $(if $(UPDATE_PINS),--update-pins)
 
 # What every optimization must pass before it is measured: the full suite with the
 # invariant walk on, the sanitizers, the long difftest on both profiles, the suite on

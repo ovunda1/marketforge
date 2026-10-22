@@ -1,0 +1,31 @@
+# Time-series momentum on ten years of synthetic daily bars (with splits and dividends),
+# walk-forward: 3 years of training, then 1 year out of sample, rolling. Only the
+# out-of-sample results are reported.
+kind = "walkforward"
+seed = 0
+
+[data.synthetic_bars]
+seed = 7
+symbols = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF", "GGG", "HHH", "III", "JJJ"]
+n_days = 2500
+start = "2012-01-03"
+split_every = 400
+dividend_every = 63
+
+[execution]
+capital = 1_000_000_000_000  # $1M in micro-dollars
+lag = 1
+price = "open"
+
+[strategy]
+name = "tsmom"
+
+[strategy.grid]
+lookback = [60, 120, 250]
+vol_window = [20, 60]
+target_vol = [0.10]
+max_leverage = [2.0]
+
+[walkforward]
+train = 750
+test = 250

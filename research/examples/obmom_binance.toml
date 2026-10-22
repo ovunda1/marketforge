@@ -1,0 +1,25 @@
+# Order-book momentum on a recorded day: Binance USD-M KNCUSDT, 2024-03-12 (L1 quotes and
+# trades). Needs the data first: `make data-binance` (docs/data.md). Not run in CI.
+kind = "event"
+seed = 1
+
+[data]
+quotes = "data/normalized/binance-um-kncusdt-2024-03-12/quotes.parquet"
+trades = "data/normalized/binance-um-kncusdt-2024-03-12/trades.parquet"
+
+[broker]
+latency_ns = 5_000_000
+jitter_ns = 1_000_000
+
+[strategy]
+name = "obmom"
+
+[strategy.params]
+horizon_ns = 2_000_000_000
+return_weight = 1.0
+imbalance_weight = 2.0
+threshold = 3.0
+qty = 50
+max_position = 200
+max_hold_ns = 30_000_000_000
+flatten_before_end_ns = 60_000_000_000

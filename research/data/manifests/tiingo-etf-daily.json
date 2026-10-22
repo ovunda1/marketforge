@@ -1,0 +1,11 @@
+{
+  "name": "tiingo-etf-daily",
+  "source": "tiingo",
+  "license": "Tiingo terms of use: personal use, no redistribution. Key from TIINGO_API_KEY; data never committed (docs/data.md).",
+  "universe": ["SPY", "QQQ", "IWM", "EFA", "EEM", "TLT", "IEF", "LQD", "HYG", "GLD", "SLV", "DBC", "VNQ",
+               "XLB", "XLE", "XLF", "XLI", "XLK", "XLP", "XLU", "XLV", "XLY"],
+  "start": "2007-01-03",
+  "end": "2024-12-31",
+  "survivorship": "Survivorship-biased: ETFs that still trade today, chosen today. Funds that closed or merged before today are missing, and some members (e.g. HYG, 2007-04) list after the start date and join the universe only when their first bar appears.",
+  "pins": {}
+}

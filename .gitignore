@@ -9,3 +9,8 @@ __pycache__/
 .DS_Store
 compile_commands.json
 .bench-ab/
+
+# Downloaded and normalized market data, and backtest runs (M8): never committed.
+/data/
+/runs/
+/research/examples/runs/*/journal.mfj

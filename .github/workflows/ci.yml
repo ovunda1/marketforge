@@ -128,6 +128,10 @@ jobs:
           cmake --build build -j --target mf_driver mf-journal mf-replay
       - name: Test
         run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest tests/bindings
+      # Backtests run on this install (M8): the event backtester, and the committed
+      # example runs reproduced byte for byte on Linux with a Release engine.
+      - name: Test (backtests on the release install)
+        run: python -m pytest tests/test_backtest_event.py tests/test_runs.py
 
   python:
     name: Python (pytest)
