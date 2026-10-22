@@ -138,8 +138,9 @@ def fetch_tiingo(manifest: dict[str, Any], data_dir: str | Path, client: tiingo.
             raise PinMissing(f"{ticker}: no pinned checksum; run with --update-pins and commit the manifest")
         elif pinned != digest:
             raise PinMismatch(f"{ticker}: Tiingo's data changed since it was pinned ({digest} != {pinned})")
-        frames.append(df)
-    bars = pd.concat(frames, ignore_index=True)
+        frames.append((ticker, df))
+    # A bars dataset is sorted by symbol, whatever order the manifest lists the universe in.
+    bars = pd.concat([df for _, df in sorted(frames, key=lambda f: f[0])], ignore_index=True)
     meta = {"source": {"name": manifest["name"], "vendor": "tiingo", "start": manifest["start"],
                        "end": manifest["end"], "pins": dict(sorted(manifest["pins"].items()))},
             "survivorship": manifest["survivorship"]}

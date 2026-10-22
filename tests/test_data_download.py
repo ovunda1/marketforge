@@ -144,6 +144,18 @@ def test_tiingo_first_fetch_needs_update_pins(tmp_path, monkeypatch) -> None:
         download.fetch_tiingo(manifest, tmp_path, client2)
 
 
+def test_a_universe_out_of_alphabetical_order_is_stored_sorted(tmp_path, monkeypatch) -> None:
+    # The real manifest lists SPY before QQQ; bars datasets are sorted by symbol (M9 fix:
+    # the first real download failed validation on write).
+    monkeypatch.setenv("TIINGO_API_KEY", "k")
+    client = tiingo.TiingoClient(transport=FakeTransport((FIXTURES / "tiingo_daily_TEST.json").read_bytes()))
+    manifest = {**tiingo_manifest(), "universe": ["SPY", "QQQ"]}
+    path = download.fetch_tiingo(manifest, tmp_path, client, update_pins=True)
+    df = store.load(path, "bars").df
+    assert df["symbol"].drop_duplicates().tolist() == ["QQQ", "SPY"]
+    assert list(manifest["pins"]) == ["SPY", "QQQ"]  # pins keep the manifest's order
+
+
 def test_committed_tiingo_manifest_has_a_survivorship_note() -> None:
     manifest = download.load_manifest(MANIFESTS / "tiingo-etf-daily.json")
     assert manifest["source"] == "tiingo"
