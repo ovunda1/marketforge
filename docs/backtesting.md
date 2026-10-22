@@ -1,4 +1,4 @@
-# Backtesting (M8)
+# Backtesting (M8; costs and analytics M9)
 
 Code: `research/backtest/`, strategies in `research/strategies/`, runs in
 `research/runs.py`. Two modes share the strategy-agnostic pieces: metrics, the
@@ -102,12 +102,95 @@ shows what that prevents:
 - the best of 40 noise strategies averages an in-sample Sharpe above 1.5;
 - the same selection out of sample stays within three standard errors of zero.
 
-## Costs
+## Costs (M9)
 
-`costs.py`: a `CostModel` maps `TradeRecord`s to integer costs. M8 ships `ZeroCost`, and
-results are gross. M9 adds the real models behind the same interface. The bar backtester
-already subtracts whatever the model returns (net equity), and configs select the model
-by name (`[costs] model`).
+`research/backtest/costs.py`. A `[costs]` table turns components on, one sub-table each
+(`enabled = false` keeps one written down but off). Every cost is whole money units per
+trade, rounded up; a rebate rounds toward zero. Fees given in dollars convert exactly
+(the dataset's price unit: micro-dollars for bars, the instrument's tick for events).
+
+| Component | Charge | Modes |
+| --- | --- | --- |
+| `commission` | `per_share` dollars + `bps` of notional | bar, event |
+| `maker_taker` | per share and bps by the fill's liquidity flag; negative is a rebate; bar fills take | bar, event |
+| `sec_fee` | Section 31 on sales, at the rate in force on the trade date (`schedule = "sec31"`: `research/backtest/schedules/sec31.json`, every row sourced from the SEC's fee advisories) | bar, event |
+| `spread` | `half_spread_bps` of notional | bar |
+| `slippage` | fixed `bps` | bar |
+| `vol_slippage` | `k * vol * notional` | bar |
+| `impact` | square root: `y * vol * sqrt(notional / ADV) * notional` | bar |
+| `latency` | `k * vol * sqrt(latency / session) * notional` | bar |
+| `financing` | `borrow_bps` a year on short value; `spread_bps` a year over the risk-free rate on a debit balance; actual/360 | bar |
+
+**Not counting the spread twice.** An event-mode fill comes out of the engine's book: a
+marketable buy pays the ask, and the open position is marked at the exit side. The
+spread, the queue and the latency are already in gross. So event mode charges fees only,
+and building a spread, slippage, impact, latency or financing model for it is an error.
+What the book cost is *measured* instead, as implementation shortfall: `delay` (the mid
+moving from the strategy's decision to the order's arrival) and `spread_paid` (each fill
+against the arrival mid), labeled "measured, inside gross". Bar fills are at the open or
+close print, which has no spread in it: bar mode charges the half-spread, and treats
+every fill as a taker.
+
+**Point-in-time impact inputs.** For a fill on bar `e`, `vol` (sample std of daily
+total returns) and `ADV` (mean of `volume * close`, both unadjusted from the same bar,
+so a split does not move it) come from bars `e - window .. e - 1` (`[costs.inputs]`,
+default 20). An open fill cannot know its own bar's volume; `TradeRecord.volume` is
+kept for the record and no cost reads it. With fewer than `min_periods` returns, those
+components charge `fallback_bps` (default 50) and the trade is counted.
+`tests/test_costs.py` changes the fill bar and later and checks the inputs do not move.
+
+**Gross and net in the bar backtester.** Gross is frictionless: fills at the print,
+dividends, splits, and every cash balance (short proceeds included) earning, or a debit
+paying, the risk-free rate. Net subtracts per bar the trades' costs, `borrow`,
+`financing`, and `carry_on_costs` (the risk-free interest the costs paid so far would
+have earned), so `net = gross - sum of components` exactly. A window's open positions
+are liquidated at its last close (`[execution] liquidate_at_end`, default on): each
+window starts flat, so otherwise entries are charged and exits are not. Gross does not
+change (the position was marked there).
+
+**Selection is on net.** Walk-forward picks the parameters with the best net excess
+Sharpe on the training window: costs are known before trading.
+
+## Analytics and the tearsheet (M9)
+
+`research/analytics/`: `metrics.py` (pure functions), `report.py` (a run's
+`metrics.json`), `tearsheet.py` (`tearsheet.html`, rendered from `metrics.json` alone).
+Every run writes both next to `results.json`; the record holds each file's hash and
+`reproduce` compares all three.
+
+Conventions, recorded in each tearsheet:
+- returns are P&L over the fixed starting capital; 252 periods a year for daily bars
+  (anything else must be given as `[analytics] periods_per_year`);
+- annual return is the mean per-period return times 252 (arithmetic, no `pow`, so the
+  numbers are the same on macOS and Linux); volatility is the sample std (ddof 1) times
+  sqrt(252);
+- Sharpe uses excess returns over the risk-free return of each bar; Sortino the target
+  downside deviation over all periods; Calmar the annual return over the whole-period
+  maximum drawdown;
+- the Sharpe standard error is reported i.i.d. (Lo) and with skew and kurtosis
+  (Mertens/Opdyke), with the probabilistic Sharpe P(SR > 0) and the deflated Sharpe,
+  whose hurdle is the expected best of N zero-skill trials, N being the grid size.
+  None corrects for autocorrelation;
+- hit rate, average win and loss and profit factor are over *episodes*: a run of bars a
+  symbol is held with one sign. Holding period is FIFO, share-weighted.
+
+The trials table states the grid size, folds, backtests run and capacity points. The
+capacity curve (`[analytics] capacity`, capital in micro-dollars) re-runs the whole
+walk-forward at each capital, so selection is net of that size's costs. Fills are never
+capped; participation (notional over ADV) is reported.
+
+`metrics.json` is portfolio-level only: `tearsheet.check_portfolio_level` refuses a key
+named after a symbol or any long array other than the portfolio series (dates,
+cumulative gross and net return, net drawdown). Every run passes through it, so the
+Tiingo showcase outputs can be committed without data that could rebuild prices.
+
+## Showcase (M9)
+
+`research/showcase/{tsmom,xsmom}.toml` on the Tiingo universe with DTB3, `make showcase`.
+Parameters (grids, folds, costs, capacity points) were committed before the first real
+run; `research/showcase/TRIALS.md` logs every run on the real data. Outputs committed:
+`record.json`, `metrics.json`, `tearsheet.html`. Results and their reading are in
+`docs/learning/m9.md`.
 
 ## Run records
 
@@ -117,7 +200,7 @@ by name (`[costs] model`).
 - the seed and the assumptions;
 - the engine version, build type and invariant-check flag;
 - the git commit and dirty flag, library versions and platform;
-- the SHA-256 of `results.json`.
+- the SHA-256 of each output: `results.json`, `metrics.json`, `tearsheet.html` (M9).
 
 No wall-clock time is stored. Results are canonical JSON, with floats at 12 significant
 digits.

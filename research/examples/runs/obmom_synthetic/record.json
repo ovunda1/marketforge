@@ -1,7 +1,14 @@
 {
  "assumptions": {
   "consumed_liquidity": "stays_removed",
-  "cost_model": "zero",
+  "costs": {
+   "maker_taker": {
+    "maker_bps": 0.0,
+    "maker_per_share": "-0.0020",
+    "taker_bps": 0.0,
+    "taker_per_share": "0.0030"
+   }
+  },
   "depth": "L1",
   "flow": "historical_replay",
   "jitter_ns": 500000,
@@ -19,7 +26,10 @@
    "latency_ns": 1000000
   },
   "costs": {
-   "model": "zero"
+   "maker_taker": {
+    "maker_per_share": "-0.0020",
+    "taker_per_share": "0.0030"
+   }
   },
   "data": {
    "synthetic": {
@@ -138,18 +148,23 @@
   "version": "0.1.0"
  },
  "git": {
-  "commit": "998b7918669e1bcaa9165487ae51aca37b2db409",
+  "commit": "755e687a57bba949037b457bfabf978c665851c8",
   "dirty": true
  },
  "kind": "event",
+ "outputs": {
+  "metrics.json": "b34207931491ce9a5dcae95c87f83b649db07b2140783032e118ada7fdc47761",
+  "results.json": "7b278cbcc3dc152aa84b135ffb075558a17be1a9a7f0e8f132ef1bef75f72e99",
+  "tearsheet.html": "a2d7126b5bb30de05a6a9093d94a92f0c50716794b2da4ba11ff458ed9866fff"
+ },
  "platform": {
   "machine": "arm64",
   "system": "Darwin"
  },
- "record_version": 1,
+ "record_version": 2,
  "results_file": "results.json",
- "results_sha256": "3748bb1be3119bc18baa8dc0e89b2a0c50d84a38c45afd6f3872b9343489fb83",
- "run_id": "cd8188d79b09",
+ "results_sha256": "7b278cbcc3dc152aa84b135ffb075558a17be1a9a7f0e8f132ef1bef75f72e99",
+ "run_id": "c3bf3a955cc9",
  "seed": 1,
  "versions": {
   "numpy": "2.5.4",

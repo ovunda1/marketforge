@@ -1,0 +1,71 @@
+{
+ "conventions": {
+  "costs": "fees only: nothing else may be charged on top of a book fill",
+  "gross": "fills at the engine's prices, the open position marked at the exit side: the spread, queue and latency are already in it",
+  "money_unit": "0.01 dollars (the instrument's tick) per unit of price x qty"
+ },
+ "costs": {
+  "by_component": {
+   "maker_taker": 1043
+  },
+  "model": {
+   "maker_taker": {
+    "maker_bps": 0.0,
+    "maker_per_share": "-0.0020",
+    "taker_bps": 0.0,
+    "taker_per_share": "0.0030"
+   }
+  },
+  "total": 1043
+ },
+ "data": [
+  {
+   "name": "quotes",
+   "path": null,
+   "rows": 11285,
+   "sha256": "b17ba29432dca9bb9dcc0851feb513053c35b25a70c567d844e68b109abc3300"
+  },
+  {
+   "name": "trades",
+   "path": null,
+   "rows": 10697,
+   "sha256": "546587d3aaf608df39ee439b409c2545cf5fae68d4a0c047e86bb145ab352c79"
+  }
+ ],
+ "implementation_shortfall": {
+  "delay": -72.0,
+  "fills_without_quotes": 0,
+  "note": "measured, inside gross: delay is the mid moving from the decision to the order's arrival; spread_paid is each fill against the arrival mid",
+  "spread_paid": 2604.5
+ },
+ "kind": "event",
+ "performance": {
+  "final_position": 0,
+  "mark": 0
+ },
+ "pnl": {
+  "gross": -797,
+  "net": -1840
+ },
+ "strategy": {
+  "name": "obmom",
+  "params": {
+   "flatten_before_end_ns": 10000000000,
+   "horizon_ns": 2000000000,
+   "imbalance_weight": 2.0,
+   "max_hold_ns": 30000000000,
+   "max_position": 20,
+   "qty": 5,
+   "return_weight": 1.0,
+   "threshold": 3.0
+  }
+ },
+ "trading": {
+  "fills": 570,
+  "maker_fills": 0,
+  "maker_share": 0.0,
+  "orders": 546,
+  "traded_notional": 25303853,
+  "traded_qty": 2534
+ }
+}

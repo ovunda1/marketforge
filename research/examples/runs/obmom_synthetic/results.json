@@ -1,6 +1,9 @@
 {
  "cash": -797,
  "commands": 21082,
+ "costs": {
+  "maker_taker": 1043
+ },
  "events_sha256": "b520dd512eb553f1f27b8400d240fb5fd58afdb1f9255b227e06090d55f2b83b",
  "fills": [
   [
@@ -5135,6 +5138,7 @@
   ]
  ],
  "mark": 0,
+ "net_pnl": -1840,
  "orders": 546,
  "pnl": -797,
  "position": 0,

@@ -89,6 +89,8 @@ def load(path: str | Path, kind: str | None = None) -> Dataset:
     df = table.to_pandas()
     if file_kind == "bars":
         df = schema.normalize_bars_frame(df)
+    elif file_kind == "rates":
+        df = schema.normalize_rates_frame(df)
     else:
         df = df.astype(schema.COLUMNS[file_kind])
     schema.validate(df, file_kind)

@@ -6,6 +6,11 @@ the engine's events back into fills and order updates. Each intent reaches the e
 and never before an earlier intent: one session to the exchange, so orders cannot
 overtake each other. The ``seq_no`` is given by the simulation when the command
 actually reaches the engine, in arrival order with all other flow.
+
+For implementation shortfall (M9) the broker notes the mid of the strategy's view twice
+per order: when the strategy decides (``submit``/``replace``) and when the command reaches
+the engine. Mids are kept doubled (``bid + ask``) so they stay integers; a fill whose order has no
+two-sided quote before it is counted, not guessed.
 """
 
 from __future__ import annotations
@@ -45,11 +50,18 @@ class Broker:
         self._open: dict[int, int] = {}       # client id -> leaves
         self._last_arrival = 0
         self._ended = False
+        self.marks: dict[int, list[int | None]] = {}  # client id -> [decision 2*mid, arrival 2*mid]
+        # The last two-sided top of book seen: within one timestamp the replay rebuilds a
+        # side at a time, and a half-built book has no mid.
+        self._last_mid2: int | None = None
         sim.subscribe(self)
 
     # --- intents ------------------------------------------------------------------------------
 
-    def _send(self, command: Any) -> None:
+    def _mid2(self) -> int | None:
+        return self._last_mid2
+
+    def _send(self, command: Any, cid: int | None = None) -> None:
         if self._ended:
             raise RuntimeError("the session has ended: on_end cannot send orders")
         delay = self.latency_ns
@@ -57,7 +69,15 @@ class Broker:
             delay += int(self._jitter.integers(0, self.jitter_ns + 1))
         arrival = max(self.sim.now + delay, self._last_arrival)
         self._last_arrival = arrival
-        self.sim.at(arrival, Priority.STRATEGY, lambda: self.sim.process(command))
+        if cid is not None:
+            self.marks[cid] = [self._mid2(), None]
+
+        def arrive() -> None:
+            if cid is not None:
+                self.marks[cid][1] = self._mid2()
+            self.sim.process(command)
+
+        self.sim.at(arrival, Priority.STRATEGY, arrive)
 
     def submit(self, side: mfengine.Side, qty: int, price: int | None, tif: mfengine.TimeInForce,
                post_only: bool) -> int:
@@ -71,7 +91,7 @@ class Broker:
         else:
             command = mfengine.NewOrder(seq_no=0, order_id=oid, account_id=self.account, side=side, qty=qty,
                                         price=price, tif=tif, post_only=post_only)
-        self._send(command)
+        self._send(command, cid)
         return cid
 
     def _engine_id(self, client_id: int) -> int:
@@ -84,7 +104,7 @@ class Broker:
 
     def replace(self, client_id: int, price: int, qty: int) -> None:
         """``qty`` is the new total quantity, filled part included (engine semantics)."""
-        self._send(mfengine.Replace(seq_no=0, order_id=self._engine_id(client_id), price=price, qty=qty))
+        self._send(mfengine.Replace(seq_no=0, order_id=self._engine_id(client_id), price=price, qty=qty), client_id)
 
     def open_orders(self) -> dict[int, int]:
         return dict(self._open)
@@ -119,6 +139,8 @@ class Broker:
     def on_market_data(self, sim: Simulation, md: MarketData) -> None:
         self._clock.now = md.ts
         self.view._record(md)
+        if md.bid and md.ask:
+            self._last_mid2 = md.bid + md.ask
         self.strategy.on_market_data(self.ctx, md)
 
     def on_events(self, sim: Simulation, events: list[Any]) -> None:

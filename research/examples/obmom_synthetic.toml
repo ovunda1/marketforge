@@ -27,3 +27,8 @@ qty = 5
 max_position = 20
 max_hold_ns = 30_000_000_000
 flatten_before_end_ns = 10_000_000_000
+
+# Costs (M9): fees only. The fills come out of the book, so the spread is already in them.
+[costs.maker_taker]
+maker_per_share = "-0.0020"   # a rebate for adding liquidity
+taker_per_share = "0.0030"

@@ -27,6 +27,8 @@ COLUMNS: dict[str, dict[str, str]] = {
     "bars": {"symbol": "str", "date": "datetime64[ns]", "open": "int64", "high": "int64", "low": "int64",
              "close": "int64", "volume": "int64", "dividend": "int64", "split_num": "int64",
              "split_den": "int64"},
+    # A daily rate series (M9: FRED DTB3), in basis points; days without a quote are absent.
+    "rates": {"date": "datetime64[ns]", "rate": "int64"},
 }
 KINDS = tuple(COLUMNS)
 
@@ -37,6 +39,9 @@ KINDS = tuple(COLUMNS)
 BAR_PRICE_UNIT = "0.000001"
 DIVIDEND_UNIT = "0.00000001"
 DIVIDEND_UNITS_PER_PRICE_UNIT = 100
+# Rates are quoted in percent with two decimals: one unit is a basis point.
+RATE_UNIT = "0.01"
+RATE_RANGE_BP = (-1_000, 5_000)
 
 
 class ValidationError(ValueError):
@@ -66,6 +71,12 @@ def normalize_bars_frame(df: pd.DataFrame) -> pd.DataFrame:
     # No sorting: out-of-order rows are the validator's to reject, not ours to repair.
     df = df[list(COLUMNS["bars"])].astype({c: t for c, t in COLUMNS["bars"].items() if t != "datetime64[ns]"})
     return df.reset_index(drop=True)
+
+
+def normalize_rates_frame(df: pd.DataFrame) -> pd.DataFrame:
+    df = df[list(COLUMNS["rates"])].copy()
+    df["date"] = pd.to_datetime(df["date"]).astype("datetime64[ns]")
+    return df.astype({"rate": "int64"}).reset_index(drop=True)
 
 
 def _first(mask: np.ndarray) -> int | None:
@@ -106,6 +117,8 @@ def validate(df: pd.DataFrame, kind: str) -> None:
         _validate_trades(df)
     elif kind == "quotes":
         _validate_quotes(df)
+    elif kind == "rates":
+        _validate_rates(df)
     else:
         _validate_bars(df)
 
@@ -159,3 +172,12 @@ def _validate_bars(df: pd.DataFrame) -> None:
     _check(df["dividend"].to_numpy() < 0, "negative dividend")
     _check((df["split_num"].to_numpy() <= 0) | (df["split_den"].to_numpy() <= 0),
            "split ratio must be positive")
+
+
+def _validate_rates(df: pd.DataFrame) -> None:
+    dates = df["date"].to_numpy()
+    if len(df) > 1:
+        _check(np.concatenate([[False], dates[1:] <= dates[:-1]]), "dates must be strictly increasing")
+    rate = df["rate"].to_numpy()
+    lo, hi = RATE_RANGE_BP
+    _check((rate < lo) | (rate > hi), f"rate outside [{lo}, {hi}] basis points")

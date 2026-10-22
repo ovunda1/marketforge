@@ -64,14 +64,28 @@ default to the conservative choice (pessimistic queue, taken liquidity stays tak
 history wins ties) and are recorded in every run record. Bar strategies must pass
 `check_causal`; sweeps report out-of-sample only. Runs use the release install
 (`make backtest CONFIG=…`, `make reproduce RECORD=…`); `make examples` regenerates the
-committed example runs, which the suite reproduces byte for byte. Costs are M9
-(`research/backtest/costs.py` is the interface; M8 results are gross).
+committed example runs, which the suite reproduces byte for byte.
+
+Costs and analytics (M9, `research/backtest/costs.py`, `research/analytics/`,
+docs/learning/m9.md): `[costs]` sub-tables turn components on (commission, maker_taker,
+sec_fee with a dated, sourced schedule, spread, slippage, vol_slippage, impact, latency,
+financing). Event mode charges fees only: the book's fill price already holds the
+spread, which is measured as implementation shortfall, never charged again. Impact
+inputs (vol, dollar ADV) use bars before the fill only. Gross includes risk-free
+interest on cash (FRED DTB3, `make data-fred`, forward-filled, never back-filled); net
+= gross - every cost component, exactly. Walk-forward selects on net excess Sharpe.
+Every run writes `metrics.json` + `tearsheet.html` (rendered from the metrics alone,
+no scripts, byte-reproducible, portfolio-level only: `check_portfolio_level`). Dividends
+are in 1e-8 dollars. The showcase (`research/showcase/`, `make showcase`) has its
+parameters fixed in git before the first real run; `TRIALS.md` logs every real-data run.
 
 ```sh
 make backtest CONFIG=research/examples/tsmom_walkforward.toml
 make reproduce RECORD=runs/<run>/record.json
 make examples        # regenerate research/examples/runs/ (only after a deliberate change)
 make data-binance    # one pinned Binance day; make data-tiingo [UPDATE_PINS=1] needs the key
+make data-fred       # FRED DTB3, the risk-free rate (no key)
+make showcase        # M9: tsmom and xsmom on Tiingo, gross vs net (not in CI; outputs committed)
 ```
 
 `MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency

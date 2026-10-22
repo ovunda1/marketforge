@@ -1,0 +1,11 @@
+{
+  "name": "fred-dtb3",
+  "source": "fred",
+  "license": "FRED: 3-Month Treasury Bill Secondary Market Rate, Discount Basis (DTB3), from the Board of Governors of the Federal Reserve System (H.15), public domain. Never committed (docs/data.md).",
+  "series": "DTB3",
+  "start": "2006-12-01",
+  "end": "2024-12-31",
+  "pins": {
+    "DTB3": "6bfdf1f453cd429f51133b19d60b72c948b3bfdbd3bad4dc3fc6d8fb6834595c"
+  }
+}
