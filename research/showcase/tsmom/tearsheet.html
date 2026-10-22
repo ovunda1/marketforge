@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>tsmom (walkforward) tearsheet</title><style>
+.ts{color-scheme:light;--surface:#fcfcfb;--plane:#f9f9f7;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+--grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,0.10);--s1:#2a78d6;--s2:#eb6834}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .ts{color-scheme:dark;--surface:#1a1a19;
+--plane:#0d0d0d;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;
+--border:rgba(255,255,255,0.10);--s1:#3987e5;--s2:#d95926}}
+:root[data-theme="dark"] .ts{color-scheme:dark;--surface:#1a1a19;--plane:#0d0d0d;--ink:#f0efec;--ink2:#c3c2b7;
+--muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,0.10);--s1:#3987e5;--s2:#d95926}
+body{margin:0;background:var(--plane)}
+.ts{background:var(--plane);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;
+max-width:960px;margin:0 auto;padding:24px 16px 48px}
+.ts h1{font-size:22px;margin:0 0 4px}.ts h2{font-size:16px;margin:4px 0 8px}
+.ts .sub{color:var(--ink2);margin:0 0 16px}.ts .note{color:var(--ink2);font-size:13px}
+.ts section{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;
+margin:12px 0;overflow-x:auto}
+.ts table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.ts th,.ts td{text-align:right;padding:4px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+.ts th:first-child,.ts td:first-child{text-align:left}.ts th{color:var(--ink2);font-weight:600}
+.ts .chart{margin:8px 0}.ts figcaption{color:var(--ink2);font-weight:600;margin-bottom:4px}
+.ts svg{width:100%;height:auto;display:block}
+.ts .grid{stroke:var(--grid);stroke-width:1}.ts .axis{stroke:var(--axis);stroke-width:1}
+.ts .tick,.ts .label{fill:var(--muted);font-size:11px}.ts .end,.ts .value{fill:var(--ink2);font-size:11px}
+.ts .line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ts .line.s1{stroke:var(--s1)}.ts .line.s2{stroke:var(--s2)}
+.ts .dot{stroke:var(--surface);stroke-width:2}.ts .dot.s1{fill:var(--s1)}.ts .dot.s2{fill:var(--s2)}
+.ts .bar.s1{fill:var(--s1)}.ts .hit{fill:transparent}.ts .hit:hover{fill:var(--grid);fill-opacity:.35}
+.ts .legend{display:flex;gap:16px;color:var(--ink2);font-size:12px;margin-top:4px}
+.ts .key{display:inline-block;width:14px;height:2px;margin-right:6px;vertical-align:middle}
+.ts .key.s1{background:var(--s1)}.ts .key.s2{background:var(--s2)}
+.ts pre{background:var(--plane);padding:8px;border-radius:6px;overflow-x:auto;font-size:12px}
+</style></head><body><main class="ts"><h1>tsmom: gross and net</h1><p class="sub">walkforward, out-of-sample 2010-01-04 to 2024-01-09 (3528 bars), capital $1,000,000. Data: bars: data/normalized/tiingo-etf-daily/bars.parquet (66243264f79e); rates: data/normalized/fred-dtb3/rates.parquet (6bfdf1f453cd).</p><section><h2>Performance</h2><table><thead><tr><th>Metric</th><th>Gross</th><th>Net</th></tr></thead><tbody><tr><td>Total return</td><td>40.38%</td><td>30.70%</td></tr><tr><td>Annual return</td><td>2.88%</td><td>2.19%</td></tr><tr><td>Annual excess return</td><td>1.92%</td><td>1.23%</td></tr><tr><td>Volatility</td><td>5.06%</td><td>5.06%</td></tr><tr><td>Sharpe</td><td>0.38</td><td>0.24</td></tr><tr><td>Sortino</td><td>0.51</td><td>0.33</td></tr><tr><td>Calmar</td><td>0.37</td><td>0.26</td></tr><tr><td>Max drawdown</td><td>7.75%</td><td>8.41%</td></tr><tr><td>Max drawdown duration</td><td>255 bars</td><td>1,497 bars</td></tr><tr><td>Beta to benchmark</td><td>0.07</td><td>0.07</td></tr><tr><td>Alpha (annual)</td><td>1.03%</td><td>0.34%</td></tr><tr><td>Hit rate (episodes)</td><td>36.2%</td><td>34.3%</td></tr><tr><td>Average win (episode)</td><td>$1,340</td><td>$1,377</td></tr><tr><td>Average loss (episode)</td><td>-$595</td><td>-$601</td></tr><tr><td>Profit factor</td><td>1.28</td><td>1.19</td></tr><tr><td>Daily hit rate</td><td>54.7%</td><td>54.3%</td></tr></tbody></table><p class="note">P&amp;L $403,764 gross, $307,017 net, after $96,746 of costs. Episodes: 2863 closed.</p></section><section><h2>Equity and drawdown</h2><figure class="chart"><figcaption>Cumulative return on capital</figcaption><svg viewBox="0 0 720 240" role="img" aria-label="Cumulative return on capital"><line class="grid" x1="56" x2="648" y1="212.0" y2="212.0"/><text class="tick" x="50" y="216.0" text-anchor="end">-20%</text><line class="grid" x1="56" x2="648" y1="147.1" y2="147.1"/><text class="tick" x="50" y="151.1" text-anchor="end">0%</text><line class="grid" x1="56" x2="648" y1="82.1" y2="82.1"/><text class="tick" x="50" y="86.1" text-anchor="end">20%</text><line class="grid" x1="56" x2="648" y1="17.2" y2="17.2"/><text class="tick" x="50" y="21.2" text-anchor="end">40%</text><text class="tick" x="98.3" y="232" text-anchor="middle">2011</text><text class="tick" x="182.6" y="232" text-anchor="middle">2013</text><text class="tick" x="267.2" y="232" text-anchor="middle">2015</text><text class="tick" x="351.7" y="232" text-anchor="middle">2017</text><text class="tick" x="436.0" y="232" text-anchor="middle">2019</text><text class="tick" x="520.8" y="232" text-anchor="middle">2021</text><text class="tick" x="605.2" y="232" text-anchor="middle">2023</text><line class="axis" x1="56" x2="648" y1="147.1" y2="147.1"/><polyline class="line s1" points="56.0,146.2 57.3,144.2 58.7,151.3 60.0,157.6 61.4,151.1 62.7,148.3 64.1,145.3 65.4,143.8 66.7,140.3 68.1,139.9 69.4,137.4 70.8,144.8 72.1,149.1 73.5,152.4 74.8,154.7 76.1,153.1 77.5,154.8 78.8,155.3 80.2,153.8 81.5,153.7 82.9,153.3 84.2,155.0 85.5,157.6 86.9,157.9 88.2,158.0 89.6,159.1 90.9,158.3 92.3,154.8 93.6,158.4 94.9,155.3 96.3,155.7 97.6,151.8 99.0,152.5 100.3,150.9 101.7,147.1 103.0,143.9 104.3,146.9 105.7,143.1 107.0,149.5 108.4,143.6 109.7,142.4 111.1,137.9 112.4,137.5 113.7,140.0 115.1,139.8 116.4,143.0 117.8,144.4 119.1,144.8 120.5,141.9 121.8,141.4 123.1,142.2 124.5,140.0 125.8,139.8 127.2,139.9 128.5,140.8 129.9,137.1 131.2,142.8 132.5,145.4 133.9,145.8 135.2,145.5 136.6,143.0 137.9,144.5 139.3,144.5 140.6,144.9 141.9,144.4 143.3,141.3 144.6,140.0 146.0,140.0 147.3,138.5 148.7,136.6 150.0,137.5 151.3,135.3 152.7,134.3 154.0,133.2 155.4,131.8 156.7,130.6 158.1,127.4 159.4,127.6 160.7,127.1 162.1,126.2 163.4,125.1 164.8,124.7 166.1,124.3 167.5,124.5 168.8,124.9 170.1,117.3 171.5,120.7 172.8,118.3 174.2,117.5 175.5,123.6 176.9,126.9 178.2,123.9 179.5,122.3 180.9,121.4 182.2,124.2 183.6,115.4 184.9,112.2 186.3,114.9 187.6,109.5 188.9,108.5 190.3,105.1 191.6,105.3 193.0,102.3 194.3,97.5 195.6,94.3 197.0,91.3 198.3,87.9 199.7,92.7 201.0,97.1 202.4,99.3 203.7,97.7 205.0,93.7 206.4,92.6 207.7,92.0 209.1,99.7 210.4,101.0 211.8,94.9 213.1,92.9 214.4,95.5 215.8,92.8 217.1,88.9 218.5,87.4 219.8,84.8 221.2,83.2 222.5,86.6 223.8,80.6 225.2,80.8 226.5,78.7 227.9,85.6 229.2,83.2 230.6,80.5 231.9,77.2 233.2,78.5 234.6,79.2 235.9,78.4 237.3,76.6 238.6,76.1 240.0,75.4 241.3,75.6 242.6,71.5 244.0,72.6 245.3,69.4 246.7,70.1 248.0,67.7 249.4,74.5 250.7,70.9 252.0,64.4 253.4,63.3 254.7,65.7 256.1,67.4 257.4,70.5 258.8,69.6 260.1,65.2 261.4,63.6 262.8,62.1 264.1,61.5 265.5,62.9 266.8,59.9 268.2,59.6 269.5,57.5 270.8,58.2 272.2,58.2 273.5,56.6 274.9,59.5 276.2,55.0 277.6,57.6 278.9,55.8 280.2,55.5 281.6,59.0 282.9,56.8 284.3,56.6 285.6,57.7 287.0,57.1 288.3,57.7 289.6,53.9 291.0,51.9 292.3,50.6 293.7,50.0 295.0,57.6 296.4,58.5 297.7,57.3 299.0,58.3 300.4,58.2 301.7,56.0 303.1,55.8 304.4,55.0 305.8,53.3 307.1,52.3 308.4,53.8 309.8,53.3 311.1,49.0 312.5,52.8 313.8,50.3 315.2,55.0 316.5,60.3 317.8,61.0 319.2,60.9 320.5,60.5 321.9,64.4 323.2,64.7 324.6,62.9 325.9,66.6 327.2,66.4 328.6,63.1 329.9,61.7 331.3,59.1 332.6,60.3 334.0,61.0 335.3,59.9 336.6,61.6 338.0,59.4 339.3,65.2 340.7,61.0 342.0,64.7 343.4,66.2 344.7,67.8 346.0,70.9 347.4,68.2 348.7,67.0 350.1,65.8 351.4,64.7 352.8,61.9 354.1,60.8 355.4,60.5 356.8,58.4 358.1,59.3 359.5,57.2 360.8,59.7 362.2,59.4 363.5,62.1 364.8,56.0 366.2,54.1 367.5,55.3 368.9,49.3 370.2,47.6 371.6,46.0 372.9,49.0 374.2,46.6 375.6,45.4 376.9,45.0 378.3,47.4 379.6,44.9 381.0,42.1 382.3,42.9 383.6,40.6 385.0,39.0 386.3,40.6 387.7,36.2 389.0,38.0 390.4,32.5 391.7,32.0 393.0,30.1 394.4,23.6 395.7,21.1 397.1,20.6 398.4,36.9 399.8,32.3 401.1,32.7 402.4,32.1 403.8,36.0 405.1,34.0 406.5,33.2 407.8,34.4 409.2,31.5 410.5,32.6 411.8,31.4 413.2,33.8 414.5,38.2 415.9,36.2 417.2,33.9 418.6,33.0 419.9,32.9 421.2,32.0 422.6,31.3 423.9,28.5 425.3,28.6 426.6,34.0 428.0,35.9 429.3,40.6 430.6,41.0 432.0,42.6 433.3,45.1 434.7,43.6 436.0,44.7 437.4,47.3 438.7,48.3 440.0,47.3 441.4,45.7 442.7,47.4 444.1,44.9 445.4,43.8 446.8,40.8 448.1,39.6 449.4,38.0 450.8,42.6 452.1,42.5 453.5,42.8 454.8,39.3 456.1,38.6 457.5,37.7 458.8,36.3 460.2,36.6 461.5,35.4 462.9,34.4 464.2,34.2 465.5,38.1 466.9,37.9 468.2,36.3 469.6,39.0 470.9,38.8 472.3,37.9 473.6,39.2 474.9,40.4 476.3,35.7 477.6,32.9 479.0,33.6 480.3,28.3 481.7,32.3 483.0,26.3 484.3,31.3 485.7,34.5 487.0,37.6 488.4,40.3 489.7,42.0 491.1,40.9 492.4,42.7 493.7,42.2 495.1,44.5 496.4,43.8 497.8,45.1 499.1,44.0 500.5,43.5 501.8,40.8 503.1,37.6 504.5,38.7 505.8,35.0 507.2,37.3 508.5,37.1 509.9,38.7 511.2,35.1 512.5,37.3 513.9,39.9 515.2,36.9 516.6,37.0 517.9,35.1 519.3,34.2 520.6,32.6 521.9,32.0 523.3,32.0 524.6,29.5 526.0,27.4 527.3,25.9 528.7,24.5 530.0,27.9 531.3,23.2 532.7,21.0 534.0,20.6 535.4,19.4 536.7,20.5 538.1,18.6 539.4,17.5 540.7,19.1 542.1,16.6 543.4,19.8 544.8,17.3 546.1,17.4 547.5,16.0 548.8,17.2 550.1,18.4 551.5,21.2 552.8,25.6 554.2,24.8 555.5,24.3 556.9,20.8 558.2,22.3 559.5,23.5 560.9,23.7 562.2,22.2 563.6,25.1 564.9,28.4 566.3,29.0 567.6,27.4 568.9,30.4 570.3,28.1 571.6,27.5 573.0,24.4 574.3,22.7 575.7,22.6 577.0,25.0 578.3,23.5 579.7,24.9 581.0,25.2 582.4,21.1 583.7,22.0 585.1,22.5 586.4,25.3 587.7,29.8 589.1,30.6 590.4,23.2 591.8,21.0 593.1,17.6 594.5,12.5 595.8,12.4 597.1,14.5 598.5,13.7 599.8,20.2 601.2,19.2 602.5,20.8 603.9,16.9 605.2,16.1 606.5,19.5 607.9,20.6 609.2,22.2 610.6,22.4 611.9,21.9 613.3,25.4 614.6,22.6 615.9,19.2 617.3,17.7 618.6,17.0 620.0,16.4 621.3,17.2 622.7,17.4 624.0,15.1 625.3,16.4 626.7,16.7 628.0,17.8 629.4,17.0 630.7,19.4 632.1,19.7 633.4,18.3 634.7,19.3 636.1,20.0 637.4,20.0 638.8,19.3 640.1,20.2 641.5,20.4 642.8,20.2 644.1,19.9 645.5,15.9 646.8,13.0 648.0,16.0"/><text class="end" x="654" y="20.0">Gross 40%</text><polyline class="line s2" points="56.0,146.3 57.3,144.4 58.7,151.5 60.0,157.9 61.4,151.5 62.7,148.7 64.1,145.8 65.4,144.4 66.7,140.9 68.1,140.5 69.4,138.2 70.8,145.6 72.1,150.0 73.5,153.5 74.8,155.8 76.1,154.4 77.5,156.1 78.8,156.8 80.2,155.3 81.5,155.2 82.9,154.9 84.2,156.7 85.5,159.3 86.9,159.8 88.2,160.0 89.6,161.2 90.9,160.5 92.3,157.0 93.6,160.6 94.9,157.6 96.3,158.0 97.6,154.1 99.0,155.1 100.3,153.6 101.7,149.9 103.0,146.7 104.3,149.7 105.7,146.0 107.0,152.4 108.4,146.6 109.7,145.4 111.1,141.0 112.4,140.8 113.7,143.3 115.1,143.2 116.4,146.5 117.8,147.9 119.1,148.4 120.5,145.5 121.8,145.0 123.1,146.0 124.5,143.9 125.8,143.7 127.2,143.9 128.5,144.8 129.9,141.2 131.2,147.0 132.5,149.6 133.9,150.1 135.2,149.9 136.6,147.4 137.9,149.0 139.3,149.0 140.6,149.5 141.9,149.1 143.3,146.2 144.6,144.9 146.0,145.1 147.3,143.8 148.7,141.9 150.0,142.9 151.3,140.8 152.7,139.9 154.0,138.8 155.4,137.5 156.7,136.3 158.1,133.2 159.4,133.5 160.7,133.0 162.1,132.1 163.4,131.0 164.8,130.7 166.1,130.4 167.5,130.6 168.8,131.0 170.1,123.6 171.5,126.9 172.8,124.6 174.2,123.8 175.5,130.0 176.9,133.4 178.2,130.5 179.5,128.9 180.9,128.0 182.2,130.8 183.6,122.4 184.9,119.3 186.3,122.1 187.6,116.9 188.9,115.9 190.3,112.5 191.6,112.9 193.0,109.9 194.3,105.1 195.6,102.0 197.0,99.0 198.3,95.6 199.7,100.6 201.0,105.0 202.4,107.2 203.7,105.7 205.0,101.7 206.4,100.6 207.7,100.2 209.1,107.9 210.4,109.3 211.8,103.2 213.1,101.2 214.4,103.9 215.8,101.2 217.1,97.3 218.5,95.9 219.8,93.3 221.2,91.8 222.5,95.2 223.8,89.3 225.2,89.7 226.5,87.6 227.9,94.6 229.2,92.2 230.6,89.6 231.9,86.3 233.2,87.6 234.6,88.3 235.9,87.6 237.3,85.8 238.6,85.4 240.0,84.8 241.3,85.1 242.6,81.2 244.0,82.4 245.3,79.3 246.7,80.0 248.0,77.6 249.4,84.4 250.7,80.8 252.0,74.4 253.4,73.3 254.7,75.7 256.1,77.4 257.4,80.5 258.8,79.7 260.1,75.4 261.4,73.8 262.8,72.4 264.1,71.8 265.5,73.2 266.8,70.3 268.2,70.2 269.5,68.1 270.8,68.9 272.2,68.9 273.5,67.3 274.9,70.2 276.2,65.7 277.6,68.4 278.9,66.6 280.2,66.3 281.6,69.9 282.9,67.7 284.3,67.5 285.6,68.6 287.0,68.1 288.3,68.7 289.6,65.0 291.0,63.1 292.3,61.9 293.7,61.2 295.0,69.0 296.4,70.2 297.7,69.0 299.0,70.0 300.4,69.9 301.7,67.7 303.1,67.7 304.4,66.9 305.8,65.3 307.1,64.4 308.4,66.0 309.8,65.7 311.1,61.6 312.5,65.4 313.8,63.0 315.2,67.7 316.5,73.1 317.8,73.9 319.2,73.9 320.5,73.5 321.9,77.4 323.2,77.9 324.6,76.2 325.9,79.9 327.2,79.8 328.6,76.5 329.9,75.3 331.3,72.7 332.6,73.9 334.0,74.7 335.3,73.7 336.6,75.4 338.0,73.2 339.3,79.1 340.7,74.8 342.0,78.6 343.4,80.2 344.7,81.8 346.0,85.0 347.4,82.3 348.7,81.1 350.1,80.0 351.4,78.9 352.8,76.4 354.1,75.4 355.4,75.1 356.8,73.0 358.1,74.0 359.5,71.9 360.8,74.5 362.2,74.2 363.5,77.1 364.8,71.2 366.2,69.4 367.5,70.8 368.9,64.8 370.2,63.2 371.6,61.5 372.9,64.6 374.2,62.2 375.6,61.0 376.9,60.6 378.3,63.1 379.6,60.7 381.0,57.9 382.3,58.8 383.6,56.5 385.0,55.1 386.3,56.8 387.7,52.4 389.0,54.3 390.4,48.9 391.7,48.4 393.0,46.6 394.4,40.4 395.7,37.9 397.1,37.6 398.4,53.9 399.8,49.4 401.1,49.8 402.4,49.4 403.8,53.3 405.1,51.3 406.5,50.5 407.8,51.9 409.2,49.1 410.5,50.2 411.8,49.1 413.2,51.6 414.5,56.0 415.9,54.1 417.2,51.8 418.6,51.0 419.9,50.9 421.2,50.1 422.6,49.4 423.9,46.6 425.3,46.8 426.6,52.3 428.0,54.2 429.3,59.0 430.6,59.5 432.0,61.2 433.3,63.9 434.7,62.5 436.0,63.7 437.4,66.5 438.7,67.6 440.0,66.7 441.4,65.2 442.7,66.9 444.1,64.4 445.4,63.3 446.8,60.4 448.1,59.3 449.4,57.7 450.8,62.3 452.1,62.5 453.5,62.9 454.8,59.5 456.1,58.8 457.5,58.0 458.8,56.7 460.2,57.0 461.5,55.9 462.9,55.1 464.2,55.0 465.5,59.1 466.9,59.1 468.2,57.4 469.6,60.3 470.9,60.2 472.3,59.4 473.6,60.7 474.9,62.0 476.3,57.5 477.6,54.8 479.0,55.8 480.3,50.6 481.7,54.6 483.0,48.7 484.3,53.7 485.7,57.0 487.0,60.1 488.4,62.9 489.7,64.6 491.1,63.6 492.4,65.4 493.7,64.9 495.1,67.3 496.4,66.7 497.8,68.1 499.1,67.0 500.5,66.5 501.8,63.8 503.1,60.7 504.5,61.8 505.8,58.1 507.2,60.5 508.5,60.4 509.9,62.0 511.2,58.5 512.5,60.7 513.9,63.3 515.2,60.3 516.6,60.5 517.9,58.6 519.3,57.7 520.6,56.2 521.9,55.8 523.3,55.8 524.6,53.4 526.0,51.3 527.3,49.9 528.7,48.6 530.0,52.0 531.3,47.4 532.7,45.2 534.0,44.8 535.4,43.7 536.7,44.9 538.1,43.0 539.4,42.0 540.7,43.6 542.1,41.2 543.4,44.5 544.8,42.0 546.1,42.2 547.5,40.8 548.8,42.2 550.1,43.5 551.5,46.3 552.8,51.1 554.2,50.4 555.5,50.1 556.9,46.8 558.2,48.2 559.5,49.6 560.9,49.9 562.2,48.5 563.6,51.7 564.9,55.1 566.3,55.6 567.6,54.2 568.9,57.2 570.3,54.9 571.6,54.4 573.0,51.4 574.3,49.7 575.7,49.7 577.0,52.1 578.3,50.7 579.7,52.1 581.0,52.5 582.4,48.5 583.7,49.4 585.1,49.9 586.4,52.8 587.7,57.3 589.1,58.2 590.4,50.9 591.8,48.7 593.1,45.3 594.5,40.3 595.8,40.2 597.1,42.4 598.5,41.7 599.8,48.2 601.2,47.2 602.5,48.9 603.9,45.1 605.2,44.4 606.5,47.9 607.9,49.1 609.2,50.8 610.6,51.0 611.9,50.7 613.3,54.3 614.6,51.5 615.9,48.2 617.3,46.7 618.6,46.0 620.0,45.5 621.3,46.3 622.7,46.8 624.0,44.6 625.3,45.9 626.7,46.4 628.0,47.6 629.4,46.9 630.7,49.5 632.1,49.8 633.4,48.6 634.7,49.7 636.1,50.5 637.4,50.6 638.8,50.1 640.1,51.1 641.5,51.4 642.8,51.3 644.1,51.0 645.5,47.1 646.8,44.3 648.0,47.4"/><text class="end" x="654" y="51.4">Net 31%</text><rect class="hit" x="56.0" y="12" width="11.7" height="200"><title>2010-04-15
+Gross: 3%
+Net: 3%</title></rect><rect class="hit" x="67.7" y="12" width="11.9" height="200"><title>2010-07-27
+Gross: -2%
+Net: -3%</title></rect><rect class="hit" x="79.7" y="12" width="11.7" height="200"><title>2010-11-03
+Gross: -3%
+Net: -4%</title></rect><rect class="hit" x="91.4" y="12" width="11.9" height="200"><title>2011-02-15
+Gross: 1%
+Net: 0%</title></rect><rect class="hit" x="103.3" y="12" width="11.7" height="200"><title>2011-05-26
+Gross: 2%
+Net: 1%</title></rect><rect class="hit" x="115.1" y="12" width="11.9" height="200"><title>2011-09-07
+Gross: 2%
+Net: 1%</title></rect><rect class="hit" x="127.0" y="12" width="11.7" height="200"><title>2011-12-15
+Gross: 1%
+Net: 0%</title></rect><rect class="hit" x="138.7" y="12" width="11.9" height="200"><title>2012-03-29
+Gross: 4%
+Net: 2%</title></rect><rect class="hit" x="150.7" y="12" width="11.7" height="200"><title>2012-07-10
+Gross: 6%
+Net: 5%</title></rect><rect class="hit" x="162.4" y="12" width="11.9" height="200"><title>2012-10-18
+Gross: 9%
+Net: 7%</title></rect><rect class="hit" x="174.3" y="12" width="11.7" height="200"><title>2013-02-01
+Gross: 11%
+Net: 9%</title></rect><rect class="hit" x="186.1" y="12" width="11.9" height="200"><title>2013-05-15
+Gross: 18%
+Net: 15%</title></rect><rect class="hit" x="198.0" y="12" width="11.9" height="200"><title>2013-08-26
+Gross: 15%
+Net: 12%</title></rect><rect class="hit" x="209.9" y="12" width="11.7" height="200"><title>2013-12-04
+Gross: 19%
+Net: 17%</title></rect><rect class="hit" x="221.7" y="12" width="11.9" height="200"><title>2014-03-19
+Gross: 21%
+Net: 18%</title></rect><rect class="hit" x="233.6" y="12" width="11.7" height="200"><title>2014-06-27
+Gross: 24%
+Net: 21%</title></rect><rect class="hit" x="245.3" y="12" width="11.9" height="200"><title>2014-10-08
+Gross: 25%
+Net: 22%</title></rect><rect class="hit" x="257.2" y="12" width="11.7" height="200"><title>2015-01-20
+Gross: 27%
+Net: 24%</title></rect><rect class="hit" x="269.0" y="12" width="11.9" height="200"><title>2015-05-01
+Gross: 28%
+Net: 24%</title></rect><rect class="hit" x="280.9" y="12" width="11.7" height="200"><title>2015-08-11
+Gross: 30%
+Net: 26%</title></rect><rect class="hit" x="292.7" y="12" width="11.9" height="200"><title>2015-11-19
+Gross: 28%
+Net: 25%</title></rect><rect class="hit" x="304.6" y="12" width="11.7" height="200"><title>2016-03-03
+Gross: 27%
+Net: 23%</title></rect><rect class="hit" x="316.3" y="12" width="11.9" height="200"><title>2016-06-14
+Gross: 26%
+Net: 22%</title></rect><rect class="hit" x="328.2" y="12" width="11.7" height="200"><title>2016-09-22
+Gross: 27%
+Net: 22%</title></rect><rect class="hit" x="340.0" y="12" width="11.9" height="200"><title>2017-01-04
+Gross: 26%
+Net: 22%</title></rect><rect class="hit" x="351.9" y="12" width="11.9" height="200"><title>2017-04-18
+Gross: 26%
+Net: 22%</title></rect><rect class="hit" x="363.8" y="12" width="11.7" height="200"><title>2017-07-27
+Gross: 31%
+Net: 27%</title></rect><rect class="hit" x="375.6" y="12" width="11.9" height="200"><title>2017-11-06
+Gross: 34%
+Net: 29%</title></rect><rect class="hit" x="387.5" y="12" width="11.7" height="200"><title>2018-02-16
+Gross: 36%
+Net: 31%</title></rect><rect class="hit" x="399.2" y="12" width="11.9" height="200"><title>2018-05-31
+Gross: 35%
+Net: 29%</title></rect><rect class="hit" x="411.2" y="12" width="11.7" height="200"><title>2018-09-10
+Gross: 36%
+Net: 30%</title></rect><rect class="hit" x="422.9" y="12" width="11.9" height="200"><title>2018-12-20
+Gross: 32%
+Net: 26%</title></rect><rect class="hit" x="434.8" y="12" width="11.7" height="200"><title>2019-04-03
+Gross: 33%
+Net: 27%</title></rect><rect class="hit" x="446.6" y="12" width="11.9" height="200"><title>2019-07-16
+Gross: 34%
+Net: 27%</title></rect><rect class="hit" x="458.5" y="12" width="11.7" height="200"><title>2019-10-23
+Gross: 33%
+Net: 27%</title></rect><rect class="hit" x="470.2" y="12" width="11.9" height="200"><title>2020-02-05
+Gross: 37%
+Net: 30%</title></rect><rect class="hit" x="482.2" y="12" width="11.7" height="200"><title>2020-05-15
+Gross: 33%
+Net: 26%</title></rect><rect class="hit" x="493.9" y="12" width="11.9" height="200"><title>2020-08-26
+Gross: 35%
+Net: 27%</title></rect><rect class="hit" x="505.8" y="12" width="11.9" height="200"><title>2020-12-07
+Gross: 34%
+Net: 27%</title></rect><rect class="hit" x="517.7" y="12" width="11.7" height="200"><title>2021-03-19
+Gross: 37%
+Net: 30%</title></rect><rect class="hit" x="529.5" y="12" width="11.9" height="200"><title>2021-06-30
+Gross: 40%
+Net: 32%</title></rect><rect class="hit" x="541.4" y="12" width="11.7" height="200"><title>2021-10-08
+Gross: 37%
+Net: 29%</title></rect><rect class="hit" x="553.2" y="12" width="11.9" height="200"><title>2022-01-20
+Gross: 36%
+Net: 28%</title></rect><rect class="hit" x="565.1" y="12" width="11.7" height="200"><title>2022-05-02
+Gross: 38%
+Net: 29%</title></rect><rect class="hit" x="576.8" y="12" width="11.9" height="200"><title>2022-08-12
+Gross: 36%
+Net: 27%</title></rect><rect class="hit" x="588.7" y="12" width="11.7" height="200"><title>2022-11-21
+Gross: 39%
+Net: 31%</title></rect><rect class="hit" x="600.5" y="12" width="11.9" height="200"><title>2023-03-07
+Gross: 38%
+Net: 30%</title></rect><rect class="hit" x="612.4" y="12" width="11.7" height="200"><title>2023-06-15
+Gross: 41%
+Net: 32%</title></rect><rect class="hit" x="624.2" y="12" width="11.9" height="200"><title>2023-09-27
+Gross: 39%
+Net: 30%</title></rect><rect class="hit" x="636.1" y="12" width="11.9" height="200"><title>2024-01-09
+Gross: 40%
+Net: 31%</title></rect></svg><div class="legend"><span><i class="key s1"></i>Gross</span><span><i class="key s2"></i>Net</span></div></figure><figure class="chart"><figcaption>Net drawdown from peak</figcaption><svg viewBox="0 0 720 240" role="img" aria-label="Net drawdown from peak"><line class="grid" x1="56" x2="648" y1="212.0" y2="212.0"/><text class="tick" x="50" y="216.0" text-anchor="end">-10%</text><line class="grid" x1="56" x2="648" y1="162.0" y2="162.0"/><text class="tick" x="50" y="166.0" text-anchor="end">-8%</text><line class="grid" x1="56" x2="648" y1="112.0" y2="112.0"/><text class="tick" x="50" y="116.0" text-anchor="end">-5%</text><line class="grid" x1="56" x2="648" y1="62.0" y2="62.0"/><text class="tick" x="50" y="66.0" text-anchor="end">-2%</text><line class="grid" x1="56" x2="648" y1="12.0" y2="12.0"/><text class="tick" x="50" y="16.0" text-anchor="end">0%</text><text class="tick" x="98.3" y="232" text-anchor="middle">2011</text><text class="tick" x="182.6" y="232" text-anchor="middle">2013</text><text class="tick" x="267.2" y="232" text-anchor="middle">2015</text><text class="tick" x="351.7" y="232" text-anchor="middle">2017</text><text class="tick" x="436.0" y="232" text-anchor="middle">2019</text><text class="tick" x="520.8" y="232" text-anchor="middle">2021</text><text class="tick" x="605.2" y="232" text-anchor="middle">2023</text><line class="axis" x1="56" x2="648" y1="12.0" y2="12.0"/><polyline class="line s2" points="56.0,12.0 57.3,12.0 58.7,58.4 60.0,97.6 61.4,58.6 62.7,41.7 64.1,23.5 65.4,20.8 66.7,17.4 68.1,28.9 69.4,18.8 70.8,63.1 72.1,89.7 73.5,110.4 74.8,124.5 76.1,115.8 77.5,125.8 78.8,130.0 80.2,121.2 81.5,120.5 82.9,119.0 84.2,129.4 85.5,145.0 86.9,148.3 88.2,149.3 89.6,156.3 90.9,152.2 92.3,131.2 93.6,153.2 94.9,134.9 96.3,137.3 97.6,114.0 99.0,119.9 100.3,111.1 101.7,88.8 103.0,69.7 104.3,88.0 105.7,65.7 107.0,104.2 108.4,69.4 109.7,62.3 111.1,36.1 112.4,35.3 113.7,50.6 115.1,50.1 116.4,69.5 117.8,77.9 119.1,80.9 120.5,63.7 121.8,60.9 123.1,66.6 124.5,54.3 125.8,53.1 127.2,54.0 128.5,59.6 129.9,37.9 131.2,72.5 132.5,88.1 133.9,91.3 135.2,89.8 136.6,74.8 137.9,84.5 139.3,84.4 140.6,87.8 141.9,85.2 143.3,67.8 144.6,60.1 146.0,61.1 147.3,53.4 148.7,42.2 150.0,48.3 151.3,35.5 152.7,30.2 154.0,23.7 155.4,15.8 156.7,16.7 158.1,12.0 159.4,14.2 160.7,14.9 162.1,12.0 163.4,12.0 164.8,12.0 166.1,15.2 167.5,16.8 168.8,19.0 170.1,12.0 171.5,32.9 172.8,19.3 174.2,15.1 175.5,50.6 176.9,70.1 178.2,53.3 179.5,44.1 180.9,39.0 182.2,55.3 183.6,12.0 184.9,12.6 186.3,30.5 187.6,12.0 188.9,16.5 190.3,12.0 191.6,18.7 193.0,18.7 194.3,24.5 195.6,12.0 197.0,12.0 198.3,12.0 199.7,40.0 201.0,63.5 202.4,75.3 203.7,66.9 205.0,45.9 206.4,40.3 207.7,37.7 209.1,78.6 210.4,86.1 211.8,53.9 213.1,43.3 214.4,57.4 215.8,43.3 217.1,22.5 218.5,14.8 219.8,15.7 221.2,13.0 222.5,31.5 223.8,12.0 225.2,26.6 226.5,15.6 227.9,52.2 229.2,39.5 230.6,25.9 231.9,12.2 233.2,18.9 234.6,23.0 235.9,29.1 237.3,20.2 238.6,17.7 240.0,15.1 241.3,16.5 242.6,12.0 244.0,21.3 245.3,12.0 246.7,20.1 248.0,12.0 249.4,49.1 250.7,30.9 252.0,12.0 253.4,12.0 254.7,24.2 256.1,32.8 257.4,48.6 258.8,44.4 260.1,22.7 261.4,14.8 262.8,12.0 264.1,18.5 265.5,25.4 266.8,15.7 268.2,15.6 269.5,12.3 270.8,16.8 272.2,17.8 273.5,15.8 274.9,30.2 276.2,13.4 277.6,26.5 278.9,17.5 280.2,16.8 281.6,34.2 282.9,23.3 284.3,22.3 285.6,28.0 287.0,25.2 288.3,28.4 289.6,12.0 291.0,12.0 292.3,16.5 293.7,13.4 295.0,51.3 296.4,56.9 297.7,51.1 299.0,56.2 300.4,55.9 301.7,45.1 303.1,44.7 304.4,40.8 305.8,33.2 307.1,28.6 308.4,36.7 309.8,35.3 311.1,15.2 312.5,35.0 313.8,23.0 315.2,46.2 316.5,72.5 317.8,76.0 319.2,76.3 320.5,74.3 321.9,93.5 323.2,95.6 324.6,87.5 325.9,105.4 327.2,105.1 328.6,89.1 329.9,82.9 331.3,70.5 332.6,76.4 334.0,80.4 335.3,75.3 336.6,83.7 338.0,72.9 339.3,101.6 340.7,80.8 342.0,99.3 343.4,106.8 344.7,114.7 346.0,130.2 347.4,117.1 348.7,111.3 350.1,106.0 351.4,100.8 352.8,88.5 354.1,83.4 355.4,81.9 356.8,71.7 358.1,76.8 359.5,66.7 360.8,78.9 362.2,77.9 363.5,91.8 364.8,62.9 366.2,54.5 367.5,61.0 368.9,31.8 370.2,24.1 371.6,16.1 372.9,31.7 374.2,20.3 375.6,16.4 376.9,16.8 378.3,28.9 379.6,17.3 381.0,12.0 382.3,17.2 383.6,12.0 385.0,12.1 386.3,22.7 387.7,15.3 389.0,24.5 390.4,12.0 391.7,13.4 393.0,16.0 394.4,12.0 395.7,16.2 397.1,34.1 398.4,108.7 399.8,88.0 401.1,89.8 402.4,87.8 403.8,105.6 405.1,96.7 406.5,93.3 407.8,99.4 409.2,86.5 410.5,91.8 411.8,86.8 413.2,98.0 414.5,118.3 415.9,109.6 417.2,99.0 418.6,95.2 419.9,95.1 421.2,91.2 422.6,88.1 423.9,75.5 425.3,76.3 426.6,101.0 428.0,109.9 429.3,131.8 430.6,134.0 432.0,142.0 433.3,153.9 434.7,147.7 436.0,153.2 437.4,166.0 438.7,171.2 440.0,166.8 441.4,160.1 442.7,167.8 444.1,156.6 445.4,151.6 446.8,138.3 448.1,133.0 449.4,126.0 450.8,146.9 452.1,147.6 453.5,149.6 454.8,133.9 456.1,131.0 457.5,127.3 458.8,121.5 460.2,122.7 461.5,117.6 462.9,114.1 464.2,113.8 465.5,132.2 466.9,132.1 468.2,124.7 469.6,137.7 470.9,137.2 472.3,133.4 473.6,139.7 474.9,145.4 476.3,125.1 477.6,112.7 479.0,117.3 480.3,93.6 481.7,111.8 483.0,84.6 484.3,107.8 485.7,122.8 487.0,137.0 488.4,149.5 489.7,157.4 491.1,152.7 492.4,160.8 493.7,158.7 495.1,169.4 496.4,166.7 497.8,173.1 499.1,168.1 500.5,166.0 501.8,153.7 503.1,139.5 504.5,144.6 505.8,127.9 507.2,138.8 508.5,138.1 509.9,145.4 511.2,129.4 512.5,139.5 513.9,151.3 515.2,137.9 516.6,138.5 517.9,129.8 519.3,126.1 520.6,119.0 521.9,117.3 523.3,117.1 524.6,106.3 526.0,96.7 527.3,90.1 528.7,84.2 530.0,100.1 531.3,78.8 532.7,68.9 534.0,67.0 535.4,62.0 536.7,67.6 538.1,58.9 539.4,54.2 540.7,61.7 542.1,50.8 543.4,65.7 544.8,54.3 546.1,55.1 547.5,49.1 548.8,55.0 550.1,61.1 551.5,74.1 552.8,95.7 554.2,92.7 555.5,91.1 556.9,76.0 558.2,82.8 559.5,88.9 560.9,90.1 562.2,84.0 563.6,98.7 564.9,113.9 566.3,116.5 567.6,109.7 568.9,123.4 570.3,113.3 571.6,110.9 573.0,97.0 574.3,89.5 575.7,89.4 577.0,100.5 578.3,93.9 579.7,100.5 581.0,102.0 582.4,83.9 583.7,87.9 585.1,90.5 586.4,103.5 587.7,124.2 589.1,128.0 590.4,94.7 591.8,84.7 593.1,69.6 594.5,46.7 595.8,46.3 597.1,56.1 598.5,52.9 599.8,82.8 601.2,78.2 602.5,85.7 603.9,68.3 605.2,65.1 606.5,81.2 607.9,86.7 609.2,94.4 610.6,95.6 611.9,93.8 613.3,110.2 614.6,97.7 615.9,82.5 617.3,75.9 618.6,72.7 620.0,70.3 621.3,74.1 622.7,76.0 624.0,66.1 625.3,72.3 626.7,74.4 628.0,79.9 629.4,76.7 630.7,88.5 632.1,90.1 633.4,84.4 634.7,89.4 636.1,93.2 637.4,93.6 638.8,91.2 640.1,95.9 641.5,97.0 642.8,96.5 644.1,95.4 645.5,77.7 646.8,64.9 648.0,78.9"/><text class="end" x="654" y="82.9">Net -3%</text><rect class="hit" x="56.0" y="12" width="11.7" height="200"><title>2010-04-15
+Net: 0%</title></rect><rect class="hit" x="67.7" y="12" width="11.9" height="200"><title>2010-07-27
+Net: -5%</title></rect><rect class="hit" x="79.7" y="12" width="11.7" height="200"><title>2010-11-03
+Net: -7%</title></rect><rect class="hit" x="91.4" y="12" width="11.9" height="200"><title>2011-02-15
+Net: -3%</title></rect><rect class="hit" x="103.3" y="12" width="11.7" height="200"><title>2011-05-26
+Net: -2%</title></rect><rect class="hit" x="115.1" y="12" width="11.9" height="200"><title>2011-09-07
+Net: -2%</title></rect><rect class="hit" x="127.0" y="12" width="11.7" height="200"><title>2011-12-15
+Net: -3%</title></rect><rect class="hit" x="138.7" y="12" width="11.9" height="200"><title>2012-03-29
+Net: -1%</title></rect><rect class="hit" x="150.7" y="12" width="11.7" height="200"><title>2012-07-10
+Net: 0%</title></rect><rect class="hit" x="162.4" y="12" width="11.9" height="200"><title>2012-10-18
+Net: 0%</title></rect><rect class="hit" x="174.3" y="12" width="11.7" height="200"><title>2013-02-01
+Net: 0%</title></rect><rect class="hit" x="186.1" y="12" width="11.9" height="200"><title>2013-05-15
+Net: 0%</title></rect><rect class="hit" x="198.0" y="12" width="11.9" height="200"><title>2013-08-26
+Net: -3%</title></rect><rect class="hit" x="209.9" y="12" width="11.7" height="200"><title>2013-12-04
+Net: 0%</title></rect><rect class="hit" x="221.7" y="12" width="11.9" height="200"><title>2014-03-19
+Net: 0%</title></rect><rect class="hit" x="233.6" y="12" width="11.7" height="200"><title>2014-06-27
+Net: 0%</title></rect><rect class="hit" x="245.3" y="12" width="11.9" height="200"><title>2014-10-08
+Net: -1%</title></rect><rect class="hit" x="257.2" y="12" width="11.7" height="200"><title>2015-01-20
+Net: 0%</title></rect><rect class="hit" x="269.0" y="12" width="11.9" height="200"><title>2015-05-01
+Net: -1%</title></rect><rect class="hit" x="280.9" y="12" width="11.7" height="200"><title>2015-08-11
+Net: 0%</title></rect><rect class="hit" x="292.7" y="12" width="11.9" height="200"><title>2015-11-19
+Net: -1%</title></rect><rect class="hit" x="304.6" y="12" width="11.7" height="200"><title>2016-03-03
+Net: -3%</title></rect><rect class="hit" x="316.3" y="12" width="11.9" height="200"><title>2016-06-14
+Net: -4%</title></rect><rect class="hit" x="328.2" y="12" width="11.7" height="200"><title>2016-09-22
+Net: -3%</title></rect><rect class="hit" x="340.0" y="12" width="11.9" height="200"><title>2017-01-04
+Net: -4%</title></rect><rect class="hit" x="351.9" y="12" width="11.9" height="200"><title>2017-04-18
+Net: -4%</title></rect><rect class="hit" x="363.8" y="12" width="11.7" height="200"><title>2017-07-27
+Net: 0%</title></rect><rect class="hit" x="375.6" y="12" width="11.9" height="200"><title>2017-11-06
+Net: 0%</title></rect><rect class="hit" x="387.5" y="12" width="11.7" height="200"><title>2018-02-16
+Net: -3%</title></rect><rect class="hit" x="399.2" y="12" width="11.9" height="200"><title>2018-05-31
+Net: -4%</title></rect><rect class="hit" x="411.2" y="12" width="11.7" height="200"><title>2018-09-10
+Net: -4%</title></rect><rect class="hit" x="422.9" y="12" width="11.9" height="200"><title>2018-12-20
+Net: -7%</title></rect><rect class="hit" x="434.8" y="12" width="11.7" height="200"><title>2019-04-03
+Net: -6%</title></rect><rect class="hit" x="446.6" y="12" width="11.9" height="200"><title>2019-07-16
+Net: -6%</title></rect><rect class="hit" x="458.5" y="12" width="11.7" height="200"><title>2019-10-23
+Net: -6%</title></rect><rect class="hit" x="470.2" y="12" width="11.9" height="200"><title>2020-02-05
+Net: -4%</title></rect><rect class="hit" x="482.2" y="12" width="11.7" height="200"><title>2020-05-15
+Net: -7%</title></rect><rect class="hit" x="493.9" y="12" width="11.9" height="200"><title>2020-08-26
+Net: -6%</title></rect><rect class="hit" x="505.8" y="12" width="11.9" height="200"><title>2020-12-07
+Net: -6%</title></rect><rect class="hit" x="517.7" y="12" width="11.7" height="200"><title>2021-03-19
+Net: -4%</title></rect><rect class="hit" x="529.5" y="12" width="11.9" height="200"><title>2021-06-30
+Net: -2%</title></rect><rect class="hit" x="541.4" y="12" width="11.7" height="200"><title>2021-10-08
+Net: -4%</title></rect><rect class="hit" x="553.2" y="12" width="11.9" height="200"><title>2022-01-20
+Net: -5%</title></rect><rect class="hit" x="565.1" y="12" width="11.7" height="200"><title>2022-05-02
+Net: -4%</title></rect><rect class="hit" x="576.8" y="12" width="11.9" height="200"><title>2022-08-12
+Net: -6%</title></rect><rect class="hit" x="588.7" y="12" width="11.7" height="200"><title>2022-11-21
+Net: -3%</title></rect><rect class="hit" x="600.5" y="12" width="11.9" height="200"><title>2023-03-07
+Net: -4%</title></rect><rect class="hit" x="612.4" y="12" width="11.7" height="200"><title>2023-06-15
+Net: -3%</title></rect><rect class="hit" x="624.2" y="12" width="11.9" height="200"><title>2023-09-27
+Net: -4%</title></rect><rect class="hit" x="636.1" y="12" width="11.9" height="200"><title>2024-01-09
+Net: -3%</title></rect></svg></figure></section><section><h2>Costs</h2><figure class="chart"><figcaption>Costs by component</figcaption><svg viewBox="0 0 720 216" role="img" aria-label="Costs by component"><line class="axis" x1="140" x2="140" y1="8" y2="210"/><path class="bar s1" d="M141,12 h456.0 a4.0,4.0 0 0 1 4.0,4.0 v12.0 a4.0,4.0 0 0 1 -4.0,4.0 h-456.0 z"><title>spread: $47,577</title></path><text class="label" x="132" y="26" text-anchor="end">spread</text><text class="value" x="607.0" y="26">$47,577</text><path class="bar s1" d="M141,40 h166.2 a4.0,4.0 0 0 1 4.0,4.0 v12.0 a4.0,4.0 0 0 1 -4.0,4.0 h-166.2 z"><title>impact: $17,599</title></path><text class="label" x="132" y="54" text-anchor="end">impact</text><text class="value" x="317.2" y="54">$17,599</text><path class="bar s1" d="M141,68 h140.1 a4.0,4.0 0 0 1 4.0,4.0 v12.0 a4.0,4.0 0 0 1 -4.0,4.0 h-140.1 z"><title>commission: $14,907</title></path><text class="label" x="132" y="82" text-anchor="end">commission</text><text class="value" x="291.1" y="82">$14,907</text><path class="bar s1" d="M141,96 h130.7 a4.0,4.0 0 0 1 4.0,4.0 v12.0 a4.0,4.0 0 0 1 -4.0,4.0 h-130.7 z"><title>borrow: $13,934</title></path><text class="label" x="132" y="110" text-anchor="end">borrow</text><text class="value" x="281.7" y="110">$13,934</text><path class="bar s1" d="M141,124 h15.7 a4.0,4.0 0 0 1 4.0,4.0 v12.0 a4.0,4.0 0 0 1 -4.0,4.0 h-15.7 z"><title>sec_fee: $2,041</title></path><text class="label" x="132" y="138" text-anchor="end">sec_fee</text><text class="value" x="166.7" y="138">$2,041</text><path class="bar s1" d="M141,152 h2.6 a2.6,2.6 0 0 1 2.6,2.6 v14.8 a2.6,2.6 0 0 1 -2.6,2.6 h-2.6 z"><title>carry_on_costs: $543</title></path><text class="label" x="132" y="166" text-anchor="end">carry_on_costs</text><text class="value" x="152.2" y="166">$543</text><path class="bar s1" d="M141,180 h0.7 a0.7,0.7 0 0 1 0.7,0.7 v18.6 a0.7,0.7 0 0 1 -0.7,0.7 h-0.7 z"><title>financing: $146</title></path><text class="label" x="132" y="194" text-anchor="end">financing</text><text class="value" x="148.4" y="194">$146</text></svg></figure><table><thead><tr><th>Component</th><th>Total</th><th>Share</th></tr></thead><tbody><tr><td>spread</td><td>$47,577</td><td>49.2%</td></tr><tr><td>impact</td><td>$17,599</td><td>18.2%</td></tr><tr><td>commission</td><td>$14,907</td><td>15.4%</td></tr><tr><td>borrow</td><td>$13,934</td><td>14.4%</td></tr><tr><td>sec_fee</td><td>$2,041</td><td>2.1%</td></tr><tr><td>carry_on_costs</td><td>$543</td><td>0.6%</td></tr><tr><td>financing</td><td>$146</td><td>0.2%</td></tr></tbody></table><p class="note">Annual cost 0.69% of capital against an annual gross excess return of 1.92%: costs could be 2.78x before the net excess return reaches zero. 4.07 bp of traded notional.</p><table><thead><tr><th>Year</th><th>spread</th><th>impact</th><th>commission</th><th>borrow</th><th>sec_fee</th><th>carry_on_costs</th><th>financing</th><th>Total</th></tr></thead><tbody><tr><td>2010</td><td>$3,219</td><td>$1,972</td><td>$1,526</td><td>$572</td><td>$133</td><td>$6</td><td>$0</td><td>$7,428</td></tr><tr><td>2011</td><td>$3,251</td><td>$1,395</td><td>$1,184</td><td>$780</td><td>$155</td><td>$1</td><td>$17</td><td>$6,783</td></tr><tr><td>2012</td><td>$3,155</td><td>$1,132</td><td>$1,246</td><td>$668</td><td>$155</td><td>$3</td><td>$8</td><td>$6,366</td></tr><tr><td>2013</td><td>$2,965</td><td>$993</td><td>$1,112</td><td>$938</td><td>$159</td><td>$2</td><td>$10</td><td>$6,179</td></tr><tr><td>2014</td><td>$2,494</td><td>$952</td><td>$778</td><td>$877</td><td>$130</td><td>$1</td><td>$17</td><td>$5,249</td></tr><tr><td>2015</td><td>$2,743</td><td>$910</td><td>$797</td><td>$1,082</td><td>$137</td><td>$2</td><td>$0</td><td>$5,670</td></tr><tr><td>2016</td><td>$3,077</td><td>$1,009</td><td>$905</td><td>$1,116</td><td>$151</td><td>$12</td><td>$0</td><td>$6,270</td></tr><tr><td>2017</td><td>$3,205</td><td>$1,422</td><td>$1,170</td><td>$887</td><td>$176</td><td>$36</td><td>$10</td><td>$6,905</td></tr><tr><td>2018</td><td>$3,639</td><td>$1,209</td><td>$1,017</td><td>$1,530</td><td>$179</td><td>$74</td><td>$44</td><td>$7,693</td></tr><tr><td>2019</td><td>$4,494</td><td>$2,051</td><td>$1,402</td><td>$829</td><td>$202</td><td>$76</td><td>$0</td><td>$9,054</td></tr><tr><td>2020</td><td>$2,782</td><td>$736</td><td>$782</td><td>$544</td><td>$152</td><td>$7</td><td>$41</td><td>$5,043</td></tr><tr><td>2021</td><td>$4,895</td><td>$1,415</td><td>$1,101</td><td>$1,135</td><td>$93</td><td>$2</td><td>$0</td><td>$8,642</td></tr><tr><td>2022</td><td>$2,647</td><td>$655</td><td>$578</td><td>$1,670</td><td>$95</td><td>$76</td><td>$0</td><td>$5,720</td></tr><tr><td>2023</td><td>$4,779</td><td>$1,665</td><td>$1,243</td><td>$1,285</td><td>$118</td><td>$232</td><td>$0</td><td>$9,321</td></tr><tr><td>2024</td><td>$233</td><td>$84</td><td>$66</td><td>$19</td><td>$7</td><td>$15</td><td>$0</td><td>$423</td></tr></tbody></table></section><section><h2>Implementation shortfall</h2><table><thead><tr><th>Part</th><th>Amount</th></tr></thead><tbody><tr><td>Delay (decision close to fill)</td><td>$7,547</td></tr><tr><td>commission</td><td>$14,907</td></tr><tr><td>impact</td><td>$17,599</td></tr><tr><td>sec_fee</td><td>$2,041</td></tr><tr><td>spread</td><td>$47,577</td></tr><tr><td>Total</td><td>$89,670</td></tr><tr><td>bp of traded notional</td><td>3.77</td></tr></tbody></table><p class="note">the signal bar&#x27;s close (split-adjusted); delay is the move from it to the fill.</p></section><section><h2>Trading</h2><table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody><tr><td>Trades</td><td>66,914 (308 window-end liquidations)</td></tr><tr><td>Traded notional</td><td>$237,882,689</td></tr><tr><td>Turnover (buys + sells over capital, a year)</td><td>16.99</td></tr><tr><td>Holding period (FIFO, share-weighted)</td><td>22 bars</td></tr><tr><td>Median episode</td><td>4 bars</td></tr><tr><td>Average gross exposure</td><td>79.5%</td></tr><tr><td>Average net exposure</td><td>40.4%</td></tr><tr><td>Time in market</td><td>99.6%</td></tr><tr><td>Max participation (notional over ADV)</td><td>1.05%</td></tr><tr><td>Trades charged the fallback (short history)</td><td>0</td></tr></tbody></table></section><section><h2>Uncertainty and trials</h2><table><thead><tr><th>Metric</th><th>Gross</th><th>Net</th></tr></thead><tbody><tr><td>Sharpe standard error (iid)</td><td>0.27</td><td>0.27</td></tr><tr><td>Sharpe standard error (skew, kurtosis)</td><td>0.27</td><td>0.27</td></tr><tr><td>Probabilistic Sharpe, P(SR &gt; 0)</td><td>92.1%</td><td>81.7%</td></tr><tr><td>Deflated Sharpe, P(SR &gt; best of N null trials)</td><td>54.7%</td><td>34.8%</td></tr><tr><td>Deflated Sharpe hurdle (annual SR)</td><td>0.35</td><td>0.35</td></tr></tbody></table><table><thead><tr><th>Trials</th><th>Count</th></tr></thead><tbody><tr><td>Parameter sets in the grid</td><td>6</td></tr><tr><td>Walk-forward folds</td><td>14</td></tr><tr><td>Backtests run (selection and test)</td><td>98</td></tr><tr><td>N for the deflated Sharpe</td><td>6</td></tr><tr><td>Capacity points (re-runs at other capital)</td><td>5</td></tr></tbody></table><p class="note">Every reported number is out of sample; parameters were chosen on the training window before each test window.</p></section><section><h2>Capacity</h2><figure class="chart"><figcaption>Capacity: Sharpe as capital scales</figcaption><svg viewBox="0 0 720 240" role="img" aria-label="Capacity: Sharpe as capital scales"><line class="grid" x1="56" x2="648" y1="212.0" y2="212.0"/><text class="tick" x="50" y="216.0" text-anchor="end">-1.50</text><line class="grid" x1="56" x2="648" y1="162.0" y2="162.0"/><text class="tick" x="50" y="166.0" text-anchor="end">-1.00</text><line class="grid" x1="56" x2="648" y1="112.0" y2="112.0"/><text class="tick" x="50" y="116.0" text-anchor="end">-0.50</text><line class="grid" x1="56" x2="648" y1="62.0" y2="62.0"/><text class="tick" x="50" y="66.0" text-anchor="end">0.00</text><line class="grid" x1="56" x2="648" y1="12.0" y2="12.0"/><text class="tick" x="50" y="16.0" text-anchor="end">0.50</text><line class="axis" x1="56" x2="648" y1="62.0" y2="62.0"/><text class="tick" x="56.0" y="232" text-anchor="middle">$1,000,000</text><text class="tick" x="204.0" y="232" text-anchor="middle">$10,000,000</text><text class="tick" x="352.0" y="232" text-anchor="middle">$100,000,000</text><text class="tick" x="500.0" y="232" text-anchor="middle">$1,000,000,000</text><text class="tick" x="648.0" y="232" text-anchor="middle">$10,000,000,000</text><polyline class="line s1" points="56.0,24.1 204.0,25.9 352.0,25.9 500.0,10.3 648.0,8.0"/><circle class="dot s1" cx="56.0" cy="24.1" r="4"><title>$1,000,000: Gross Sharpe 0.38</title></circle><circle class="dot s1" cx="204.0" cy="25.9" r="4"><title>$10,000,000: Gross Sharpe 0.36</title></circle><circle class="dot s1" cx="352.0" cy="25.9" r="4"><title>$100,000,000: Gross Sharpe 0.36</title></circle><circle class="dot s1" cx="500.0" cy="10.3" r="4"><title>$1,000,000,000: Gross Sharpe 0.52</title></circle><circle class="dot s1" cx="648.0" cy="8.0" r="4"><title>$10,000,000,000: Gross Sharpe 0.54</title></circle><text class="end" x="656" y="12.0">Gross 0.54</text><polyline class="line s2" points="56.0,37.7 204.0,44.7 352.0,61.3 500.0,78.7 648.0,182.5"/><circle class="dot s2" cx="56.0" cy="37.7" r="4"><title>$1,000,000: Net Sharpe 0.24</title></circle><circle class="dot s2" cx="204.0" cy="44.7" r="4"><title>$10,000,000: Net Sharpe 0.17</title></circle><circle class="dot s2" cx="352.0" cy="61.3" r="4"><title>$100,000,000: Net Sharpe 0.01</title></circle><circle class="dot s2" cx="500.0" cy="78.7" r="4"><title>$1,000,000,000: Net Sharpe -0.17</title></circle><circle class="dot s2" cx="648.0" cy="182.5" r="4"><title>$10,000,000,000: Net Sharpe -1.21</title></circle><text class="end" x="656" y="186.5">Net -1.21</text></svg><div class="legend"><span><i class="key s1"></i>Gross</span><span><i class="key s2"></i>Net</span></div></figure><table><thead><tr><th>Capital</th><th>Gross Sharpe</th><th>Net Sharpe</th><th>Annual cost</th><th>Max participation</th><th>Median participation</th></tr></thead><tbody><tr><td>$1,000,000</td><td>0.38</td><td>0.24</td><td>0.69%</td><td>1.05%</td><td>0.000%</td></tr><tr><td>$10,000,000</td><td>0.36</td><td>0.17</td><td>0.94%</td><td>10.54%</td><td>0.000%</td></tr><tr><td>$100,000,000</td><td>0.36</td><td>0.01</td><td>1.77%</td><td>105.36%</td><td>0.004%</td></tr><tr><td>$1,000,000,000</td><td>0.52</td><td>-0.17</td><td>3.60%</td><td>1042.27%</td><td>0.033%</td></tr><tr><td>$10,000,000,000</td><td>0.54</td><td>-1.21</td><td>9.15%</td><td>4933.80%</td><td>0.277%</td></tr></tbody></table><p class="note">Each point re-runs the whole walk-forward at that capital: selection is net of that size's costs. Fills are never capped; participation is reported.</p></section><section><h2>Monthly net returns</h2><table><thead><tr><th>Year</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th></tr></thead><tbody><tr><td>2010</td><td>-2.2%</td><td>0.8%</td><td>2.6%</td><td>1.0%</td><td>-3.8%</td><td>0.1%</td><td>-1.0%</td><td>0.7%</td><td>-1.9%</td><td>-0.4%</td><td>-0.8%</td><td>2.8%</td></tr><tr><td>2011</td><td>0.3%</td><td>2.1%</td><td>0.0%</td><td>2.9%</td><td>-1.0%</td><td>-2.6%</td><td>0.4%</td><td>0.6%</td><td>1.2%</td><td>-2.6%</td><td>-0.2%</td><td>0.5%</td></tr><tr><td>2012</td><td>0.7%</td><td>0.8%</td><td>0.9%</td><td>0.6%</td><td>1.5%</td><td>0.3%</td><td>0.7%</td><td>-0.1%</td><td>1.4%</td><td>-1.1%</td><td>0.3%</td><td>0.3%</td></tr><tr><td>2013</td><td>2.2%</td><td>1.6%</td><td>2.0%</td><td>2.6%</td><td>-0.9%</td><td>-0.8%</td><td>1.5%</td><td>-2.6%</td><td>1.9%</td><td>1.9%</td><td>1.8%</td><td>1.5%</td></tr><tr><td>2014</td><td>-2.0%</td><td>1.8%</td><td>0.4%</td><td>0.4%</td><td>0.9%</td><td>0.9%</td><td>-1.6%</td><td>3.3%</td><td>-1.1%</td><td>0.6%</td><td>1.5%</td><td>-0.2%</td></tr><tr><td>2015</td><td>0.2%</td><td>1.0%</td><td>-0.3%</td><td>-0.5%</td><td>0.6%</td><td>-1.0%</td><td>2.8%</td><td>-2.2%</td><td>0.1%</td><td>0.1%</td><td>0.7%</td><td>0.2%</td></tr><tr><td>2016</td><td>0.0%</td><td>-1.1%</td><td>-1.5%</td><td>-1.2%</td><td>-0.6%</td><td>1.3%</td><td>0.7%</td><td>-0.9%</td><td>0.1%</td><td>-1.7%</td><td>-0.3%</td><td>0.9%</td></tr><tr><td>2017</td><td>1.1%</td><td>0.6%</td><td>0.2%</td><td>0.5%</td><td>2.1%</td><td>0.2%</td><td>0.9%</td><td>0.6%</td><td>0.4%</td><td>1.1%</td><td>1.7%</td><td>1.2%</td></tr><tr><td>2018</td><td>2.4%</td><td>-4.0%</td><td>-0.6%</td><td>0.1%</td><td>-0.2%</td><td>-1.0%</td><td>1.3%</td><td>1.0%</td><td>0.5%</td><td>-3.6%</td><td>-0.6%</td><td>-0.9%</td></tr><tr><td>2019</td><td>-0.6%</td><td>-0.2%</td><td>1.3%</td><td>1.5%</td><td>-1.7%</td><td>1.1%</td><td>0.2%</td><td>0.8%</td><td>-1.0%</td><td>-0.5%</td><td>0.4%</td><td>1.3%</td></tr><tr><td>2020</td><td>0.1%</td><td>-1.6%</td><td>-1.0%</td><td>-0.8%</td><td>-0.1%</td><td>-0.3%</td><td>1.4%</td><td>1.2%</td><td>-1.1%</td><td>-0.6%</td><td>1.1%</td><td>1.3%</td></tr><tr><td>2021</td><td>-1.1%</td><td>2.4%</td><td>0.9%</td><td>1.3%</td><td>0.3%</td><td>0.3%</td><td>0.1%</td><td>-0.1%</td><td>-2.4%</td><td>0.0%</td><td>0.4%</td><td>0.0%</td></tr><tr><td>2022</td><td>-2.2%</td><td>0.0%</td><td>1.0%</td><td>0.2%</td><td>-0.5%</td><td>1.2%</td><td>-2.1%</td><td>2.4%</td><td>2.5%</td><td>-1.1%</td><td>-1.4%</td><td>1.4%</td></tr><tr><td>2023</td><td>-1.9%</td><td>-0.4%</td><td>0.8%</td><td>0.8%</td><td>0.2%</td><td>0.0%</td><td>-0.3%</td><td>-0.5%</td><td>-0.6%</td><td>-0.3%</td><td>0.2%</td><td>1.7%</td></tr><tr><td>2024</td><td>-0.7%</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></section><section><h2>Conventions and assumptions</h2><table><thead><tr><th>Item</th><th>Value</th></tr></thead><tbody><tr><td>annualization</td><td>arithmetic: mean per-period return x periods; volatility x sqrt(periods)</td></tr><tr><td>benchmark</td><td>SPY (total return)</td></tr><tr><td>dsr</td><td>PSR against the expected maximum Sharpe of dsr_trials zero-skill trials, null variance 1/(T-1)</td></tr><tr><td>episodes</td><td>a run of bars a symbol is held with one sign; trade costs go to the episode they open or close (a flip splits them by size); financing is not allocated</td></tr><tr><td>periods_per_year</td><td>252</td></tr><tr><td>returns</td><td>P&amp;L over the fixed starting capital (no compounding)</td></tr><tr><td>risk_free</td><td>{&quot;daily_rate&quot;: &quot;bp / (3_600_000 - 91 bp) per calendar day, simple&quot;, &quot;first&quot;: &quot;2006-12-01&quot;, &quot;known_at&quot;: &quot;last observation on or before the previous bar, carried forward, never back-filled&quot;, &quot;last&quot;: &quot;2024-12-31&quot;, &quot;series&quot;: &quot;DTB3 (3-month T-bill, discount basis)&quot;, &quot;source&quot;: &quot;FRED DTB3 (data/normalized/fred-dtb3/rates.parquet)&quot;}</td></tr><tr><td>sharpe</td><td>mean excess return over the sample std of excess returns, x sqrt(periods)</td></tr><tr><td>sharpe_se</td><td>iid: sqrt((1 + SR^2/2)/T); mertens: with sample skew and kurtosis; no autocorrelation correction</td></tr><tr><td>sortino</td><td>mean excess return over sqrt(mean(min(excess, 0)^2)), all periods</td></tr><tr><td>std</td><td>sample (ddof=1)</td></tr></tbody></table><h2>Cost model</h2><pre>{
+  &quot;commission&quot;: {
+    &quot;bps&quot;: 0.0,
+    &quot;per_share&quot;: &quot;0.0035&quot;
+  },
+  &quot;financing&quot;: {
+    &quot;borrow_bps&quot;: 50.0,
+    &quot;day_count&quot;: &quot;actual/360&quot;,
+    &quot;spread_bps&quot;: 50.0
+  },
+  &quot;impact&quot;: {
+    &quot;y&quot;: 1.0
+  },
+  &quot;inputs&quot;: {
+    &quot;fallback_bps&quot;: 50.0,
+    &quot;known_through&quot;: &quot;bar before the fill&quot;,
+    &quot;min_periods&quot;: 5,
+    &quot;window&quot;: 20
+  },
+  &quot;sec_fee&quot;: {
+    &quot;schedule&quot;: [
+      &quot;2006-10-01: $30.70 per million&quot;,
+      &quot;2007-03-17: $15.30 per million&quot;,
+      &quot;2008-01-25: $11.00 per million&quot;,
+      &quot;2008-04-01: $5.60 per million&quot;,
+      &quot;2009-04-10: $25.70 per million&quot;,
+      &quot;2010-01-15: $12.70 per million&quot;,
+      &quot;2010-04-01: $16.90 per million&quot;,
+      &quot;2011-01-21: $19.20 per million&quot;,
+      &quot;2012-02-21: $18.00 per million&quot;,
+      &quot;2012-04-01: $22.40 per million&quot;,
+      &quot;2013-05-25: $17.40 per million&quot;,
+      &quot;2014-03-18: $22.10 per million&quot;,
+      &quot;2015-02-14: $18.40 per million&quot;,
+      &quot;2016-02-16: $21.80 per million&quot;,
+      &quot;2017-07-04: $23.10 per million&quot;,
+      &quot;2018-05-22: $13.00 per million&quot;,
+      &quot;2019-04-16: $20.70 per million&quot;,
+      &quot;2020-02-18: $22.10 per million&quot;,
+      &quot;2021-02-25: $5.10 per million&quot;,
+      &quot;2022-05-14: $22.90 per million&quot;,
+      &quot;2023-02-27: $8.00 per million&quot;,
+      &quot;2024-05-22: $27.80 per million&quot;,
+      &quot;2025-05-14: $0.00 per million&quot;,
+      &quot;2026-04-04: $20.60 per million&quot;
+    ]
+  },
+  &quot;spread&quot;: {
+    &quot;half_spread_bps&quot;: 2.0
+  }
+}</pre><h2>Strategy and execution</h2><pre>{
+  &quot;execution&quot;: {
+    &quot;capital&quot;: 1000000000000,
+    &quot;lag&quot;: 1,
+    &quot;liquidate_at_end&quot;: true,
+    &quot;price&quot;: &quot;open&quot;
+  },
+  &quot;strategy&quot;: {
+    &quot;folds&quot;: [
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 120,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2010-01-04&quot;,
+          &quot;2010-12-31&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2007-01-03&quot;,
+          &quot;2009-12-31&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 120,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 20
+        },
+        &quot;test&quot;: [
+          &quot;2011-01-03&quot;,
+          &quot;2011-12-30&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2008-01-03&quot;,
+          &quot;2010-12-31&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 20
+        },
+        &quot;test&quot;: [
+          &quot;2012-01-03&quot;,
+          &quot;2013-01-03&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2009-01-02&quot;,
+          &quot;2011-12-30&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 20
+        },
+        &quot;test&quot;: [
+          &quot;2013-01-04&quot;,
+          &quot;2014-01-03&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2010-01-04&quot;,
+          &quot;2013-01-03&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2014-01-06&quot;,
+          &quot;2015-01-05&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2011-01-03&quot;,
+          &quot;2014-01-03&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2015-01-06&quot;,
+          &quot;2016-01-05&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2012-01-03&quot;,
+          &quot;2015-01-05&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2016-01-06&quot;,
+          &quot;2017-01-04&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2013-01-04&quot;,
+          &quot;2016-01-05&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 120,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2017-01-05&quot;,
+          &quot;2018-01-04&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2014-01-06&quot;,
+          &quot;2017-01-04&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2018-01-05&quot;,
+          &quot;2019-01-07&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2015-01-06&quot;,
+          &quot;2018-01-04&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 60,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2019-01-08&quot;,
+          &quot;2020-01-07&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2016-01-06&quot;,
+          &quot;2019-01-07&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 20
+        },
+        &quot;test&quot;: [
+          &quot;2020-01-08&quot;,
+          &quot;2021-01-06&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2017-01-05&quot;,
+          &quot;2020-01-07&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 60,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2021-01-07&quot;,
+          &quot;2022-01-05&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2018-01-05&quot;,
+          &quot;2021-01-06&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 250,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 20
+        },
+        &quot;test&quot;: [
+          &quot;2022-01-06&quot;,
+          &quot;2023-01-06&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2019-01-08&quot;,
+          &quot;2022-01-05&quot;
+        ]
+      },
+      {
+        &quot;params&quot;: {
+          &quot;lookback&quot;: 120,
+          &quot;max_leverage&quot;: 2.0,
+          &quot;target_vol&quot;: 0.1,
+          &quot;vol_window&quot;: 60
+        },
+        &quot;test&quot;: [
+          &quot;2023-01-09&quot;,
+          &quot;2024-01-09&quot;
+        ],
+        &quot;train&quot;: [
+          &quot;2020-01-08&quot;,
+          &quot;2023-01-06&quot;
+        ]
+      }
+    ],
+    &quot;grid&quot;: {
+      &quot;lookback&quot;: [
+        60,
+        120,
+        250
+      ],
+      &quot;max_leverage&quot;: [
+        2.0
+      ],
+      &quot;target_vol&quot;: [
+        0.1
+      ],
+      &quot;vol_window&quot;: [
+        20,
+        60
+      ]
+    },
+    &quot;name&quot;: &quot;tsmom&quot;
+  }
+}</pre></section></main></body></html>
