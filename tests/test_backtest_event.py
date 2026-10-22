@@ -365,3 +365,46 @@ def test_live_mode_puts_the_strategy_among_reacting_agents() -> None:
     b = run_live_backtest(synth, Pinger(), EventConfig(latency_ns=1_000_000))
     assert a.fills and a.fills == b.fills
     assert a.assumptions["flow"] == "live_agents"
+
+
+# --- Costs (M9): fees only, the spread is measured, not charged ----------------------------------
+
+def round_trip(latency_ns: int = 0, quotes=None):
+    from research.backtest.costs import build_cost_model
+
+    quotes = Q((10, 100, 50, 102, 50)) if quotes is None else quotes
+    s = Script({10: lambda ctx: ctx.buy(10), 30: lambda ctx: ctx.sell(10)})
+    model = build_cost_model({"commission": {"per_share": "0.01"}}, "event")  # one tick a share
+    return run_event_backtest(quotes, NO_TRADES, s, EventConfig(latency_ns=latency_ns), cost_model=model,
+                              tick_size="0.01")
+
+
+def test_crossing_the_spread_is_already_in_gross() -> None:
+    # A complete quote first, then a size change at each action's time: the replay sends
+    # one-sided updates while it rebuilds a level, and a decision needs a two-sided mid.
+    r = round_trip(quotes=Q((5, 100, 50, 102, 50), (10, 100, 51, 102, 50), (30, 100, 60, 102, 40)))
+    assert [(f.price, f.qty) for f in r.fills] == [(102, 10), (100, 10)]
+    assert r.pnl == -20                      # 10 shares x the 2-tick spread, from the fill prices
+    assert r.costs == {"commission": 20}     # fees only: no spread charged on top
+    assert r.net_pnl == -40
+    sf = r.shortfall
+    assert sf["spread_paid"] == 20 and sf["delay"] == 0  # measured: it equals what gross lost
+    assert sf["fills_without_quotes"] == 0
+
+
+def test_delay_is_the_mid_moving_between_decision_and_arrival() -> None:
+    from research.backtest.costs import build_cost_model
+
+    quotes = Q((5, 100, 50, 102, 50), (10, 100, 51, 102, 50), (15, 104, 50, 106, 50))
+    s = Script({10: lambda ctx: ctx.buy(10)})
+    r = run_event_backtest(quotes, NO_TRADES, s, EventConfig(latency_ns=10), cost_model=build_cost_model({}, "event"),
+                           tick_size="0.01")
+    assert [(f.ts, f.price) for f in r.fills] == [(20, 106)]
+    assert r.shortfall["delay"] == 40         # mid 101 when decided, 105 on arrival
+    assert r.shortfall["spread_paid"] == 10   # 106 against the arrival mid
+    assert r.pnl == -20                       # marked at the bid, 104
+
+
+def test_event_results_without_a_cost_model_are_gross() -> None:
+    r = run_event_backtest(Q((10, 100, 50, 102, 50)), NO_TRADES, Script({10: lambda ctx: ctx.buy(1)}))
+    assert r.costs == {} and r.net_pnl == r.pnl

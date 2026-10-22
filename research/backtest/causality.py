@@ -41,7 +41,7 @@ def with_garbage_after(panel: BarPanel, t: int, seed: int = 0) -> BarPanel:
     a = rng.integers(1_000_000, 10_000_000_000, size=(k, N))
     b = rng.integers(1_000_000, 10_000_000_000, size=(k, N))
     garbage = {"open": a, "close": b, "high": np.maximum(a, b) + 1, "low": np.minimum(a, b) - 1,
-               "volume": rng.integers(0, 10**9, size=(k, N)), "dividend": rng.integers(0, 10**6, size=(k, N)),
+               "volume": rng.integers(0, 10**9, size=(k, N)), "dividend": rng.integers(0, 10**8, size=(k, N)),
                "split_num": rng.integers(1, 4, size=(k, N)), "split_den": rng.integers(1, 4, size=(k, N))}
     for name in ARRAYS:
         kwargs[name] = np.concatenate([getattr(panel, name)[: t + 1], garbage[name].astype(np.int64)])

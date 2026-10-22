@@ -1,21 +1,206 @@
 {
  "assumptions": {
+  "bar_fills": "take liquidity (taker fees), at the print plus the modeled half-spread",
   "causality_check_cuts": 5,
-  "cost_model": "zero",
+  "costs": {
+   "commission": {
+    "bps": 0.0,
+    "per_share": "0.0035"
+   },
+   "financing": {
+    "borrow_bps": 50.0,
+    "day_count": "actual/360",
+    "spread_bps": 50.0
+   },
+   "impact": {
+    "y": 1.0
+   },
+   "inputs": {
+    "fallback_bps": 50.0,
+    "known_through": "bar before the fill",
+    "min_periods": 5,
+    "window": 20
+   },
+   "sec_fee": {
+    "schedule": [
+     {
+      "from": "2006-10-01",
+      "note": "Rate verified ('current rate of $30.70'); its start date is not stated in the advisories: 2006-10-01 (start of FY2007) is a placeholder that only covers bars before 2007-03-17.",
+      "rate_per_million": "30.70",
+      "source": "https://www.sec.gov/news/press/2006/2006-161.htm"
+     },
+     {
+      "from": "2007-03-17",
+      "rate_per_million": "15.30",
+      "source": "https://www.sec.gov/news/press/2007/2007-24.htm"
+     },
+     {
+      "from": "2008-01-25",
+      "rate_per_million": "11.00",
+      "source": "https://www.sec.gov/news/press/2007/2007-270.htm"
+     },
+     {
+      "from": "2008-04-01",
+      "note": "mid-year adjustment",
+      "rate_per_million": "5.60",
+      "source": "https://www.sec.gov/news/press/2008/2008-25.htm"
+     },
+     {
+      "from": "2009-04-10",
+      "rate_per_million": "25.70",
+      "source": "https://www.sec.gov/news/press/2009/2009-56.htm"
+     },
+     {
+      "from": "2010-01-15",
+      "rate_per_million": "12.70",
+      "source": "https://www.sec.gov/news/press/2009/2009-270.htm"
+     },
+     {
+      "from": "2010-04-01",
+      "note": "mid-year adjustment",
+      "rate_per_million": "16.90",
+      "source": "https://www.sec.gov/news/press/2010/2010-29.htm"
+     },
+     {
+      "from": "2011-01-21",
+      "rate_per_million": "19.20",
+      "source": "https://www.sec.gov/news/press/2010/2010-255.htm"
+     },
+     {
+      "from": "2012-02-21",
+      "rate_per_million": "18.00",
+      "source": "https://www.sec.gov/news/press/2012/2012-15.htm"
+     },
+     {
+      "from": "2012-04-01",
+      "note": "mid-year adjustment",
+      "rate_per_million": "22.40",
+      "source": "https://www.sec.gov/news/press/2012/2012-35.htm"
+     },
+     {
+      "from": "2013-05-25",
+      "rate_per_million": "17.40",
+      "source": "https://www.sec.gov/news/press/2013/2013-74.htm"
+     },
+     {
+      "from": "2014-03-18",
+      "rate_per_million": "22.10",
+      "source": "https://www.sec.gov/News/PressRelease/Detail/PressRelease/1370540783933"
+     },
+     {
+      "from": "2015-02-14",
+      "rate_per_million": "18.40",
+      "source": "https://www.sec.gov/news/pressrelease/2015-8.html"
+     },
+     {
+      "from": "2016-02-16",
+      "rate_per_million": "21.80",
+      "source": "https://www.sec.gov/news/pressrelease/2016-2.html"
+     },
+     {
+      "from": "2017-07-04",
+      "rate_per_million": "23.10",
+      "source": "https://www.sec.gov/news/press-release/2017-111"
+     },
+     {
+      "from": "2018-05-22",
+      "rate_per_million": "13.00",
+      "source": "https://www.sec.gov/news/press-release/2018-67"
+     },
+     {
+      "from": "2019-04-16",
+      "rate_per_million": "20.70",
+      "source": "https://www.sec.gov/news/press-release/2019-30"
+     },
+     {
+      "from": "2020-02-18",
+      "rate_per_million": "22.10",
+      "source": "https://www.sec.gov/news/press-release/2020-7"
+     },
+     {
+      "from": "2021-02-25",
+      "rate_per_million": "5.10",
+      "source": "https://www.sec.gov/news/press-release/2021-8"
+     },
+     {
+      "from": "2022-05-14",
+      "rate_per_million": "22.90",
+      "source": "https://www.sec.gov/news/press-release/2022-60"
+     },
+     {
+      "from": "2023-02-27",
+      "rate_per_million": "8.00",
+      "source": "https://www.sec.gov/newsroom/press-releases/2023-15"
+     },
+     {
+      "from": "2024-05-22",
+      "rate_per_million": "27.80",
+      "source": "https://www.sec.gov/rules-regulations/fee-rate-advisories/2024-2"
+     },
+     {
+      "from": "2025-05-14",
+      "rate_per_million": "0.00",
+      "source": "https://www.sec.gov/rules-regulations/fee-rate-advisories/2025-2"
+     },
+     {
+      "from": "2026-04-04",
+      "rate_per_million": "20.60",
+      "source": "https://www.sec.gov/rules-regulations/fee-rate-advisories/2026-2"
+     }
+    ]
+   },
+   "spread": {
+    "half_spread_bps": 2.0
+   }
+  },
   "fill_lag": 1,
   "fill_price": "open",
   "folds": 7,
   "grid_size": 6,
+  "liquidate_at_window_end": true,
   "rebalance": "when a symbol's weight changes",
   "reported": "out-of-sample only",
-  "selection": "max training Sharpe, first in grid order on ties",
+  "risk_free": {
+   "source": "none: 0"
+  },
+  "selection": "max training net excess Sharpe, first in grid order on ties",
   "signal": "close of bar t, from bars <= t",
   "sizing": "trunc(w * capital / close[t]) shares, fixed capital",
-  "survivorship": "synthetic: no symbol ever delists"
+  "survivorship": "synthetic: no symbol ever delists",
+  "trials": {
+   "backtests": 49,
+   "capacity_points": 2,
+   "dsr_trials": 6,
+   "folds": 7,
+   "grid_size": 6
+  }
  },
  "config": {
+  "analytics": {
+   "benchmark": "AAA",
+   "capacity": [
+    1000000000000,
+    100000000000000
+   ],
+   "periods_per_year": null
+  },
   "costs": {
-   "model": "zero"
+   "commission": {
+    "per_share": "0.0035"
+   },
+   "financing": {
+    "borrow_bps": 50.0,
+    "spread_bps": 50.0
+   },
+   "impact": {
+    "y": 1.0
+   },
+   "sec_fee": {
+    "schedule": "sec31"
+   },
+   "spread": {
+    "half_spread_bps": 2.0
+   }
   },
   "data": {
    "synthetic_bars": {
@@ -41,6 +226,7 @@
   "execution": {
    "capital": 1000000000000,
    "lag": 1,
+   "liquidate_at_end": true,
    "price": "open"
   },
   "kind": "walkforward",
@@ -96,7 +282,7 @@
    "name": "bars",
    "path": null,
    "rows": 25000,
-   "sha256": "3333d2de99a7c99dc7650d3f24483e4b6a46c7c42076855e6679c44c53aac962",
+   "sha256": "c74d1ac7a8b1838a8d5daa6aa47cbd536061982fe4a6f7de04af206decdf4b50",
    "survivorship": "synthetic: no symbol ever delists"
   }
  ],
@@ -106,18 +292,23 @@
   "version": "0.1.0"
  },
  "git": {
-  "commit": "c567cb9eb5619bf285d9220206b17cf7dd5d6df5",
+  "commit": "755e687a57bba949037b457bfabf978c665851c8",
   "dirty": true
  },
  "kind": "walkforward",
+ "outputs": {
+  "metrics.json": "9ad7d507b66c456f1b7df7620ea35b32356b3e3b72023d6557840c66025784bb",
+  "results.json": "57f8d33ee9677403b5054a4670371634af6b45a5aa16c630b9825be74b8d02c7",
+  "tearsheet.html": "29d8b76307bba7d3d9d3903f1b573b2b37890dde161b842a8b31cae573e806b9"
+ },
  "platform": {
   "machine": "arm64",
   "system": "Darwin"
  },
- "record_version": 1,
+ "record_version": 2,
  "results_file": "results.json",
- "results_sha256": "bfcd9afc803bda5d155d29a2b5ddcd7178272e5d835657a6d899d9e93fce73a1",
- "run_id": "88a934a73dd9",
+ "results_sha256": "57f8d33ee9677403b5054a4670371634af6b45a5aa16c630b9825be74b8d02c7",
+ "run_id": "ec81bf4c48d5",
  "seed": 0,
  "versions": {
   "numpy": "2.5.4",

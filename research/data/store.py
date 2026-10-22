@@ -23,7 +23,7 @@ from research.data import schema
 from research.data.schema import ValidationError
 
 META_KEY = b"marketforge"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2: bar dividends in 1e-8 dollars (were micro-dollars)
 
 
 @dataclass(frozen=True)
@@ -89,6 +89,8 @@ def load(path: str | Path, kind: str | None = None) -> Dataset:
     df = table.to_pandas()
     if file_kind == "bars":
         df = schema.normalize_bars_frame(df)
+    elif file_kind == "rates":
+        df = schema.normalize_rates_frame(df)
     else:
         df = df.astype(schema.COLUMNS[file_kind])
     schema.validate(df, file_kind)

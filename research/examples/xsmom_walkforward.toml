@@ -26,3 +26,20 @@ quantile = [0.2, 0.3]
 [walkforward]
 train = 750
 test = 250
+
+# Costs (M9): the showcase's models and parameters, on synthetic data.
+[costs.commission]
+per_share = "0.0035"
+
+[costs.sec_fee]
+schedule = "sec31"
+
+[costs.spread]
+half_spread_bps = 2.0
+
+[costs.impact]
+y = 1.0
+
+[costs.financing]
+borrow_bps = 50.0
+spread_bps = 50.0

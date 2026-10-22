@@ -1,7 +1,6 @@
-"""Vectorized bar backtester (M8): signals at the close of t, trades at t+lag (lag >= 1),
+"""Vectorized bar backtester (M8; M9 liquidates at the window end by default, off here): signals at the close of t, trades at t+lag (lag >= 1),
 integer shares and integer P&L, splits and dividends point-in-time, a cost-model hook."""
 
-from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -9,7 +8,7 @@ import pytest
 
 from research.backtest.bars import BarPanel
 from research.backtest.causality import check_causal
-from research.backtest.costs import CostModel, TradeRecord, ZeroCost
+from research.backtest.costs import Component, CostModel, TradeRecord, ZeroCost
 from research.backtest.strategy import LookAheadError
 from research.backtest.vectorized import BarExecution, run_vectorized
 from research.data import schema
@@ -40,7 +39,7 @@ W = np.array([[1.0], [1.0], [0.0], [0.0], [0.0]])
 
 
 def test_signal_at_close_trades_at_next_open() -> None:
-    r = run_vectorized(P, W, capital=100)
+    r = run_vectorized(P, W, capital=100, liquidate_at_end=False)
     # Buy 10 at the open of day 1 (11), sell 10 at the open of day 3 (13).
     assert [(t.bar, t.qty, t.price) for t in r.trades] == [(1, 10, 11), (3, -10, 13)]
     assert r.equity.tolist() == [100, 110, 100, 120, 120]
@@ -50,13 +49,13 @@ def test_signal_at_close_trades_at_next_open() -> None:
 
 
 def test_fill_at_the_next_close() -> None:
-    r = run_vectorized(P, W, capital=100, execution=BarExecution(price="close"))
+    r = run_vectorized(P, W, capital=100, execution=BarExecution(price="close"), liquidate_at_end=False)
     assert [(t.bar, t.qty, t.price) for t in r.trades] == [(1, 10, 12), (3, -10, 14)]
     assert r.equity.tolist() == [100, 100, 90, 120, 120]
 
 
 def test_longer_lag() -> None:
-    r = run_vectorized(P, W, capital=100, execution=BarExecution(lag=2))
+    r = run_vectorized(P, W, capital=100, execution=BarExecution(lag=2), liquidate_at_end=False)
     assert [(t.bar, t.price) for t in r.trades] == [(2, 12), (4, 14)]
 
 
@@ -69,7 +68,7 @@ def test_same_bar_execution_is_impossible() -> None:
 
 def test_shares_are_truncated_toward_zero() -> None:
     w = np.array([[0.55], [0.55], [-0.55], [-0.55], [0.0]])
-    r = run_vectorized(P, w, capital=100)
+    r = run_vectorized(P, w, capital=100, liquidate_at_end=False)
     # 0.55 * 100 / 10 = 5.5 -> 5; -0.55 * 100 / 11 = -5 -> -5 (from 5: sell 10). The last
     # signal would trade after the data ends.
     assert [(t.bar, t.qty) for t in r.trades] == [(1, 5), (3, -10)]
@@ -78,14 +77,14 @@ def test_shares_are_truncated_toward_zero() -> None:
 def test_unchanged_weights_do_not_rebalance() -> None:
     # Constant weight while the price moves: shares are set when the weight changes.
     w = np.full((5, 1), 0.5)
-    r = run_vectorized(P, w, capital=100)
+    r = run_vectorized(P, w, capital=100, liquidate_at_end=False)
     assert [(t.bar, t.qty) for t in r.trades] == [(1, 5)]
 
 
 def test_a_split_scales_the_position() -> None:
-    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 1]),
+    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 100]),
               split=[[(1, 1)], [(1, 1)], [(2, 1)], [(1, 1)]])
-    r = run_vectorized(p, np.ones((4, 1)), capital=100)
+    r = run_vectorized(p, np.ones((4, 1)), capital=100, liquidate_at_end=False)
     assert r.positions[:, 0].tolist() == [0, 10, 20, 20]
     assert len(r.trades) == 1
     # The ex-date dividend is paid on the shares held into it.
@@ -94,7 +93,7 @@ def test_a_split_scales_the_position() -> None:
 
 def test_a_reverse_split_pays_cash_in_lieu() -> None:
     p = panel(col([10, 10, 30]), col([10, 10, 30]), split=[[(1, 1)], [(1, 1)], [(1, 3)]])
-    r = run_vectorized(p, np.ones((3, 1)), capital=100)
+    r = run_vectorized(p, np.ones((3, 1)), capital=100, liquidate_at_end=False)
     # 10 old shares -> 3 new and 1/3 of a new share paid at the close (30 / 3 = 10).
     assert r.positions[:, 0].tolist() == [0, 10, 3]
     assert r.equity.tolist() == [100, 100, 100]
@@ -102,7 +101,7 @@ def test_a_reverse_split_pays_cash_in_lieu() -> None:
 
 def test_short_positions() -> None:
     w = -W
-    r = run_vectorized(P, w, capital=100)
+    r = run_vectorized(P, w, capital=100, liquidate_at_end=False)
     assert r.equity.tolist() == [100, 90, 100, 80, 80]
 
 
@@ -117,14 +116,14 @@ def test_a_symbol_trades_only_once_it_has_bars() -> None:
     p = BarPanel.from_frame(df)
     assert p.valid.tolist() == [[True, False], [True, False], [True, True], [True, True]]
     w = np.array([[0.5, 0.5]] * 4)
-    r = run_vectorized(p, w, capital=200)
+    r = run_vectorized(p, w, capital=200, liquidate_at_end=False)
     assert [(t.bar, t.symbol, t.qty) for t in r.trades] == [(1, 0, 10), (3, 1, 5)]
 
 
 def test_evaluation_window_starts_flat() -> None:
     # The signal at the close of day 1 (sized at 12: 8 shares) is the first one that
     # trades inside the window, at the open of day 2 (12).
-    r = run_vectorized(P, np.ones((5, 1)), capital=100, start=2, end=5)
+    r = run_vectorized(P, np.ones((5, 1)), capital=100, start=2, end=5, liquidate_at_end=False)
     assert r.positions[:, 0].tolist() == [8, 8, 8]
     assert [(t.bar, t.qty, t.price) for t in r.trades] == [(2, 8, 12)]
     assert r.equity.tolist() == [4 + 8 * 11, 4 + 8 * 14, 4 + 8 * 15]
@@ -132,32 +131,30 @@ def test_evaluation_window_starts_flat() -> None:
 
 def test_bad_weights_are_refused() -> None:
     with pytest.raises(ValueError, match="shape"):
-        run_vectorized(P, np.ones((4, 1)), capital=100)
+        run_vectorized(P, np.ones((4, 1)), capital=100, liquidate_at_end=False)
     w = W.copy()
     w[0, 0] = np.inf
     with pytest.raises(ValueError, match="finite"):
-        run_vectorized(P, w, capital=100)
+        run_vectorized(P, w, capital=100, liquidate_at_end=False)
 
 
 # --- Costs ------------------------------------------------------------------------------------
 
-class FixedPerTrade(CostModel):
+class FixedPerTrade(Component):
     name = "fixed"
+    keys = {"c": 0}
 
-    def __init__(self, c: int) -> None:
-        self.c = c
-
-    def costs(self, trades: Sequence[TradeRecord]) -> list[int]:
-        return [self.c] * len(trades)
+    def cost(self, t: TradeRecord, ctx, market) -> int:
+        return self.params["c"]
 
 
 def test_zero_cost_means_net_equals_gross() -> None:
-    r = run_vectorized(P, W, capital=100, cost_model=ZeroCost())
+    r = run_vectorized(P, W, capital=100, cost_model=ZeroCost(), liquidate_at_end=False)
     assert r.costs == 0 and r.net_pnl == r.gross_pnl == 20
 
 
 def test_a_cost_model_reduces_net_pnl() -> None:
-    r = run_vectorized(P, W, capital=100, cost_model=FixedPerTrade(3))
+    r = run_vectorized(P, W, capital=100, cost_model=CostModel(components=(FixedPerTrade(c=3),)), liquidate_at_end=False)
     assert r.gross_pnl == 20 and r.costs == 6 and r.net_pnl == 14
     assert r.net_equity.tolist() == [100, 107, 97, 114, 114]
 
@@ -172,7 +169,7 @@ def test_prefix_views_are_read_only_and_end_at_t() -> None:
 
 
 def test_total_return_index_is_point_in_time() -> None:
-    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 1]),
+    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 100]),
               split=[[(1, 1)], [(1, 1)], [(2, 1)], [(1, 1)]])
     tr = p.total_return_index()
     np.testing.assert_allclose(tr[:, 0], [1.0, 1.0, 1.0, 1.2])
@@ -219,3 +216,11 @@ def test_causality_check_passes_honest_signals() -> None:
 def test_causality_check_catches_look_ahead(strategy) -> None:
     with pytest.raises(LookAheadError, match="bar"):
         check_causal(strategy, random_panel(), cut_points=range(5, 60, 5))
+
+
+def test_a_signal_filled_on_a_split_ex_date_is_sized_in_new_shares() -> None:
+    # Weight 1 at the close of bar 0 (20): 5 old shares; the fill is on bar 1, the ex-date
+    # of a 2:1 split, so 10 new shares at 10, and the decision price is 10 too.
+    p = panel(col([20, 10, 10]), col([20, 10, 10]), split=[[(1, 1)], [(2, 1)], [(1, 1)]])
+    r = run_vectorized(p, np.ones((3, 1)), capital=100, liquidate_at_end=False)
+    assert [(t.bar, t.qty, t.decision_price) for t in r.trades] == [(1, 10, 10)]

@@ -34,7 +34,7 @@ def _read(f: io.TextIOBase, symbol: str) -> pd.DataFrame:
             "symbol": symbol, "date": r["date"],
             "open": to_units(r["open"], unit), "high": to_units(r["high"], unit),
             "low": to_units(r["low"], unit), "close": to_units(r["close"], unit),
-            "volume": to_units(r["volume"], "1"), "dividend": to_units(r.get("dividend") or "0", unit),
+            "volume": to_units(r["volume"], "1"), "dividend": to_units(r.get("dividend") or "0", schema.DIVIDEND_UNIT),
             "split_num": num, "split_den": den,
         })
     df = schema.normalize_bars_frame(pd.DataFrame(rows, columns=list(schema.COLUMNS["bars"])))

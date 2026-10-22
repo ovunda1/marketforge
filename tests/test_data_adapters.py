@@ -96,7 +96,7 @@ def test_tiingo_rows_become_unadjusted_bars_with_actions() -> None:
     assert df["open"].tolist() == [100_500_000, 101_000_000, 50_500_000]
     assert df["close"].tolist() == [101_000_000, 100_000_000, 50_000_000]
     assert df["volume"].tolist() == [120000, 90000, 200000]
-    assert df["dividend"].tolist() == [0, 250_000, 0]
+    assert df["dividend"].tolist() == [0, 25_000_000, 0]  # 1e-8 dollars
     assert list(zip(df["split_num"], df["split_den"])) == [(1, 1), (1, 1), (2, 1)]
 
 
@@ -149,7 +149,7 @@ def test_csv_bars() -> None:
     df = csvbars.read_bars_csv(FIXTURES / "bars.csv", "ABC")
     schema.validate(df, "bars")
     assert df["close"].tolist() == [10_200_000, 10_100_000, 5_050_000]
-    assert df["dividend"].tolist() == [0, 50_000, 0]
+    assert df["dividend"].tolist() == [0, 5_000_000, 0]
     assert list(zip(df["split_num"], df["split_den"])) == [(1, 1), (1, 1), (2, 1)]
 
 

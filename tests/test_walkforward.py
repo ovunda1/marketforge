@@ -74,7 +74,8 @@ def test_selection_sees_only_training_data(noise_panel) -> None:
 def test_results_hold_no_in_sample_numbers() -> None:
     assert {f.name for f in dataclasses.fields(FoldResult)} == {"fold", "params"}
     names = {f.name for f in dataclasses.fields(WalkForwardResult)}
-    assert names == {"folds", "oos_dates", "oos_pnl", "oos_equity", "oos_metrics", "capital"}
+    # M9 adds the out-of-sample runs themselves (gross and net): still nothing in-sample.
+    assert names == {"folds", "oos_dates", "oos_pnl", "oos_equity", "oos_metrics", "capital", "oos_runs"}
 
 
 class RandomWeights:

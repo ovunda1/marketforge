@@ -27,7 +27,7 @@ SEED       ?= 20261020
 
 .PHONY: venv venv-release build test test-cpp test-py sanitize difftest difftest-long difftest-replay \
         replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean \
-        backtest reproduce examples data-binance data-tiingo
+        backtest reproduce examples showcase data-binance data-tiingo data-fred
 
 venv: $(VENV)/.installed
 
@@ -168,6 +168,18 @@ data-binance: venv
 
 data-tiingo: venv
 	$(VENV_PY) -m research.data.download research/data/manifests/tiingo-etf-daily.json $(if $(UPDATE_PINS),--update-pins)
+
+# The M9 showcase on real data (needs make data-tiingo and make data-fred). Outputs are
+# committed portfolio-level only: results.json and the journal are left out.
+showcase:
+	test -x $(RELEASE_PY) || $(MAKE) venv-release
+	for c in tsmom xsmom; do \
+	  $(RELEASE_PY) -m research run research/showcase/$$c.toml --out research/showcase --name $$c || exit 1; \
+	done
+	rm -f research/showcase/*/results.json research/showcase/*/journal.mfj
+
+data-fred: venv
+	$(VENV_PY) -m research.data.download research/data/manifests/fred-dtb3.json $(if $(UPDATE_PINS),--update-pins)
 
 # What every optimization must pass before it is measured: the full suite with the
 # invariant walk on, the sanitizers, the long difftest on both profiles, the suite on

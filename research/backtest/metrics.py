@@ -1,5 +1,5 @@
-"""The few metrics M8 needs to choose parameters and summarize a run. M9 adds the full
-analytics (Sortino, Calmar, turnover, attribution...)."""
+"""The few metrics M8 needs to summarize a run. The full analytics, with the conventions
+(risk-free rate, Sharpe uncertainty), are in ``research.analytics.metrics`` (M9)."""
 
 from __future__ import annotations
 

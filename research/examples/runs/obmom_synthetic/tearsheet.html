@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>obmom (event) tearsheet</title><style>
+.ts{color-scheme:light;--surface:#fcfcfb;--plane:#f9f9f7;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+--grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,0.10);--s1:#2a78d6;--s2:#eb6834}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .ts{color-scheme:dark;--surface:#1a1a19;
+--plane:#0d0d0d;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;
+--border:rgba(255,255,255,0.10);--s1:#3987e5;--s2:#d95926}}
+:root[data-theme="dark"] .ts{color-scheme:dark;--surface:#1a1a19;--plane:#0d0d0d;--ink:#f0efec;--ink2:#c3c2b7;
+--muted:#898781;--grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,0.10);--s1:#3987e5;--s2:#d95926}
+body{margin:0;background:var(--plane)}
+.ts{background:var(--plane);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;
+max-width:960px;margin:0 auto;padding:24px 16px 48px}
+.ts h1{font-size:22px;margin:0 0 4px}.ts h2{font-size:16px;margin:4px 0 8px}
+.ts .sub{color:var(--ink2);margin:0 0 16px}.ts .note{color:var(--ink2);font-size:13px}
+.ts section{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;
+margin:12px 0;overflow-x:auto}
+.ts table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.ts th,.ts td{text-align:right;padding:4px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+.ts th:first-child,.ts td:first-child{text-align:left}.ts th{color:var(--ink2);font-weight:600}
+.ts .chart{margin:8px 0}.ts figcaption{color:var(--ink2);font-weight:600;margin-bottom:4px}
+.ts svg{width:100%;height:auto;display:block}
+.ts .grid{stroke:var(--grid);stroke-width:1}.ts .axis{stroke:var(--axis);stroke-width:1}
+.ts .tick,.ts .label{fill:var(--muted);font-size:11px}.ts .end,.ts .value{fill:var(--ink2);font-size:11px}
+.ts .line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ts .line.s1{stroke:var(--s1)}.ts .line.s2{stroke:var(--s2)}
+.ts .dot{stroke:var(--surface);stroke-width:2}.ts .dot.s1{fill:var(--s1)}.ts .dot.s2{fill:var(--s2)}
+.ts .bar.s1{fill:var(--s1)}.ts .hit{fill:transparent}.ts .hit:hover{fill:var(--grid);fill-opacity:.35}
+.ts .legend{display:flex;gap:16px;color:var(--ink2);font-size:12px;margin-top:4px}
+.ts .key{display:inline-block;width:14px;height:2px;margin-right:6px;vertical-align:middle}
+.ts .key.s1{background:var(--s1)}.ts .key.s2{background:var(--s2)}
+.ts pre{background:var(--plane);padding:8px;border-radius:6px;overflow-x:auto;font-size:12px}
+</style></head><body><main class="ts"><h1>obmom: event-driven, gross and net</h1><p class="sub">Data: quotes: generated (b17ba29432dc); trades: generated (546587d3aaf6). Money in units of 0.01 dollars (the instrument&#x27;s tick) per unit of price x qty.</p><section><h2>P&amp;L</h2><table><thead><tr><th>Item</th><th>Gross</th><th>Net</th></tr></thead><tbody><tr><td>P&amp;L</td><td>-797</td><td>-1840</td></tr></tbody></table><p class="note">fills at the engine&#x27;s prices, the open position marked at the exit side: the spread, queue and latency are already in it. Costs: fees only: nothing else may be charged on top of a book fill.</p></section><section><h2>Costs</h2><table><thead><tr><th>Component</th><th>Total</th></tr></thead><tbody><tr><td>maker_taker</td><td>1043</td></tr><tr><td>Total</td><td>1043</td></tr></tbody></table><pre>{
+  &quot;maker_taker&quot;: {
+    &quot;maker_bps&quot;: 0.0,
+    &quot;maker_per_share&quot;: &quot;-0.0020&quot;,
+    &quot;taker_bps&quot;: 0.0,
+    &quot;taker_per_share&quot;: &quot;0.0030&quot;
+  }
+}</pre></section><section><h2>Implementation shortfall (measured, inside gross)</h2><table><thead><tr><th>Part</th><th>Amount</th></tr></thead><tbody><tr><td>Delay (decision mid to arrival mid)</td><td>-72.0</td></tr><tr><td>Spread paid (fill against arrival mid)</td><td>2,604.5</td></tr><tr><td>Fills without a two-sided quote</td><td>0</td></tr></tbody></table><p class="note">measured, inside gross: delay is the mid moving from the decision to the order&#x27;s arrival; spread_paid is each fill against the arrival mid.</p></section><section><h2>Trading</h2><table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody><tr><td>Orders</td><td>546</td></tr><tr><td>Fills</td><td>570</td></tr><tr><td>Maker share of fills</td><td>0.0%</td></tr><tr><td>Traded quantity</td><td>2534</td></tr><tr><td>Final position</td><td>0</td></tr></tbody></table></section></main></body></html>

@@ -1,0 +1,71 @@
+# Showcase (M9): cross-sectional 12-1 momentum on the Tiingo ETF universe, walk-forward,
+# gross vs net. Every parameter here (grid, folds, costs, capacity points) was fixed and
+# committed before the first run on real data, and is not retuned after it
+# (research/showcase/TRIALS.md logs every real-data run). Needs `make data-tiingo` and
+# `make data-fred`; the universe is survivorship-biased (the manifest says how). Not run
+# in CI: its outputs are committed, portfolio-level only (Tiingo terms).
+kind = "walkforward"
+seed = 0
+
+[data]
+bars = "data/normalized/tiingo-etf-daily/bars.parquet"
+rates = "data/normalized/fred-dtb3/rates.parquet"    # risk-free: FRED DTB3
+
+[execution]
+capital = 1_000_000_000_000   # $1M in micro-dollars
+lag = 1
+price = "open"
+liquidate_at_end = true
+
+[strategy]
+name = "xsmom"
+
+[strategy.grid]  # the grid of the synthetic M8 example, unchanged
+lookback_months = [6, 12]
+skip_months = [1]
+quantile = [0.2, 0.3]
+
+[walkforward]
+train = 756                   # three years
+test = 252                    # then one year out of sample, rolling
+
+[analytics]
+benchmark = "SPY"
+# $1M, $10M, $100M, $1B, $10B: the whole walk-forward again at each
+capacity = [1_000_000_000_000, 10_000_000_000_000, 100_000_000_000_000, 1_000_000_000_000_000,
+            10_000_000_000_000_000]
+
+# Costs (M9). Fixed before the first real run; see docs/backtesting.md for each model.
+[costs.commission]
+per_share = "0.0035"          # dollars a share, every fill
+
+[costs.sec_fee]
+schedule = "sec31"            # dated: the Section 31 rate in force on each sale date
+
+[costs.spread]
+half_spread_bps = 2.0         # bar fills are at the print: half the spread is charged
+
+[costs.impact]
+y = 1.0                       # y * vol * sqrt(notional / ADV) * notional
+
+[costs.inputs]
+window = 20                   # vol and dollar ADV from the 20 bars before each fill
+min_periods = 5
+fallback_bps = 50.0
+
+[costs.slippage]
+enabled = false               # an alternative to impact: on together, they double count
+bps = 0.0
+
+[costs.vol_slippage]
+enabled = false               # same
+k = 0.0
+
+[costs.latency]
+enabled = false               # fills at the open stand for the opening auction
+latency_ms = 0.0
+
+[costs.financing]
+borrow_bps = 50.0             # a year on short value
+spread_bps = 50.0             # a year over the risk-free rate on a debit balance
+

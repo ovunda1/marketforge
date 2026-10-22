@@ -1,0 +1,130 @@
+{
+  "name": "sec31",
+  "description": "SEC Section 31 transaction fee on covered sales of securities, dollars per million of sale proceeds, by effective date. Each row is in force from its date until the next row. Sources: the SEC's fee rate advisories (checked 2026-10-22).",
+  "rows": [
+    {
+      "from": "2006-10-01",
+      "rate_per_million": "30.70",
+      "source": "https://www.sec.gov/news/press/2006/2006-161.htm",
+      "note": "Rate verified ('current rate of $30.70'); its start date is not stated in the advisories: 2006-10-01 (start of FY2007) is a placeholder that only covers bars before 2007-03-17."
+    },
+    {
+      "from": "2007-03-17",
+      "rate_per_million": "15.30",
+      "source": "https://www.sec.gov/news/press/2007/2007-24.htm"
+    },
+    {
+      "from": "2008-01-25",
+      "rate_per_million": "11.00",
+      "source": "https://www.sec.gov/news/press/2007/2007-270.htm"
+    },
+    {
+      "from": "2008-04-01",
+      "rate_per_million": "5.60",
+      "source": "https://www.sec.gov/news/press/2008/2008-25.htm",
+      "note": "mid-year adjustment"
+    },
+    {
+      "from": "2009-04-10",
+      "rate_per_million": "25.70",
+      "source": "https://www.sec.gov/news/press/2009/2009-56.htm"
+    },
+    {
+      "from": "2010-01-15",
+      "rate_per_million": "12.70",
+      "source": "https://www.sec.gov/news/press/2009/2009-270.htm"
+    },
+    {
+      "from": "2010-04-01",
+      "rate_per_million": "16.90",
+      "source": "https://www.sec.gov/news/press/2010/2010-29.htm",
+      "note": "mid-year adjustment"
+    },
+    {
+      "from": "2011-01-21",
+      "rate_per_million": "19.20",
+      "source": "https://www.sec.gov/news/press/2010/2010-255.htm"
+    },
+    {
+      "from": "2012-02-21",
+      "rate_per_million": "18.00",
+      "source": "https://www.sec.gov/news/press/2012/2012-15.htm"
+    },
+    {
+      "from": "2012-04-01",
+      "rate_per_million": "22.40",
+      "source": "https://www.sec.gov/news/press/2012/2012-35.htm",
+      "note": "mid-year adjustment"
+    },
+    {
+      "from": "2013-05-25",
+      "rate_per_million": "17.40",
+      "source": "https://www.sec.gov/news/press/2013/2013-74.htm"
+    },
+    {
+      "from": "2014-03-18",
+      "rate_per_million": "22.10",
+      "source": "https://www.sec.gov/News/PressRelease/Detail/PressRelease/1370540783933"
+    },
+    {
+      "from": "2015-02-14",
+      "rate_per_million": "18.40",
+      "source": "https://www.sec.gov/news/pressrelease/2015-8.html"
+    },
+    {
+      "from": "2016-02-16",
+      "rate_per_million": "21.80",
+      "source": "https://www.sec.gov/news/pressrelease/2016-2.html"
+    },
+    {
+      "from": "2017-07-04",
+      "rate_per_million": "23.10",
+      "source": "https://www.sec.gov/news/press-release/2017-111"
+    },
+    {
+      "from": "2018-05-22",
+      "rate_per_million": "13.00",
+      "source": "https://www.sec.gov/news/press-release/2018-67"
+    },
+    {
+      "from": "2019-04-16",
+      "rate_per_million": "20.70",
+      "source": "https://www.sec.gov/news/press-release/2019-30"
+    },
+    {
+      "from": "2020-02-18",
+      "rate_per_million": "22.10",
+      "source": "https://www.sec.gov/news/press-release/2020-7"
+    },
+    {
+      "from": "2021-02-25",
+      "rate_per_million": "5.10",
+      "source": "https://www.sec.gov/news/press-release/2021-8"
+    },
+    {
+      "from": "2022-05-14",
+      "rate_per_million": "22.90",
+      "source": "https://www.sec.gov/news/press-release/2022-60"
+    },
+    {
+      "from": "2023-02-27",
+      "rate_per_million": "8.00",
+      "source": "https://www.sec.gov/newsroom/press-releases/2023-15"
+    },
+    {
+      "from": "2024-05-22",
+      "rate_per_million": "27.80",
+      "source": "https://www.sec.gov/rules-regulations/fee-rate-advisories/2024-2"
+    },
+    {
+      "from": "2025-05-14",
+      "rate_per_million": "0.00",
+      "source": "https://www.sec.gov/rules-regulations/fee-rate-advisories/2025-2"
+    },
+    {
+      "from": "2026-04-04",
+      "rate_per_million": "20.60",
+      "source": "https://www.sec.gov/rules-regulations/fee-rate-advisories/2026-2"
+    }
+  ]
+}

@@ -80,7 +80,7 @@ def test_conservative_defaults_are_recorded(tmp_path) -> None:
 def test_bar_assumptions_are_recorded(tmp_path) -> None:
     a = runs.run(BARS, out_dir=tmp_path).data["assumptions"]
     assert a["fill_lag"] == 1 and a["fill_price"] == "open"
-    assert a["cost_model"] == "zero" and a["survivorship"]
+    assert a["costs"] == {} and a["survivorship"]  # no [costs]: gross only
 
 
 def test_seed_changes_the_result(tmp_path) -> None:
@@ -172,3 +172,52 @@ def test_cli_run_and_reproduce(tmp_path) -> None:
                           str(tmp_path / "again")], cwd=REPO_ROOT, capture_output=True, text=True, env=env)
     assert rep.returncode == 0, rep.stderr
     assert "identical" in rep.stdout
+
+
+# --- Costs and analytics config (M9) ----------------------------------------------------------------
+
+@pytest.mark.parametrize(("change", "match"), [
+    ({"costs": {"spread": {"half_spread_bps": 2.0}}}, "fill price"),
+    ({"costs": {"impact": {"y": 1.0}}}, "fill price"),
+    ({"costs": {"commission": {"per_shar": "0.1"}}}, "per_shar"),
+])
+def test_event_cost_config_is_checked(change, match, tmp_path) -> None:
+    with pytest.raises(runs.ConfigError, match=match):
+        runs.run({**EVENT, **change}, out_dir=tmp_path)
+
+
+@pytest.mark.parametrize("analytics", [
+    {"capacity": [10, 5]},
+    {"capacity": [0]},
+    {"benchmark": 3},
+    {"periods_per_year": 0},
+    {"nope": 1},
+])
+def test_analytics_config_is_checked(analytics, tmp_path) -> None:
+    with pytest.raises(runs.ConfigError, match="analytics"):
+        runs.run({**WALKFORWARD, "analytics": analytics}, out_dir=tmp_path)
+
+
+def test_an_unknown_benchmark_is_an_error(tmp_path) -> None:
+    with pytest.raises(runs.ConfigError, match="benchmark"):
+        runs.run({**WALKFORWARD, "analytics": {"benchmark": "ZZZ"}}, out_dir=tmp_path)
+
+
+def test_rates_are_only_for_bar_runs(tmp_path) -> None:
+    with pytest.raises(runs.ConfigError, match="rates"):
+        runs.run({**EVENT, "data": {**EVENT["data"], "rates": "x.parquet"}}, out_dir=tmp_path)
+
+
+def test_costs_and_trials_are_recorded(tmp_path) -> None:
+    cfg = {**WALKFORWARD, "costs": {"spread": {"half_spread_bps": 2.0}, "sec_fee": {"schedule": "sec31"}}}
+    a = runs.run(cfg, out_dir=tmp_path).data["assumptions"]
+    assert a["costs"]["spread"] == {"half_spread_bps": 2.0}
+    assert a["costs"]["sec_fee"]["schedule"][0]["rate_per_million"]
+    assert a["liquidate_at_window_end"] is True
+    assert a["trials"] == {"grid_size": 2, "folds": a["folds"], "backtests": 2 * a["folds"] + a["folds"],
+                           "dsr_trials": 2, "capacity_points": 0}
+
+
+def test_example_runs_carry_tearsheets() -> None:
+    for record in sorted((EXAMPLES / "runs").glob("*/record.json")):
+        assert (record.parent / "metrics.json").is_file() and (record.parent / "tearsheet.html").is_file()

@@ -12,6 +12,8 @@ downloaded is committed (docs/data.md has the sources and their terms).
 - **Tiingo** has no immutable archive, so a manifest pins the content hash of each
   ticker's normalized bars over a fixed date range. The first fetch must be run with
   ``--update-pins`` (then commit the manifest); later fetches fail on any revision.
+- **FRED** (M9, the risk-free rate) is pinned the same way: the content hash of the
+  series over the manifest's fixed range.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from typing import Any
 
 import pandas as pd
 
-from research.data import binance, store, tiingo
+from research.data import binance, fred, store, tiingo
 from research.data.schema import Instrument
 
 Opener = Callable[[str], bytes]
@@ -35,6 +37,7 @@ Opener = Callable[[str], bytes]
 REQUIRED = {
     "binance": {"name", "source", "license", "instrument", "files"},
     "tiingo": {"name", "source", "license", "universe", "start", "end", "survivorship", "pins"},
+    "fred": {"name", "source", "license", "series", "start", "end", "pins"},
 }
 
 
@@ -138,8 +141,9 @@ def fetch_tiingo(manifest: dict[str, Any], data_dir: str | Path, client: tiingo.
             raise PinMissing(f"{ticker}: no pinned checksum; run with --update-pins and commit the manifest")
         elif pinned != digest:
             raise PinMismatch(f"{ticker}: Tiingo's data changed since it was pinned ({digest} != {pinned})")
-        frames.append(df)
-    bars = pd.concat(frames, ignore_index=True)
+        frames.append((ticker, df))
+    # A bars dataset is sorted by symbol, whatever order the manifest lists the universe in.
+    bars = pd.concat([df for _, df in sorted(frames, key=lambda f: f[0])], ignore_index=True)
     meta = {"source": {"name": manifest["name"], "vendor": "tiingo", "start": manifest["start"],
                        "end": manifest["end"], "pins": dict(sorted(manifest["pins"].items()))},
             "survivorship": manifest["survivorship"]}
@@ -148,11 +152,33 @@ def fetch_tiingo(manifest: dict[str, Any], data_dir: str | Path, client: tiingo.
     return path
 
 
+def fetch_fred(manifest: dict[str, Any], data_dir: str | Path, client: fred.FredClient,
+               update_pins: bool = False) -> Path:
+    """The manifest's series over its fixed range, checked against its pin (FRED's file
+    grows every day, so the pin is the content hash of the normalized range, as for
+    Tiingo). With ``update_pins`` the pin is (re)written into ``manifest``."""
+    series = manifest["series"]
+    df = client.series(series, manifest["start"], manifest["end"])
+    meta = {"source": {"name": manifest["name"], "vendor": "fred", "series": series, "start": manifest["start"],
+                       "end": manifest["end"]}}
+    digest = store.content_hash(df, "rates", meta)
+    pinned = manifest["pins"].get(series)
+    if update_pins:
+        manifest["pins"][series] = digest
+    elif pinned is None:
+        raise PinMissing(f"{series}: no pinned checksum; run with --update-pins and commit the manifest")
+    elif pinned != digest:
+        raise PinMismatch(f"{series}: FRED's data changed since it was pinned ({digest} != {pinned})")
+    path = Path(data_dir) / "normalized" / manifest["name"] / "rates.parquet"
+    store.write(df, path, "rates", meta)
+    return path
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
-    parser.add_argument("--update-pins", action="store_true", help="Tiingo: write the pins into the manifest")
+    parser.add_argument("--update-pins", action="store_true", help="Tiingo, FRED: write the pins into the manifest")
     args = parser.parse_args(argv)
     manifest = load_manifest(args.manifest)
     if manifest["source"] == "binance":
@@ -160,11 +186,15 @@ def main(argv: list[str] | None = None) -> int:
         for kind, path in normalize(manifest, args.data_dir).items():
             print(f"{kind}: {path}")
     else:
-        path = fetch_tiingo(manifest, args.data_dir, tiingo.TiingoClient(), update_pins=args.update_pins)
+        if manifest["source"] == "tiingo":
+            kind, path = "bars", fetch_tiingo(manifest, args.data_dir, tiingo.TiingoClient(),
+                                              update_pins=args.update_pins)
+        else:
+            kind, path = "rates", fetch_fred(manifest, args.data_dir, fred.FredClient(), update_pins=args.update_pins)
         if args.update_pins:
             args.manifest.write_text(json.dumps(manifest, indent=2) + "\n")
             print(f"pins written to {args.manifest}: commit it")
-        print(f"bars: {path}")
+        print(f"{kind}: {path}")
     return 0
 
 
