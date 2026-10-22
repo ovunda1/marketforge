@@ -89,3 +89,8 @@ def test_stored_datasets_carry_the_new_schema_version(tmp_path) -> None:
     store.write(df, path, "bars", {})
     assert store.load(path, "bars").df["dividend"].tolist() == [50_000_000]
 
+
+def test_the_tiingo_manifest_pins_every_ticker() -> None:
+    manifest = json.loads(MANIFEST.read_text())
+    assert sorted(manifest["pins"]) == sorted(manifest["universe"])
+    assert all(len(v) == 64 for v in manifest["pins"].values())
