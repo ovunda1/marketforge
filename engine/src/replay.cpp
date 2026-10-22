@@ -29,7 +29,7 @@ ReplayResult replay(const ReplayOptions& options) {
   if (options.snapshot_path) {
     const Snapshot snap = read_snapshot_file(*options.snapshot_path);
     try {
-      engine = Engine::from_state({.book = snap.book, .risk = snap.risk});
+      engine = Engine::from_state({.book = snap.book, .risk = snap.risk}, snap.last_timestamp);
     } catch (const InvariantViolation& e) {
       throw SnapshotError(*options.snapshot_path + ": inconsistent snapshot: " + e.what());
     }

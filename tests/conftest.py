@@ -12,6 +12,19 @@ GOLDEN_DIR = REPO_ROOT / "engine" / "tests" / "golden"
 REGRESSIONS_DIR = REPO_ROOT / "tests" / "difftest" / "regressions"
 
 
+def pytest_configure() -> None:
+    """With MF_EXPECT_MFENGINE set (make sanitize), refuse to run unless mfengine was
+    imported from that build tree, so a sanitizer run cannot silently test the editable
+    install instead."""
+    expected = os.environ.get("MF_EXPECT_MFENGINE")
+    if expected:
+        import mfengine
+
+        loaded = Path(mfengine._core.__file__).resolve()
+        if Path(expected).resolve() not in loaded.parents:
+            raise RuntimeError(f"mfengine loaded from {loaded}, expected under {expected}")
+
+
 @pytest.fixture(scope="session")
 def driver() -> Path:
     """The C++ mf_driver executable. Fails (never skips) when it has not been built."""

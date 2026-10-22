@@ -4,6 +4,7 @@
 #include <string>
 #include <variant>
 
+#include "mf/plain_value.hpp"
 #include "mf/types.hpp"
 
 namespace mf {
@@ -161,6 +162,16 @@ struct AdminReject {
 
 using Event = std::variant<Ack, Reject, Fill, Cancelled, Trade, Replaced, SessionChanged,
                            AdminAck, AdminReject>;
+
+// Every event is a plain value: integers, bools and enums only, never a pointer or
+// reference into the engine. The Python bindings (M7) hand out copies that outlive the
+// engine's event buffers, which is only safe because of this.
+template <class... Ts>
+constexpr bool all_plain_values(const std::variant<Ts...>*) {
+  return (is_plain_value_v<Ts> && ...);
+}
+static_assert(all_plain_values(static_cast<const Event*>(nullptr)),
+              "event types must hold only arithmetic and enum members");
 
 // Canonical single-line text form (docs/event-format.md), shared byte for byte with the
 // Python reference engine. Also used in test failure messages.

@@ -86,7 +86,7 @@ def machine(forced: bool) -> dict:
 # The code a measurement depends on: "dirty" means some of it differs from the commit.
 # Docs, templates and results do not count.
 MEASURED = ("engine", "bench/lib", "bench/*.cpp", "bench/*.hpp", "bench/build_info.hpp.in", "bench/CMakeLists.txt",
-            "CMakeLists.txt")
+            "CMakeLists.txt", "bindings", "bench/bindings.py", "pyproject.toml")
 
 
 def git_info(root: Path = REPO_ROOT) -> dict:

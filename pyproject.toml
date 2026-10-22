@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=69"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "marketforge"
@@ -10,10 +10,25 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "mypy>=1.11"]
 
-[tool.setuptools]
-packages = ["reference"]
+# The mfengine extension (M7) and the pure-Python reference engine in one wheel. The
+# dev install (make venv) is editable and checks invariants; make venv-release builds a
+# Release wheel with the invariant walk off for backtests (mfengine.INVARIANT_CHECKS).
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.24"
+cmake.build-type = "RelWithDebInfo"
+build-dir = "build-py/{wheel_tag}"
+build.targets = ["_core"]
+install.components = ["mfengine"]
+wheel.packages = ["bindings/mfengine", "reference"]
+editable.mode = "redirect"
+editable.verbose = false
+
+[tool.scikit-build.cmake.define]
+MF_BUILD_BINDINGS = "ON"
+MF_BUILD_TESTS = "OFF"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

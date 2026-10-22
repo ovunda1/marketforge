@@ -17,6 +17,10 @@ RESULTS = BENCH / "results"
 TEMPLATES = sorted([*BENCH.glob("*.md.in"), *(REPO_ROOT / "docs" / "learning").glob("*.md.in")])
 
 
+# Binding overhead (M7): the dev install (invariant walk on) and the release install.
+BINDINGS = {"dev": RESULTS / "bindings-dev.json", "release": RESULTS / "bindings-release.json"}
+
+
 def _load(path: Path) -> dict:
     return json.loads(path.read_text())
 
@@ -67,6 +71,20 @@ def test_every_logged_optimization_has_its_ab_results() -> None:
 
 
 def test_results_were_measured_on_ac_power() -> None:
-    for path in [RESULTS / "replay.json", RESULTS / "micro.json", *sorted((RESULTS / "ab").glob("*.json"))]:
+    for path in [RESULTS / "replay.json", RESULTS / "micro.json", *sorted((RESULTS / "ab").glob("*.json")),
+                 *BINDINGS.values()]:
         power = _load(path)["machine"]["power"]
         assert power["forced"] is False, f"{path.name} was measured with --force"
+
+
+def test_binding_overhead_results_are_complete_and_from_the_right_builds() -> None:
+    docs = {name: _load(path) for name, path in BINDINGS.items()}
+    assert docs["dev"]["build"]["invariant_checks"] is True
+    assert docs["release"]["build"]["invariant_checks"] is False
+    assert docs["release"]["build"]["build_type"] == "Release"
+    for doc in docs.values():
+        assert set(doc["ns_per_command"]) == {"single", "batch", "batch_and_read_events", "build_batch"}
+        assert doc["settings"]["n"] > 0 and doc["settings"]["events"] > 0
+        assert doc["git"]["dirty"] is False, "measure on a committed tree"
+    # Both installs ran the same workload to the same events.
+    assert docs["dev"]["settings"] == docs["release"]["settings"]

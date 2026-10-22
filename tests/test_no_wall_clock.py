@@ -31,6 +31,12 @@ def test_engine_sources_never_read_the_host_clock() -> None:
     assert not offenders, "\n".join(offenders)
 
 
+def test_binding_sources_never_read_the_host_clock() -> None:
+    # The bindings (M7) are glue around the engine: time still comes from the caller.
+    offenders = _offenders("bindings")
+    assert not offenders, "\n".join(offenders)
+
+
 def test_benchmarks_do_read_a_clock() -> None:
     # The scan would see bench/'s timing code: proof that it looks in the right places.
     assert any("bench/lib/runner.hpp" in o for o in _offenders("bench"))
