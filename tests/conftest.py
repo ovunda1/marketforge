@@ -23,6 +23,11 @@ def pytest_configure() -> None:
         loaded = Path(mfengine._core.__file__).resolve()
         if Path(expected).resolve() not in loaded.parents:
             raise RuntimeError(f"mfengine loaded from {loaded}, expected under {expected}")
+        # The ASan runtime was preloaded for this process only. The sanitized tools the
+        # tests start (mf_driver, mf-replay) link their own copy, and inheriting the
+        # preload makes ASan abort them ("incompatible ASan runtimes"). macOS ASan
+        # clears DYLD_INSERT_LIBRARIES itself; do the same for LD_PRELOAD.
+        os.environ.pop("LD_PRELOAD", None)
 
 
 @pytest.fixture(scope="session")
