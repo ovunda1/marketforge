@@ -27,6 +27,7 @@ import numpy as np
 
 from research.backtest.bars import BarPanel
 from research.backtest.costs import CostModel, TradeRecord, ZeroCost
+from research.data.schema import DIVIDEND_UNITS_PER_PRICE_UNIT as DIV_SCALE
 
 
 @dataclass(frozen=True)
@@ -104,7 +105,9 @@ def run_vectorized(panel: BarPanel, weights: np.ndarray, capital: int, execution
             cash += int(np.sum(np.where(splits, rem * panel.close[e] // den, 0)))
             pos = np.where(splits, new_pos, pos)
             pending = np.where(splits & has_pending, _split(pending, num, den)[0], pending)
-        cash += int(np.sum(np.where(valid, pos * panel.dividend[e], 0)))
+        # Dividends are in 1/DIVIDEND_UNITS_PER_PRICE_UNIT price units; floor division pays a
+        # long the floor and charges a short the ceiling.
+        cash += int(np.sum(np.where(valid, pos * panel.dividend[e] // DIV_SCALE, 0)))
         # Signals from the close of e - lag.
         s = e - lag
         if s >= 0:

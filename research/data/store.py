@@ -23,7 +23,7 @@ from research.data import schema
 from research.data.schema import ValidationError
 
 META_KEY = b"marketforge"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2: bar dividends in 1e-8 dollars (were micro-dollars)
 
 
 @dataclass(frozen=True)

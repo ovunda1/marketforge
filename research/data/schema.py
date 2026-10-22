@@ -30,9 +30,13 @@ COLUMNS: dict[str, dict[str, str]] = {
 }
 KINDS = tuple(COLUMNS)
 
-# Bars are priced in micro-dollars: every US equity price and dividend Tiingo publishes
-# fits exactly, and int64 still holds trillions of dollars.
+# Bar prices are in micro-dollars: every US equity price Tiingo publishes fits exactly,
+# and int64 still holds trillions of dollars. Dividends are not prices: Tiingo's divCash
+# has up to 8 decimals (sector SPDRs, e.g. XLB 0.13050491), so they are in 1e-8 dollars,
+# 100 to the price unit. Cash is paid in price units, rounded against the holder.
 BAR_PRICE_UNIT = "0.000001"
+DIVIDEND_UNIT = "0.00000001"
+DIVIDEND_UNITS_PER_PRICE_UNIT = 100
 
 
 class ValidationError(ValueError):

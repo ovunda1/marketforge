@@ -83,7 +83,7 @@ def test_unchanged_weights_do_not_rebalance() -> None:
 
 
 def test_a_split_scales_the_position() -> None:
-    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 1]),
+    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 100]),
               split=[[(1, 1)], [(1, 1)], [(2, 1)], [(1, 1)]])
     r = run_vectorized(p, np.ones((4, 1)), capital=100)
     assert r.positions[:, 0].tolist() == [0, 10, 20, 20]
@@ -172,7 +172,7 @@ def test_prefix_views_are_read_only_and_end_at_t() -> None:
 
 
 def test_total_return_index_is_point_in_time() -> None:
-    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 1]),
+    p = panel(col([10, 10, 5, 5]), col([10, 10, 5, 5]), dividend=col([0, 0, 0, 100]),
               split=[[(1, 1)], [(1, 1)], [(2, 1)], [(1, 1)]])
     tr = p.total_return_index()
     np.testing.assert_allclose(tr[:, 0], [1.0, 1.0, 1.0, 1.2])

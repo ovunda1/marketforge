@@ -32,7 +32,7 @@ class BarPanel:
     low: np.ndarray
     close: np.ndarray
     volume: np.ndarray
-    dividend: np.ndarray    # ex-date cash per share
+    dividend: np.ndarray    # ex-date cash per share, in 1e-8 dollars (schema.DIVIDEND_UNIT)
     split_num: np.ndarray   # new shares per old: num / den
     split_den: np.ndarray
     valid: np.ndarray       # bool [T, N]
@@ -81,7 +81,7 @@ class BarPanel:
             v = self.valid[t]
             c = self.close[t].astype(float)
             ratio = self.split_num[t] / self.split_den[t]
-            growth = (c * ratio + self.dividend[t] * ratio) / np.where(last_close > 0, last_close, 1.0)
+            growth = (c * ratio + self.dividend[t] / schema.DIVIDEND_UNITS_PER_PRICE_UNIT * ratio) / np.where(last_close > 0, last_close, 1.0)
             started = v & ~np.isnan(level)
             level = np.where(started, level * growth, level)
             level = np.where(v & np.isnan(level), 1.0, level)

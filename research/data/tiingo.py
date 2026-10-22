@@ -72,7 +72,7 @@ def to_bars(ticker: str, rows: list[dict[str, Any]]) -> pd.DataFrame:
             "symbol": ticker, "date": str(r["date"])[:10],
             "open": to_units(str(r["open"]), unit), "high": to_units(str(r["high"]), unit),
             "low": to_units(str(r["low"]), unit), "close": to_units(str(r["close"]), unit),
-            "volume": to_units(str(r["volume"]), "1"), "dividend": to_units(str(r["divCash"]), unit),
+            "volume": to_units(str(r["volume"]), "1"), "dividend": to_units(str(r["divCash"]), schema.DIVIDEND_UNIT),
             "split_num": num, "split_den": den,
         })
     df = schema.normalize_bars_frame(pd.DataFrame(out, columns=list(schema.COLUMNS["bars"])))

@@ -47,7 +47,7 @@ integers (`research.data.schema`):
 | --- | --- |
 | `trades` | `ts` (ns), `trade_id`, `price` (ticks), `qty` (lots), `aggressor` (0 buy, 1 sell) |
 | `quotes` | `ts`, `bid_px`, `bid_qty`, `ask_px`, `ask_qty` (an empty side is price 0, size 0) |
-| `bars` | `symbol`, `date`, `open/high/low/close` (micro-dollars), `volume`, `dividend` (ex-date cash per share), `split_num/split_den` (new shares per old) |
+| `bars` | `symbol`, `date`, `open/high/low/close` (micro-dollars), `volume`, `dividend` (ex-date cash per share, in 1e-8 dollars: Tiingo's divCash has up to 8 decimals on the sector SPDRs; paid to the micro-dollar, a long gets the floor and a short pays the ceiling), `split_num/split_den` (new shares per old) |
 
 Decimal text becomes integers through `Decimal`, never a float (`research.ticks`). A
 value off the instrument's grid is rejected, not rounded. Tiingo's JSON numbers are

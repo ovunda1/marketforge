@@ -46,7 +46,7 @@ def generate_bars(seed: int, symbols: tuple[str, ...] | list[str], n_days: int, 
             opens[t] = prev * (1.0 + 0.3 * vol * gap[t])
             if dividend_every and t > 0 and (t + 7 * j) % dividend_every == 0:
                 d = round(prev * 0.005, 2)
-                dividend[t] = int(round(d * 100)) * MICROS_PER_CENT
+                dividend[t] = int(round(d * 100)) * MICROS_PER_CENT * schema.DIVIDEND_UNITS_PER_PRICE_UNIT
                 c -= d
                 opens[t] -= d
             if split_every and t > 0 and (t + 11 * j) % split_every == 0:

@@ -96,7 +96,7 @@
    "name": "bars",
    "path": null,
    "rows": 25000,
-   "sha256": "3333d2de99a7c99dc7650d3f24483e4b6a46c7c42076855e6679c44c53aac962",
+   "sha256": "c74d1ac7a8b1838a8d5daa6aa47cbd536061982fe4a6f7de04af206decdf4b50",
    "survivorship": "synthetic: no symbol ever delists"
   }
  ],
@@ -106,7 +106,7 @@
   "version": "0.1.0"
  },
  "git": {
-  "commit": "c567cb9eb5619bf285d9220206b17cf7dd5d6df5",
+  "commit": "998b7918669e1bcaa9165487ae51aca37b2db409",
   "dirty": true
  },
  "kind": "walkforward",
@@ -117,7 +117,7 @@
  "record_version": 1,
  "results_file": "results.json",
  "results_sha256": "bfcd9afc803bda5d155d29a2b5ddcd7178272e5d835657a6d899d9e93fce73a1",
- "run_id": "88a934a73dd9",
+ "run_id": "fb9b3d44fd88",
  "seed": 0,
  "versions": {
   "numpy": "2.5.4",
