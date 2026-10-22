@@ -136,3 +136,6 @@ Later milestones add `lint`, `fmt`, `up`, `down` and `demo` targets.
 - **Tests required for every feature.** Every behavior change ships with tests
   (GoogleTest for C++, pytest for Python). CI must be green before a milestone counts.
 - Hot path: no heap allocation, no locks inside a book (single writer per symbol).
+- **Commit messages:** short conventional-commit style: one summary line plus a few
+  bullets at most.
+- **PR descriptions:** brief summary, test results, and known limitations only.
