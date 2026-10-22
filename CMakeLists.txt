@@ -64,6 +64,13 @@ if(MF_BUILD_TESTS)
   enable_testing()
 endif()
 
+# The Python extension (M7) links the static engine, config and yaml-cpp libraries into
+# a shared object, so everything must be position-independent (the default on macOS,
+# not on Linux).
+if(MF_BUILD_BINDINGS)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 add_subdirectory(engine)
 
 if(MF_BUILD_BENCH)
