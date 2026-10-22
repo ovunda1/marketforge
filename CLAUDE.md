@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 7 (Python bindings)
+## Current milestone: 8 (Data and backtester)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
