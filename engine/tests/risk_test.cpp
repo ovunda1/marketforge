@@ -599,3 +599,44 @@ TEST_F(Risk, ReplaceIsCheckedOnItsNewTotals) {
 
 }  // namespace
 }  // namespace mf
+
+namespace mf {
+namespace {
+
+// Risk state lists accounts in ascending id order however they were created (M6: the
+// account table is hashed, so state() must sort).
+TEST_F(Risk, StateListsAccountsInAscendingIdOrder) {
+  const AccountId ids[] = {700, 3, 1'000'000'007, 42, 5, 9'999};
+  const AccountLimits limits{.rate = RateLimit{.per_sec = 10, .burst = 10}};
+  for (const AccountId id : ids) {
+    set_account(id, limits);
+    kill(id, true);
+    kill(id, false);
+  }
+  kill(42, true);
+  kill(5, true);
+  for (std::size_t i = 0; i < std::size(ids); ++i) {
+    // Opposite sides of the same account would self-trade: pair each with account 1.
+    limit(100 + 2 * i, 1, Side::Sell, 1'000, 1);
+    if (ids[i] != 42 && ids[i] != 5) limit(101 + 2 * i, ids[i], Side::Buy, 1'000, 1);
+  }
+  const RiskState s = engine.risk().state();
+  const auto ascending = [](const auto& items, auto key) {
+    for (std::size_t i = 1; i < items.size(); ++i) {
+      if (key(items[i - 1]) >= key(items[i])) return false;
+    }
+    return true;
+  };
+  EXPECT_EQ(s.account_limits.size(), std::size(ids));
+  EXPECT_TRUE(ascending(s.account_limits, [](const auto& e) { return e.account_id; }));
+  EXPECT_EQ(s.killed_accounts, (std::vector<AccountId>{5, 42}));
+  EXPECT_GE(s.positions.size(), 4u);
+  EXPECT_TRUE(ascending(s.positions, [](const auto& p) { return p.account_id; }));
+  EXPECT_GE(s.buckets.size(), 4u);
+  EXPECT_TRUE(ascending(s.buckets, [](const auto& b) { return b.account_id; }));
+  // And it restores to the same state.
+  EXPECT_EQ(Engine::from_state(engine.state())->state(), engine.state());
+}
+
+}  // namespace
+}  // namespace mf

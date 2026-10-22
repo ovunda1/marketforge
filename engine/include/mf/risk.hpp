@@ -4,11 +4,11 @@
 #include <map>
 #include <optional>
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 #include "mf/commands.hpp"
 #include "mf/events.hpp"
+#include "mf/flat_hash_map.hpp"
 #include "mf/order_book.hpp"
 #include "mf/types.hpp"
 
@@ -146,6 +146,12 @@ class RiskGate {
   };
 
   const AccountLimits* limits_for(AccountId account_id) const;
+  // The account's entry, created empty if it has none. Creating an entry may move the
+  // others: a reference from here is only good until the next call.
+  Account& account(AccountId account_id);
+  const Account* find_account(AccountId account_id) const { return accounts_.find(account_id); }
+  // Every account id in the table, ascending.
+  std::vector<AccountId> account_ids() const;
   // Refills and takes one token; false if the bucket is empty.
   bool take_token(AccountId account_id, const RateLimit& rate, Timestamp now);
   // After a limits change: clamp each bucket to its new burst, or drop it when the
@@ -162,10 +168,12 @@ class RiskGate {
   std::optional<AccountLimits> default_limits_;
   bool global_kill_{};
   std::optional<Price> last_trade_price_;
-  // Ordered, so state() and refit_buckets() walk accounts in id order.
-  std::map<AccountId, Account> accounts_;
-  // Lookup only, never iterated to produce output.
-  std::unordered_map<OrderId, OpenOrder> open_;
+  // Flat and hashed (M6): an order and each of its fills look an account up several
+  // times. Never iterated to produce output: state(), refit_buckets() and
+  // check_consistency() walk account_ids(), which is sorted.
+  FlatHashMap<AccountId, Account> accounts_;
+  // Lookup only, never iterated to produce output. Flat, like the book's order index.
+  FlatHashMap<OrderId, OpenOrder> open_;
 };
 
 }  // namespace mf

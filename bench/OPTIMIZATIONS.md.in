@@ -1,0 +1,242 @@
+# Optimization log
+
+<!-- Generated from OPTIMIZATIONS.md.in by `make bench-docs` out of bench/results/ab/*.json.
+Do not edit OPTIMIZATIONS.md by hand: every number here comes from the JSON. -->
+
+Each optimization is one commit between two git tags, `m6-opt-<n>-before` and
+`m6-opt-<n>-after`. Before it is measured it must pass `make gate`: the full test suite
+with the invariant walk on, ASan and UBSan, the long differential test on both generator
+profiles, the suite again on the Release benchmark build, and the benchmark workloads
+replayed with the invariant walk on. Correctness gates every speedup.
+
+`make bench-ab OPT=<id>` builds both tags in git worktrees and runs them in interleaved
+rounds (A B, B A, ...), so temperature and clock drift hit both sides. Each round runs
+both workloads end to end and the microbenchmarks. Ratios are paired by round. A change
+counts as faster or slower only if every round agrees; otherwise it is "no measurable
+effect". Before and after must produce the same event digest.
+
+Throughput rows are end-to-end commands per second (higher is better); latency rows are
+the per-command percentiles (lower is better). Every ratio is after / before.
+
+## Optimization opt-1: object pool for resting orders
+
+**Change.** Resting orders lived inside `std::unordered_map` nodes: every order that
+rested cost a heap allocation, and every fill or cancel that removed it a free. They now
+come from `ObjectPool<Order>` (`engine/include/mf/object_pool.hpp`): chunks of slots that
+never move, a free list, freed slots poisoned under ASan. The id index still maps
+id to `Order*` through a `std::unordered_map`.
+
+**Measured.** {{ block:ab_settings:opt-1 }}.
+
+{{ block:ab_table:opt-1 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-1 }}
+
+</details>
+
+**Result: slower on its own, kept as the base for opt-2.** End to end:
+{{ ab:opt-1.profiles.narrow.throughput.verdict|text }} and
+{{ ab:opt-1.profiles.wide.throughput.verdict|text }}, and heap allocations per command did not
+move ({{ ab:opt-1.profiles.narrow.allocations_per_command.after|f2 }}): the index was still
+node-based, so each resting order still cost one node, and finding an order now took one
+more pointer hop. A pool only pays once nothing else allocates per order. It is kept
+because the flat index of opt-2 needs order addresses that never move, which only the
+pool gives.
+
+## Optimization opt-2: open-addressing hash map for the order index
+
+**Change.** The id index (`std::unordered_map<OrderId, Order*>`) still allocated a node
+per resting order, and every lookup chased a bucket pointer to a node. `FlatHashMap`
+(`engine/include/mf/flat_hash_map.hpp`) is one array of key and value slots: linear
+probing, at most half full, backward-shift deletion (no tombstones), a murmur3 finaliser
+because order ids are sequential.
+
+**Measured.** {{ block:ab_settings:opt-2 }}.
+
+{{ block:ab_table:opt-2 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-2 }}
+
+</details>
+
+**Result: kept.** End to end {{ ab:opt-2.profiles.narrow.throughput.verdict|text }}
+({{ ab:opt-2.profiles.narrow.throughput.ratio.median|pct }}) and
+{{ ab:opt-2.profiles.wide.throughput.verdict|text }}
+({{ ab:opt-2.profiles.wide.throughput.ratio.median|pct }}). One microbenchmark got slower:
+`ReplaceQtyDown`, the cheapest operation measured, does two index lookups and little else,
+and its ids are consecutive; probably the node-based table's identity hash put them in
+adjacent buckets and the scattering hash does not (not profiled).
+
+## Optimization opt-3: flat tables for used ids and the risk gate's open orders
+
+**Change.** Two more per-order allocations: the session's set of used order ids
+(`std::unordered_set`) and the risk gate's open-order map (`std::unordered_map`). Both
+move to the flat tables of opt-2. Snapshots still sort the ids, so no hash order reaches
+any output.
+
+**Measured.** {{ block:ab_settings:opt-3 }}.
+
+{{ block:ab_table:opt-3 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-3 }}
+
+</details>
+
+**Result: slower, superseded by opt-5.** Allocations per command fell from
+{{ ab:opt-3.profiles.narrow.allocations_per_command.before|f2 }} to
+{{ ab:opt-3.profiles.narrow.allocations_per_command.after|f2 }}, yet end to end it was
+{{ ab:opt-3.profiles.narrow.throughput.verdict|text }}
+({{ ab:opt-3.profiles.narrow.throughput.ratio.median|pct }}) and
+{{ ab:opt-3.profiles.wide.throughput.verdict|text }}
+({{ ab:opt-3.profiles.wide.throughput.ratio.median|pct }}), with a worse p99. Profiling
+the risk check put nearly all of its time in the used-id table's probe loop. That set holds every id acked
+in the session, millions in a long run; libc++ hashes an integer to itself, so the
+`std::unordered_set` it replaced kept consecutive ids in neighbouring buckets, while the
+scattering hash sends each new id to a random cache line of a table tens of megabytes
+large. Fewer allocations, many more cache misses. The open-order map (small, live orders
+only) was not the problem. opt-5 fixes the used-id set; the open-order map stays flat.
+
+## Optimization opt-4: flat tick array for price levels
+
+**Change.** Each side's levels were a `std::map`: a tree walk to find a level, a heap
+node per new level. `PriceLevels` (`engine/include/mf/price_levels.hpp`) keeps a window
+of tick slots around the best price (constant-time find, an occupancy bitmap to find the
+next best, levels from a pool) and an ordered overflow map for levels outside it.
+
+**Rule, agreed before measuring.** Kept only if the geometric mean of its end-to-end
+throughput ratios on the two workloads reaches {{ manifest:keep_threshold|pct }};
+otherwise logged here and backed out.
+
+**Measured.** {{ block:ab_settings:opt-4 }}. Geometric mean of the two throughput
+ratios: {{ block:ab_geomean:opt-4 }}.
+
+{{ block:ab_table:opt-4 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-4 }}
+
+</details>
+
+**Result: kept under the rule** (geometric mean above). It is
+{{ ab:opt-4.profiles.wide.throughput.verdict|text }} on the wide workload, many shallow
+levels where a tree walk is deepest, and {{ ab:opt-4.profiles.narrow.throughput.verdict|text }}
+on the narrow one, few deep levels where the map was already shallow. It also removed the
+last regular allocation (a map node per new level). The microbenchmark
+`MatchMultiLevel/32` got slower: its setup spreads more levels than the window holds, so
+most of them live in the overflow map. That is a property of the benchmark's shape, not
+of either workload, and the reason the window is sized to the spread of real prices.
+
+## Optimization opt-5: paged bitmap for the session's used order ids
+
+**Change.** `IdSet` (`engine/include/mf/id_set.hpp`) replaces the used-id table of opt-3:
+one cache line of bits per run of consecutive ids, behind a small page table (a
+scattering `FlatHashMap` that stays in cache). The live-order tables keep the scattering
+hash. Pages come from a pool.
+
+**Why, and what was tried first.** The fix for opt-3 had to keep consecutive ids close in memory without hurting the
+small tables. A locality-keeping hash (low bits of the id kept) made the used-id set fast
+but turned the live-order tables pathological: long-lived early ids form a dense run, and
+newer ids that wrap around the small table land in it and scan it to the end
+(`EngineAdd` became an order of magnitude slower). Hashing blocks of ids together kept
+the clustering and was slower than either. A bitmap fits the set's job exactly: one bit
+per id, consecutive ids in the same cache line, and the page table is small enough to
+stay in cache. These trials ran on scratch builds and are not logged as results.
+
+**Measured.** {{ block:ab_settings:opt-5 }}.
+
+{{ block:ab_table:opt-5 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-5 }}
+
+</details>
+
+**Result: kept.** End to end {{ ab:opt-5.profiles.narrow.throughput.verdict|text }}
+({{ ab:opt-5.profiles.narrow.throughput.ratio.median|pct }}). On the wide workload the
+median ratio is {{ ab:opt-5.profiles.wide.throughput.ratio.median|pct }}, but one round of
+seven came out below one, so by the rule it counts as
+{{ ab:opt-5.profiles.wide.throughput.verdict|text }}; the add and match microbenchmarks,
+which create orders, are all faster.
+
+## Optimization opt-6: host-CPU code generation and LTO
+
+**Change.** Benchmark builds now compile with `-mcpu=native` (`-march=native` on x86)
+and link with LTO (`MF_NATIVE`, `MF_LTO`, on by default only when `MF_BUILD_BENCH` is on:
+a native binary may not run on another machine). The flags are recorded in every results
+file.
+
+**Measured.** {{ block:ab_settings:opt-6 }}.
+
+{{ block:ab_table:opt-6 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-6 }}
+
+</details>
+
+**Result: kept, a small effect.** End to end
+{{ ab:opt-6.profiles.narrow.throughput.verdict|text }}
+({{ ab:opt-6.profiles.narrow.throughput.ratio.median|pct }}) and
+{{ ab:opt-6.profiles.wide.throughput.verdict|text }}
+({{ ab:opt-6.profiles.wide.throughput.ratio.median|pct }}). The microbenchmarks gain more
+than the replay, most likely because LTO inlines across the book and risk files, which
+matters most when one operation is a few function calls, while the replay is dominated by
+memory access (not profiled).
+
+## Optimization opt-7: flat account table in the risk gate
+
+**Change.** After opt-5 the profile's largest engine cost was the risk gate: it looked
+the account up in a `std::map` several times per order and per fill. Accounts now live in
+a `FlatHashMap`; the paths that produce state walk a sorted id list, so snapshots keep
+ascending account order.
+
+**Measured.** {{ block:ab_settings:opt-7 }}.
+
+{{ block:ab_table:opt-7 }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:opt-7 }}
+
+</details>
+
+**Result: kept, the largest single gain.** End to end
+{{ ab:opt-7.profiles.narrow.throughput.verdict|text }}
+({{ ab:opt-7.profiles.narrow.throughput.ratio.median|pct }}) and
+{{ ab:opt-7.profiles.wide.throughput.verdict|text }}
+({{ ab:opt-7.profiles.wide.throughput.ratio.median|pct }}), with p50 and p99 down too. The
+workloads spread orders over many accounts, so every order and every fill walked a
+red-black tree several times, each walk a chain of dependent loads and branches the
+predictor cannot learn. The microbenchmarks did not move: they use one account, a
+one-node tree. A benchmark of the gate with one account would have hidden the gate's
+biggest cost.
+
+## Baseline to final
+
+The same interleaved comparison between the engine before any optimization and the final
+one: {{ block:ab_settings:total }}.
+
+{{ block:ab_table:total }}
+
+<details><summary>Microbenchmarks</summary>
+
+{{ block:ab_micro_table:total }}
+
+</details>
+
+End to end the final engine is {{ ab:total.profiles.narrow.throughput.ratio.median|ratio }}
+the baseline's throughput on the narrow workload and
+{{ ab:total.profiles.wide.throughput.ratio.median|ratio }} on the wide one; heap
+allocations per command went from {{ ab:total.profiles.wide.allocations_per_command.before|f2 }}
+to {{ ab:total.profiles.wide.allocations_per_command.after|f2 }}. Two lessons stand out:
+fewer allocations is not the same as faster (opt-1, opt-3), and the largest win came from
+the part of the engine the microbenchmarks made look cheap (opt-7).

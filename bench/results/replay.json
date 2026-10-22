@@ -1,0 +1,544 @@
+{
+  "schema": 1,
+  "generated_by": "make bench",
+  "machine": {
+    "cpu": "Apple M5",
+    "model": "Mac17,2",
+    "performance_cores": 4,
+    "efficiency_cores": 6,
+    "logical_cpus": 10,
+    "memory_bytes": 17179869184,
+    "os": "macOS 26.2 (25C56), Darwin 25.2.0",
+    "thermal": "Note: No thermal warning level has been recorded Note: No performance warning level has been recorded Note: No CPU power status has been recorded",
+    "power": {
+      "source": "AC Power",
+      "low_power_mode": false,
+      "forced": false
+    }
+  },
+  "git": {
+    "commit": "5d93fe2939e127911fbfbc5c7fd733cedc812ad7",
+    "dirty": false
+  },
+  "build": {
+    "compiler": "AppleClang 21.0.0.21000101",
+    "build_type": "Release",
+    "cxx_flags": "-O3 -DNDEBUG -mcpu=native",
+    "lto": true,
+    "invariant_checks": false,
+    "system": "Darwin arm64"
+  },
+  "timer": {
+    "clock": "std::chrono::steady_clock",
+    "p50_ns": 0,
+    "p99_ns": 42,
+    "max_ns": 84,
+    "min_step_ns": 41,
+    "zero_fraction": 0.726155,
+    "cost_ns": 11.507295
+  },
+  "settings": {
+    "seed": 20261021,
+    "n": 5000000,
+    "reps": 5,
+    "warmup": 500000,
+    "generator_version": 1,
+    "cooldown_ms": 500,
+    "tolerance": 0.05,
+    "max_attempts": 3
+  },
+  "profiles": {
+    "narrow": {
+      "digest": {
+        "commands": "db9d12f89d8f6515b17ecd1f3caf43cb228cca0b435590c0d2a3d6d68b365275",
+        "events": "1606906b657fba90cfb6311c5ff879b1da4a2ec1c069c240f1fa6d78ab5ef6b2"
+      },
+      "allocations_per_command": 9.999995555557532e-06,
+      "workload": {
+        "new_passive": 2012187,
+        "new_aggressive": 365803,
+        "new_ioc": 367022,
+        "new_market": 136938,
+        "cancels": 1661263,
+        "cancels_of_resting": 1615323,
+        "replaces": 456787,
+        "max_resting": 1001,
+        "min_price": 9990,
+        "max_price": 10010,
+        "generation_seconds": 0.5423985
+      },
+      "throughput": {
+        "reps": [
+          {
+            "seconds": 0.31340966600000003,
+            "commands": 4500002,
+            "events": 7621723,
+            "commands_per_sec": 14358210.63668151,
+            "events_per_sec": 24318723.469109595,
+            "calibration_before_ns": 1.3075708,
+            "calibration_after_ns": 1.3146104,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.312754833,
+            "commands": 4500002,
+            "events": 7621723,
+            "commands_per_sec": 14388273.258114608,
+            "events_per_sec": 24369640.996083345,
+            "calibration_before_ns": 1.3050125,
+            "calibration_after_ns": 1.313925,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.313346,
+            "commands": 4500002,
+            "events": 7621723,
+            "commands_per_sec": 14361127.954401843,
+            "events_per_sec": 24323664.57526185,
+            "calibration_before_ns": 1.31592915,
+            "calibration_after_ns": 1.31180415,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.315064041,
+            "commands": 4500002,
+            "events": 7621723,
+            "commands_per_sec": 14282816.870237501,
+            "events_per_sec": 24191027.880582538,
+            "calibration_before_ns": 1.30750625,
+            "calibration_after_ns": 1.31464375,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.317278125,
+            "commands": 4500002,
+            "events": 7621723,
+            "commands_per_sec": 14183146.096189266,
+            "events_per_sec": 24022213.94872401,
+            "calibration_before_ns": 1.33926045,
+            "calibration_after_ns": 1.32798125,
+            "attempts": 1,
+            "suspect": false
+          }
+        ],
+        "commands_per_sec": {
+          "n": 5,
+          "median": 14358210.63668151,
+          "min": 14183146.096189266,
+          "max": 14388273.258114608,
+          "mean": 14314714.963124946,
+          "stddev": 74544.90890166728,
+          "cv": 0.005207572005010004
+        },
+        "events_per_sec": {
+          "n": 5,
+          "median": 24318723.469109595,
+          "min": 24022213.94872401,
+          "max": 24369640.996083345,
+          "mean": 24245054.173952267,
+          "stddev": 126257.86537622509,
+          "cv": 0.005207572005010017
+        }
+      },
+      "latency": {
+        "unit": "ns",
+        "reps": [
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 291,
+            "p999": 750,
+            "max": 50417,
+            "min": 0,
+            "mean": 64.47453090020849,
+            "calibration_before_ns": 1.3104625,
+            "calibration_after_ns": 1.3102167,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 291,
+            "p999": 709,
+            "max": 36667,
+            "min": 0,
+            "mean": 64.29005098219956,
+            "calibration_before_ns": 1.3158792,
+            "calibration_after_ns": 1.31208335,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 291,
+            "p999": 709,
+            "max": 37125,
+            "min": 0,
+            "mean": 64.38459294018091,
+            "calibration_before_ns": 1.307275,
+            "calibration_after_ns": 1.30937915,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 292,
+            "p999": 750,
+            "max": 32625,
+            "min": 0,
+            "mean": 64.92906914263594,
+            "calibration_before_ns": 1.3181875,
+            "calibration_after_ns": 1.31306455,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 292,
+            "p999": 750,
+            "max": 34416,
+            "min": 0,
+            "mean": 64.79881697830356,
+            "calibration_before_ns": 1.31556665,
+            "calibration_after_ns": 1.3255229,
+            "attempts": 2,
+            "suspect": false
+          }
+        ],
+        "p50": {
+          "n": 5,
+          "median": 42.0,
+          "min": 42.0,
+          "max": 42.0,
+          "mean": 42.0,
+          "stddev": 0.0,
+          "cv": 0.0
+        },
+        "p90": {
+          "n": 5,
+          "median": 125.0,
+          "min": 125.0,
+          "max": 125.0,
+          "mean": 125.0,
+          "stddev": 0.0,
+          "cv": 0.0
+        },
+        "p99": {
+          "n": 5,
+          "median": 291.0,
+          "min": 291.0,
+          "max": 292.0,
+          "mean": 291.4,
+          "stddev": 0.4898979485566356,
+          "cv": 0.001681187194772257
+        },
+        "p999": {
+          "n": 5,
+          "median": 750.0,
+          "min": 709.0,
+          "max": 750.0,
+          "mean": 733.6,
+          "stddev": 20.08581589082206,
+          "cv": 0.02737979265379234
+        },
+        "max": {
+          "n": 5,
+          "median": 36667.0,
+          "min": 32625.0,
+          "max": 50417.0,
+          "mean": 38250.0,
+          "stddev": 6295.197915872065,
+          "cv": 0.1645803376698579
+        },
+        "mean": {
+          "n": 5,
+          "median": 64.47453090020849,
+          "min": 64.29005098219956,
+          "max": 64.92906914263594,
+          "mean": 64.5754121887057,
+          "stddev": 0.24617188272974772,
+          "cv": 0.0038121612295771517
+        },
+        "merged": {
+          "count": 22500010,
+          "p50": 42,
+          "p90": 125,
+          "p99": 291,
+          "p999": 750,
+          "max": 50417,
+          "min": 0,
+          "mean": 64.5754121887057
+        }
+      },
+      "cross_check": {
+        "batch_mean_ns": 69.64656149041713,
+        "histogram_mean_ns": 64.47453090020849,
+        "timer_cost_ns": 11.507295,
+        "relative_difference": -0.2394852701020077
+      },
+      "calibration": {
+        "session_best_ns": 1.3050125
+      },
+      "scheduling": "macOS QoS USER_INTERACTIVE (prefers performance cores; not a pin)"
+    },
+    "wide": {
+      "digest": {
+        "commands": "ca1e18a73ff8658327b952da6ce7e3b4a7b2a6ab66d1f35979b884eebdc4f0bf",
+        "events": "3fda7a12cdbc9e8a0e7edcb07add12d6f9a5c88143c19bc044744aee3e516c31"
+      },
+      "allocations_per_command": 0.005526664210371462,
+      "workload": {
+        "new_passive": 2288718,
+        "new_aggressive": 416350,
+        "new_ioc": 417044,
+        "new_market": 156662,
+        "cancels": 1200988,
+        "cancels_of_resting": 1148647,
+        "replaces": 520238,
+        "max_resting": 3989,
+        "min_price": 69114,
+        "max_price": 130524,
+        "generation_seconds": 0.63171425
+      },
+      "throughput": {
+        "reps": [
+          {
+            "seconds": 0.36852875,
+            "commands": 4500002,
+            "events": 9839794,
+            "commands_per_sec": 12210721.687249638,
+            "events_per_sec": 26700207.24298986,
+            "calibration_before_ns": 1.3120625,
+            "calibration_after_ns": 1.3052146,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.366839542,
+            "commands": 4500002,
+            "events": 9839794,
+            "commands_per_sec": 12266949.128401212,
+            "events_per_sec": 26823155.28569709,
+            "calibration_before_ns": 1.3158104,
+            "calibration_after_ns": 1.3090625,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.37216525,
+            "commands": 4500002,
+            "events": 9839794,
+            "commands_per_sec": 12091408.319288272,
+            "events_per_sec": 26439314.256234292,
+            "calibration_before_ns": 1.3079854,
+            "calibration_after_ns": 1.3116625,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.36966808300000004,
+            "commands": 4500002,
+            "events": 9839794,
+            "commands_per_sec": 12173087.71555482,
+            "events_per_sec": 26617916.05092398,
+            "calibration_before_ns": 1.32589585,
+            "calibration_after_ns": 1.3240521,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "seconds": 0.367626208,
+            "commands": 4500002,
+            "events": 9839794,
+            "commands_per_sec": 12240699.661978398,
+            "events_per_sec": 26765757.67960482,
+            "calibration_before_ns": 1.314175,
+            "calibration_after_ns": 1.309875,
+            "attempts": 1,
+            "suspect": false
+          }
+        ],
+        "commands_per_sec": {
+          "n": 5,
+          "median": 12210721.687249638,
+          "min": 12091408.319288272,
+          "max": 12266949.128401212,
+          "mean": 12196573.302494468,
+          "stddev": 61174.039839135774,
+          "cv": 0.005015674347369711
+        },
+        "events_per_sec": {
+          "n": 5,
+          "median": 26700207.24298986,
+          "min": 26439314.256234292,
+          "max": 26823155.28569709,
+          "mean": 26669270.10309001,
+          "stddev": 133764.37391914253,
+          "cv": 0.005015674347369711
+        }
+      },
+      "latency": {
+        "unit": "ns",
+        "reps": [
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 333,
+            "p999": 1000,
+            "max": 45875,
+            "min": 0,
+            "mean": 76.73989700449022,
+            "calibration_before_ns": 1.3114354,
+            "calibration_after_ns": 1.3131771,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 334,
+            "p999": 1000,
+            "max": 31750,
+            "min": 0,
+            "mean": 76.84908295596313,
+            "calibration_before_ns": 1.35470835,
+            "calibration_after_ns": 1.31498125,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 333,
+            "p999": 1000,
+            "max": 32792,
+            "min": 0,
+            "mean": 76.59202395910046,
+            "calibration_before_ns": 1.3044021,
+            "calibration_after_ns": 1.31844375,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 166,
+            "p99": 416,
+            "p999": 1334,
+            "max": 256750,
+            "min": 0,
+            "mean": 91.59512840216516,
+            "calibration_before_ns": 1.30674585,
+            "calibration_after_ns": 1.32715625,
+            "attempts": 1,
+            "suspect": false
+          },
+          {
+            "count": 4500002,
+            "p50": 42,
+            "p90": 125,
+            "p99": 334,
+            "p999": 1166,
+            "max": 300834,
+            "min": 0,
+            "mean": 78.11151906154709,
+            "calibration_before_ns": 1.30502705,
+            "calibration_after_ns": 1.30743125,
+            "attempts": 1,
+            "suspect": false
+          }
+        ],
+        "p50": {
+          "n": 5,
+          "median": 42.0,
+          "min": 42.0,
+          "max": 42.0,
+          "mean": 42.0,
+          "stddev": 0.0,
+          "cv": 0.0
+        },
+        "p90": {
+          "n": 5,
+          "median": 125.0,
+          "min": 125.0,
+          "max": 166.0,
+          "mean": 133.2,
+          "stddev": 16.4,
+          "cv": 0.12312312312312312
+        },
+        "p99": {
+          "n": 5,
+          "median": 334.0,
+          "min": 333.0,
+          "max": 416.0,
+          "mean": 350.0,
+          "stddev": 33.00303016391071,
+          "cv": 0.09429437189688773
+        },
+        "p999": {
+          "n": 5,
+          "median": 1000.0,
+          "min": 1000.0,
+          "max": 1334.0,
+          "mean": 1100.0,
+          "stddev": 133.50056179657074,
+          "cv": 0.12136414708779157
+        },
+        "max": {
+          "n": 5,
+          "median": 45875.0,
+          "min": 31750.0,
+          "max": 300834.0,
+          "mean": 133600.2,
+          "stddev": 119469.22971610723,
+          "cv": 0.8942294226813076
+        },
+        "mean": {
+          "n": 5,
+          "median": 76.84908295596313,
+          "min": 76.59202395910046,
+          "max": 91.59512840216516,
+          "mean": 79.97753027665321,
+          "stddev": 5.83406700219221,
+          "cv": 0.07294632607447835
+        },
+        "merged": {
+          "count": 22500010,
+          "p50": 42,
+          "p90": 125,
+          "p99": 334,
+          "p999": 1083,
+          "max": 300834,
+          "min": 0,
+          "mean": 79.97753027665321
+        }
+      },
+      "cross_check": {
+        "batch_mean_ns": 81.89524137989272,
+        "histogram_mean_ns": 76.84908295596313,
+        "timer_cost_ns": 12.433125,
+        "relative_difference": -0.21343466518216028
+      },
+      "calibration": {
+        "session_best_ns": 1.3044021
+      },
+      "scheduling": "macOS QoS USER_INTERACTIVE (prefers performance cores; not a pin)"
+    }
+  }
+}

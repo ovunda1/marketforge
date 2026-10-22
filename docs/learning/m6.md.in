@@ -1,0 +1,119 @@
+# M6: Benchmarks
+
+<!-- Generated from m6.md.in by `make bench-docs`: every number comes from
+bench/results/*.json. Edit the template, not m6.md. -->
+
+## What was built
+
+A benchmark harness in `bench/` and a measured optimization pass over the engine.
+
+- **Workloads.** A seeded generator (`bench/lib/workload.cpp`) produces two order flows
+  with every risk limit set: *narrow* (fixed mid, prices within a few ticks: few, deep
+  levels) and *wide* (drifting mid, prices spread over thousands of ticks, a few far
+  away: many shallow levels). It decides each command from a shadow `Engine`, so cancels
+  and replaces target orders that are really resting.
+- **End-to-end replay** (`mf-bench-replay`): millions of commands through a fresh `Engine`
+  per repetition; throughput timed as one batch, latency timed per command into an
+  HdrHistogram; warm-up excluded; heap allocations per command counted.
+- **Microbenchmarks** (`mf-bench-micro`, Google Benchmark): add, cancel, replace, match
+  at one level and across levels, the risk check, and an add through the whole engine.
+- **Tooling**: `make bench` writes `bench/results/*.json` and renders the docs from them;
+  `make bench-ab` compares two tagged builds in interleaved rounds; `make gate` runs every
+  correctness check an optimization must pass; CI smoke-runs it all without judging speed.
+- **Optimizations**, each one commit between two tags, measured before and after:
+  see `bench/OPTIMIZATIONS.md`.
+
+Headline (from `bench/RESULTS.md`):
+
+{{ block:headline }}
+
+## Read these first
+
+1. `bench/lib/runner.hpp`: `drive()` is the one loop that throughput, latency and the
+   tests all use; `run_throughput()` and `run_latency()` show what is timed.
+2. `bench/lib/workload.cpp`: `Generator::step()` is the order-flow mix.
+3. `bench/replay.cpp`: `Probe::run()` is the calibration and retry rule.
+4. `engine/include/mf/object_pool.hpp`, `flat_hash_map.hpp`, `id_set.hpp`, `price_levels.hpp`: the
+   data structures the optimizations introduced.
+5. `bench/ab.py` (`compare()`) and `bench/stats.py` (`verdict()`): how a speedup is
+   decided.
+6. `bench/render.py`: how the docs get their numbers.
+
+## Design decisions
+
+- **Timing only in `bench/`.** The engine still has no clock; the wall-clock test now
+  scans all of `engine/` and also bans cycle-counter reads.
+- **Two timing methods.** The clock here is `std::chrono::steady_clock`, which on this
+  Mac reads a counter that moves in steps of {{ replay:timer.min_step_ns|ns }}, and one
+  read costs {{ replay:timer.cost_ns|f1 }} ns. Most commands take less than a step. So
+  throughput is timed as a batch (two reads around millions of commands: the clock's cost
+  and step vanish), and the per-command histogram is read knowing it is quantised and
+  includes about one clock read. The two are cross-checked in the results.
+- **Workload from a shadow engine.** A generator that guesses which orders are resting
+  (like the difftest's) sends many cancels to orders that already filled. Those are cheap
+  rejects that flatter the numbers. Deciding each command from a real engine's state
+  keeps the flow honest; it is deterministic because the engine is.
+- **Integer-only random numbers.** `std::uniform_int_distribution` gives different
+  numbers on libc++ and libstdc++, so the workload would differ between the macOS build
+  and CI. xoshiro256** with Lemire's bounded draws is the same everywhere; the pinned
+  digests prove it on both compilers in CI.
+- **Pinned event digests.** `bench/expected_digests.json` holds the SHA-256 of each
+  workload's event stream. `make bench` refuses to publish if it changed, the A/B tool
+  requires before and after to match, and `make gate` replays the workload with the
+  invariant walk on. A faster engine with different output is a bug.
+- **Performance and efficiency cores.** macOS cannot pin a thread on Apple Silicon. The
+  harness asks for the `USER_INTERACTIVE` QoS class and then verifies: a fixed integer
+  loop before and after each repetition detects an efficiency core or throttling, and
+  the repetition is rerun.
+- **Spread, not just a number.** Every figure is a median with its min–max range and
+  coefficient of variation. An optimization's verdict needs every interleaved round to
+  agree; otherwise it is logged as "no measurable effect".
+- **Generated docs.** Every number in `bench/RESULTS.md`, `bench/OPTIMIZATIONS.md` and
+  this file is rendered from the JSON. A test re-renders them and lints the templates
+  for typed numbers, and each figure carries its workload's name.
+- **Tags, not branches, for before and after.** Squash-merging rewrites commits; tags
+  survive, so `make bench-ab` rebuilds any comparison from a fresh clone.
+
+## Trade-offs and what was left out
+
+- The flat price-level array keeps a fixed window of ticks around the best price; levels
+  outside it live in an ordered map. Far-away levels pay the map's cost, and the window
+  re-centres when the best moves. It cleared the agreed threshold on the geometric mean
+  of the two workloads, mostly on the wide one ({{ block:ab_geomean:opt-4 }}).
+- Flat hash tables scatter keys on purpose. For small sets of live orders that is right;
+  for the session's used ids it was a measured regression, hence the bitmap. Neither is
+  keyed, so a client choosing adversarial order ids could still lengthen probe runs in
+  the live-order tables; a keyed hash is the fix if that ever matters.
+- With the invariant walk on, `PriceLevels::check` scans the whole window after every
+  command, so test builds got slower; benchmark builds have the walk off.
+- The microbenchmarks time batches of operations against a fixed book shape, which
+  makes them stable but also friendlier to caches than real flow; the end-to-end replay
+  is the number to quote.
+- No gateway benchmarks (REST, WebSocket) yet: those belong to the milestone that builds
+  the gateway.
+- No hardware performance counters: Apple's are not available without root and private
+  frameworks. No core pinning: macOS has no API for it on Apple Silicon.
+- Benchmarks in CI only smoke-test: shared runners are too noisy to judge speed.
+
+## Interview questions
+
+1. **How do you measure the latency of an operation that is shorter than your clock's
+   resolution?** Time a batch and divide (throughput), and report per-command
+   percentiles knowing they are quantised; measure the clock's own cost and step and
+   publish them next to the numbers; cross-check the per-command mean against the batch
+   mean.
+2. **How do you know an optimization did not break the engine?** Each one passes the full
+   suite with the invariant walk, ASan and UBSan, the long differential test against the
+   Python reference on two workloads, and its event digest must equal the pinned one.
+3. **Why interleave A and B instead of running A then B?** Laptop clocks and temperatures
+   drift over minutes; alternating the two builds round by round makes drift hit both,
+   and paired ratios per round cancel it.
+4. **You removed nearly every heap allocation. Was that the win?** Not by itself. An
+   object pool alone was slower (the index still allocated a node), and moving the
+   used-id set to a scattered flat table removed allocations but made the engine slower,
+   because millions of sequential ids now landed on random cache lines. What paid was
+   memory locality: a bitmap for used ids, flat tables for small hot sets, and a flat
+   account table in the risk gate, which alone was the largest gain.
+5. **What would you do next?** Measure with hardware counters on Linux (cache misses,
+   branch mispredictions), shard symbols across cores, and benchmark the gateway
+   separately from the engine.

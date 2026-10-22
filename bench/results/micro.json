@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "generated_by": "make bench",
+  "machine": {
+    "cpu": "Apple M5",
+    "model": "Mac17,2",
+    "performance_cores": 4,
+    "efficiency_cores": 6,
+    "logical_cpus": 10,
+    "memory_bytes": 17179869184,
+    "os": "macOS 26.2 (25C56), Darwin 25.2.0",
+    "thermal": "Note: No thermal warning level has been recorded Note: No performance warning level has been recorded Note: No CPU power status has been recorded",
+    "power": {
+      "source": "AC Power",
+      "low_power_mode": false,
+      "forced": false
+    }
+  },
+  "git": {
+    "commit": "5d93fe2939e127911fbfbc5c7fd733cedc812ad7",
+    "dirty": false
+  },
+  "build": {
+    "compiler": "AppleClang 21.0.0.21000101",
+    "build_type": "Release",
+    "cxx_flags": "-O3 -DNDEBUG -mcpu=native",
+    "lto": true,
+    "invariant_checks": false,
+    "system": "Darwin arm64"
+  },
+  "settings": {
+    "reps": 10,
+    "min_time": "0.2s",
+    "batch": 256,
+    "random_interleaving": true
+  },
+  "library": {
+    "library_version": "v1.9.4",
+    "library_build_type": "release"
+  },
+  "benchmarks": {
+    "ReplaceReprice": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 26.354200469306118,
+        "min": 26.2754352877365,
+        "max": 26.459472374169117,
+        "mean": 26.348464560916796,
+        "stddev": 0.0573107164991453,
+        "cv": 0.0021751064987731933
+      }
+    },
+    "MatchMultiLevel/32": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 1251.7320289386084,
+        "min": 1206.7784116124267,
+        "max": 1273.6725221893516,
+        "mean": 1248.9363993158283,
+        "stddev": 16.207696483079474,
+        "cv": 0.01297719923284973
+      }
+    },
+    "MatchOneLevel/1": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 23.088433233055913,
+        "min": 23.02600377127816,
+        "max": 23.672114912456536,
+        "mean": 23.149222363536662,
+        "stddev": 0.1779903400377534,
+        "cv": 0.007688825881171441
+      }
+    },
+    "RiskCheckNoLimits": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 3.556456197487852,
+        "min": 3.4673882674724146,
+        "max": 3.6691196904191186,
+        "mean": 3.558121593614543,
+        "stddev": 0.07352339057320276,
+        "cv": 0.02066354075845775
+      }
+    },
+    "AddExistingLevel": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 17.000206055568768,
+        "min": 16.964144448536892,
+        "max": 17.02030433794111,
+        "mean": 16.997350057377965,
+        "stddev": 0.01841498271099053,
+        "cv": 0.0010834031568936959
+      }
+    },
+    "MatchOneLevel/8": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 116.73569110448128,
+        "min": 116.58077604334106,
+        "max": 116.91537211708471,
+        "mean": 116.72576342012219,
+        "stddev": 0.1168460066753266,
+        "cv": 0.001001030134665058
+      }
+    },
+    "CancelRemovesLevel": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 17.386048805287615,
+        "min": 17.335881194815023,
+        "max": 17.787300445967563,
+        "mean": 17.45756085434878,
+        "stddev": 0.1658433315851727,
+        "cv": 0.009499799712504519
+      }
+    },
+    "MatchMultiLevel/2": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 53.01751985245944,
+        "min": 52.4419249229853,
+        "max": 53.21080067796991,
+        "mean": 52.89421284504901,
+        "stddev": 0.26267725576723605,
+        "cv": 0.004966086867323957
+      }
+    },
+    "CancelKeepsLevel": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 18.318267512167544,
+        "min": 18.276136793550783,
+        "max": 18.365647348377124,
+        "mean": 18.31863686952989,
+        "stddev": 0.024418141719629076,
+        "cv": 0.001332967179465451
+      }
+    },
+    "EngineAdd": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 13.891101725674414,
+        "min": 13.825961961627382,
+        "max": 13.938284021270272,
+        "mean": 13.882857274625206,
+        "stddev": 0.03676709988601093,
+        "cv": 0.0026483813208404193
+      }
+    },
+    "RiskCheck": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 11.880778686144318,
+        "min": 11.851098762141453,
+        "max": 11.983560293226317,
+        "mean": 11.91154880201425,
+        "stddev": 0.052829336126499295,
+        "cv": 0.0044351357665231425
+      }
+    },
+    "AddNewLevel": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 18.206210924519286,
+        "min": 18.118044434406407,
+        "max": 18.742133625167046,
+        "mean": 18.24353239110911,
+        "stddev": 0.17214632216553358,
+        "cv": 0.009436019213550343
+      }
+    },
+    "MatchMultiLevel/8": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 153.52865667499353,
+        "min": 151.32112941906007,
+        "max": 154.12296989921543,
+        "mean": 153.3113370151611,
+        "stddev": 0.7857640115295188,
+        "cv": 0.0051252831449236785
+      }
+    },
+    "ReplaceQtyDown": {
+      "ns_per_op": {
+        "n": 10,
+        "median": 8.335424058318253,
+        "min": 8.30688669079349,
+        "max": 8.344181266730908,
+        "mean": 8.333693811228915,
+        "stddev": 0.010162779232142033,
+        "cv": 0.0012194807563542336
+      }
+    }
+  }
+}

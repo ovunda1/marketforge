@@ -1,0 +1,15 @@
+{
+  "_comment": "SHA-256 of the canonical event stream (what mf-replay prints) of each benchmark workload, seed 20261021, generator version 1, by profile and flow size. Pinned from the M6 baseline engine; an optimization must leave them unchanged.",
+  "narrow": {
+    "20000": "e15ec8576d9782ef3c8f03f64c569956eec319fb4da020727776a87c2c000359",
+    "200000": "cf757d76457286987295f741c147c92d884a54cd660aae72b0de2c31b3da80a3",
+    "2000000": "5913c343e4e920d39ae4ca8bf7e8ea63592b37ec1601d3847f34efb383a6be2b",
+    "5000000": "1606906b657fba90cfb6311c5ff879b1da4a2ec1c069c240f1fa6d78ab5ef6b2"
+  },
+  "wide": {
+    "20000": "03cc84bb5b8c4a962dc69db2805e0936a13ff770021984173d260c0cb48c6cb5",
+    "200000": "386c46be49a832824b6d1f8b6a125b286c290c10b72f83959313e15bbb8c6bbb",
+    "2000000": "bee3b1e4e034aa41d0794805151d005e5b1111ec6bdfc57bd7efbb2006e383db",
+    "5000000": "3fda7a12cdbc9e8a0e7edcb07add12d6f9a5c88143c19bc044744aee3e516c31"
+  }
+}

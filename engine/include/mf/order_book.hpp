@@ -6,12 +6,14 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "mf/commands.hpp"
 #include "mf/events.hpp"
+#include "mf/flat_hash_map.hpp"
+#include "mf/id_set.hpp"
+#include "mf/object_pool.hpp"
+#include "mf/price_levels.hpp"
 #include "mf/types.hpp"
 
 namespace mf {
@@ -127,8 +129,8 @@ class OrderBook {
   template <class F>
   void for_each_order(F&& f) const {
     const auto walk = [&](const auto& levels) {
-      for (const auto& [price, level] : levels) {
-        for (const Order* o = level.head; o != nullptr; o = o->next) {
+      for (const Level* level = levels.first(); level != nullptr; level = levels.after(*level)) {
+        for (const Order* o = level->head; o != nullptr; o = o->next) {
           f(o->order_id, OrderView{.account_id = o->account_id, .side = o->side,
                                    .price = o->price, .qty = o->original_qty,
                                    .leaves_qty = o->leaves_qty, .filled_qty = o->filled_qty});
@@ -212,10 +214,11 @@ class OrderBook {
     Qty filled{};
   };
 
-  // begin() is the best price on both sides. std::map nodes never move, so the
-  // Level* stored in each Order stays valid while other levels come and go.
-  using BidLevels = std::map<Price, Level, std::greater<Price>>;
-  using AskLevels = std::map<Price, Level, std::less<Price>>;
+  // first() is the best price on both sides: a flat window of tick slots around it,
+  // ordered overflow beyond (price_levels.hpp). Level objects never move, so the Level*
+  // stored in each Order stays valid while other levels come and go.
+  using BidLevels = PriceLevels<Level, true>;
+  using AskLevels = PriceLevels<Level, false>;
 
   void on_new_order(const NewOrder& order, std::optional<Price> market_limit,
                     std::vector<Event>& out);
@@ -236,7 +239,9 @@ class OrderBook {
   void rest(const Aggressor& taker, Qty original_qty);
   // Unlinks a resting order, erases its level if now empty, and drops it from the index.
   void remove(Order& order);
-  void erase_level(Side side, Price price);
+  // Drops an unlinked order from the index and returns it to the pool.
+  void release(Order& order);
+  void erase_level(Side side, Level& level);
 
   static void append(Level& level, Order& order);
   static void unlink(Level& level, Order& order);
@@ -247,15 +252,19 @@ class OrderBook {
 
   BidLevels bids_;
   AskLevels asks_;
-  // Owns every resting order. unordered_map is node-based: element addresses are
-  // stable across rehashing, so the intrusive list pointers into it stay valid.
-  // It is only used for lookup and counting, never iterated to produce output.
-  std::unordered_map<OrderId, Order> orders_;
+  // Every resting order lives in the pool: no heap allocation per order once the pool
+  // has grown to the book's peak size, and a slot never moves, so the intrusive list
+  // pointers stay valid. orders_ indexes them by id in one flat array (no node per
+  // entry); it is only used for lookup and counting, never iterated to produce output.
+  ObjectPool<Order> pool_;
+  FlatHashMap<OrderId, Order*> orders_;
   // Ids of every order acked this session: an id is never reused, even after the order
   // filled or was cancelled. A rejected order was never accepted, so its id stays free.
   // Lookup only, never iterated to produce output (snapshots sort it). Reset at session
-  // open (keeping resting ids), which bounds memory to one session's orders.
-  std::unordered_set<OrderId> used_ids_;
+  // open (keeping resting ids), which bounds memory to one session's orders. A paged
+  // bitmap (id_set.hpp): ids are mostly sequential, so a new id's bit shares a cache
+  // line with the previous one's.
+  IdSet used_ids_;
   std::optional<SeqNo> last_seq_no_;
   TradeId next_trade_id_{1};
 };

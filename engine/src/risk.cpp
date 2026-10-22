@@ -58,8 +58,8 @@ RiskGate::NewOrderDecision RiskGate::check_new(const NewOrder& o, Timestamp now,
                                                const OrderBook& book) {
   const auto reject = [](RejectReason r) { return NewOrderDecision{.reject = r}; };
   if (session_ != SessionState::Continuous) return reject(RejectReason::MarketClosed);
-  const auto acct_it = accounts_.find(o.account_id);
-  if (global_kill_ || (acct_it != accounts_.end() && acct_it->second.killed)) {
+  const Account* acct = find_account(o.account_id);
+  if (global_kill_ || (acct != nullptr && acct->killed)) {
     return reject(RejectReason::KillSwitch);
   }
   const AccountLimits* limits = limits_for(o.account_id);
@@ -116,8 +116,8 @@ std::optional<RejectReason> RiskGate::check_replace(const Replace& r, Timestamp 
   // A replace names no account: the order's own checks come first, to find it.
   if (const auto reason = book.validate_replace(r)) return reason;
   const OrderBook::OrderView v = *book.find(r.order_id);
-  const auto acct_it = accounts_.find(v.account_id);
-  if (global_kill_ || (acct_it != accounts_.end() && acct_it->second.killed)) {
+  const Account* acct = find_account(v.account_id);
+  if (global_kill_ || (acct != nullptr && acct->killed)) {
     return RejectReason::KillSwitch;
   }
   const AccountLimits* limits = limits_for(v.account_id);
@@ -156,13 +156,26 @@ std::optional<RejectReason> RiskGate::check_replace(const Replace& r, Timestamp 
 }
 
 const AccountLimits* RiskGate::limits_for(AccountId account_id) const {
-  const auto it = accounts_.find(account_id);
-  if (it != accounts_.end() && it->second.limits) return &*it->second.limits;
+  const Account* a = find_account(account_id);
+  if (a != nullptr && a->limits) return &*a->limits;
   return default_limits_ ? &*default_limits_ : nullptr;
 }
 
+RiskGate::Account& RiskGate::account(AccountId account_id) {
+  if (Account* a = accounts_.find(account_id)) return *a;
+  return *accounts_.try_emplace(account_id, Account{}).first;
+}
+
+std::vector<AccountId> RiskGate::account_ids() const {
+  std::vector<AccountId> ids;
+  ids.reserve(accounts_.size());
+  accounts_.for_each([&](AccountId id, const Account&) { ids.push_back(id); });
+  std::sort(ids.begin(), ids.end());  // hash order must not leak out
+  return ids;
+}
+
 bool RiskGate::take_token(AccountId account_id, const RateLimit& rate, Timestamp now) {
-  auto& bucket = accounts_[account_id].bucket;
+  auto& bucket = account(account_id).bucket;
   const Notional cap = capacity(rate);
   if (!bucket) {
     bucket = RiskState::Bucket{.account_id = account_id,
@@ -222,15 +235,14 @@ void RiskGate::add_exposure(Account& a, Side side, Price price, Qty qty, int sig
 }
 
 void RiskGate::reduce(OrderId order_id, Qty qty) {
-  const auto it = open_.find(order_id);
-  if (it == open_.end()) throw InvariantViolation("risk: event for unknown order");
-  OpenOrder& o = it->second;
-  Account& a = accounts_[o.account_id];
-  add_exposure(a, o.side, o.price, qty, -1);
-  o.leaves -= qty;
-  if (o.leaves == 0) {
+  OpenOrder* o = open_.find(order_id);
+  if (o == nullptr) throw InvariantViolation("risk: event for unknown order");
+  Account& a = account(o->account_id);
+  add_exposure(a, o->side, o->price, qty, -1);
+  o->leaves -= qty;
+  if (o->leaves == 0) {
     --a.exposure.open_orders;
-    open_.erase(it);
+    open_.erase(order_id);
   }
 }
 
@@ -242,14 +254,14 @@ void RiskGate::apply(std::span<const Event> events, AccountId new_order_account)
           if constexpr (std::is_same_v<T, Ack>) {
             // A market order is open only within its own command; at price 0 it adds
             // no notional while it is.
-            Account& a = accounts_[new_order_account];
-            open_.emplace(e.order_id, OpenOrder{.account_id = new_order_account,
-                                                .side = e.side, .price = e.price,
-                                                .leaves = e.qty});
+            Account& a = account(new_order_account);
+            open_.try_emplace(e.order_id, OpenOrder{.account_id = new_order_account,
+                                                    .side = e.side, .price = e.price,
+                                                    .leaves = e.qty});
             add_exposure(a, e.side, e.price, e.qty, +1);
             ++a.exposure.open_orders;
           } else if constexpr (std::is_same_v<T, Fill>) {
-            Qty& pos = accounts_[e.account_id].position;
+            Qty& pos = account(e.account_id).position;
             pos += e.side == Side::Buy ? e.qty : -e.qty;
             reduce(e.order_id, e.qty);
           } else if constexpr (std::is_same_v<T, Trade>) {
@@ -257,8 +269,10 @@ void RiskGate::apply(std::span<const Event> events, AccountId new_order_account)
           } else if constexpr (std::is_same_v<T, Cancelled>) {
             reduce(e.order_id, e.cancelled_qty);
           } else if constexpr (std::is_same_v<T, Replaced>) {
-            OpenOrder& o = open_.at(e.order_id);
-            Account& a = accounts_[o.account_id];
+            OpenOrder* found = open_.find(e.order_id);
+            if (found == nullptr) throw InvariantViolation("risk: replace of unknown order");
+            OpenOrder& o = *found;
+            Account& a = account(o.account_id);
             add_exposure(a, o.side, o.price, o.leaves, -1);
             o.price = e.price;
             o.leaves = e.leaves_qty;
@@ -274,7 +288,7 @@ void RiskGate::apply(std::span<const Event> events, AccountId new_order_account)
 void RiskGate::set_account_limits(std::optional<AccountId> account_id,
                                   const AccountLimits& limits) {
   if (account_id) {
-    accounts_[*account_id].limits = limits;
+    account(*account_id).limits = limits;
   } else {
     default_limits_ = limits;
   }
@@ -282,7 +296,8 @@ void RiskGate::set_account_limits(std::optional<AccountId> account_id,
 }
 
 void RiskGate::refit_buckets() {
-  for (auto& [id, account] : accounts_) {
+  for (const AccountId id : account_ids()) {
+    Account& account = *accounts_.find(id);
     if (!account.bucket) continue;
     const AccountLimits* limits = limits_for(id);
     if (!limits || !limits->rate) {
@@ -296,20 +311,20 @@ void RiskGate::refit_buckets() {
 
 void RiskGate::set_kill_switch(std::optional<AccountId> account_id, bool engaged) {
   if (account_id) {
-    accounts_[*account_id].killed = engaged;
+    account(*account_id).killed = engaged;
   } else {
     global_kill_ = engaged;
   }
 }
 
 Qty RiskGate::position(AccountId account_id) const {
-  const auto it = accounts_.find(account_id);
-  return it == accounts_.end() ? 0 : it->second.position;
+  const Account* a = find_account(account_id);
+  return a == nullptr ? 0 : a->position;
 }
 
 RiskGate::Exposure RiskGate::exposure(AccountId account_id) const {
-  const auto it = accounts_.find(account_id);
-  return it == accounts_.end() ? Exposure{} : it->second.exposure;
+  const Account* a = find_account(account_id);
+  return a == nullptr ? Exposure{} : a->exposure;
 }
 
 // --- State capture and restore -----------------------------------------------------------
@@ -317,7 +332,8 @@ RiskGate::Exposure RiskGate::exposure(AccountId account_id) const {
 RiskState RiskGate::state() const {
   RiskState s{.session = session_, .instrument = instrument_, .default_limits = default_limits_,
               .global_kill = global_kill_, .last_trade_price = last_trade_price_};
-  for (const auto& [id, a] : accounts_) {  // std::map: ascending ids
+  for (const AccountId id : account_ids()) {
+    const Account& a = *find_account(id);
     if (a.limits) s.account_limits.push_back({.account_id = id, .limits = *a.limits});
     if (a.killed) s.killed_accounts.push_back(id);
     if (a.position != 0) s.positions.push_back({.account_id = id, .qty = a.position});
@@ -345,12 +361,12 @@ RiskGate RiskGate::from_state(const RiskState& s, const BookState& book) {
   gate.last_trade_price_ = s.last_trade_price;
   for (const auto& e : s.account_limits) {
     if (!limits_valid(e.limits)) fail("invalid limits for account " + std::to_string(e.account_id));
-    gate.accounts_[e.account_id].limits = e.limits;
+    gate.account(e.account_id).limits = e.limits;
   }
-  for (const AccountId id : s.killed_accounts) gate.accounts_[id].killed = true;
+  for (const AccountId id : s.killed_accounts) gate.account(id).killed = true;
   for (const auto& p : s.positions) {
     if (p.qty == 0) fail("zero position stored for account " + std::to_string(p.account_id));
-    gate.accounts_[p.account_id].position = p.qty;
+    gate.account(p.account_id).position = p.qty;
   }
   for (const auto& b : s.buckets) {
     const AccountLimits* limits = gate.limits_for(b.account_id);
@@ -360,15 +376,15 @@ RiskGate RiskGate::from_state(const RiskState& s, const BookState& book) {
     if (b.tokens < 0 || b.tokens > capacity(*limits->rate)) {
       fail("bucket for account " + std::to_string(b.account_id) + " out of range");
     }
-    gate.accounts_[b.account_id].bucket = b;
+    gate.account(b.account_id).bucket = b;
   }
   // Open-order exposure comes from the book, never from the stored state.
   for (const Side side : {Side::Buy, Side::Sell}) {
     for (const auto& level : side == Side::Buy ? book.bids : book.asks) {
       for (const auto& o : level.orders) {
-        Account& a = gate.accounts_[o.account_id];
-        gate.open_.emplace(o.order_id, OpenOrder{.account_id = o.account_id, .side = side,
-                                                 .price = level.price, .leaves = o.leaves_qty});
+        Account& a = gate.account(o.account_id);
+        gate.open_.try_emplace(o.order_id, OpenOrder{.account_id = o.account_id, .side = side,
+                                                     .price = level.price, .leaves = o.leaves_qty});
         gate.add_exposure(a, side, level.price, o.leaves_qty, +1);
         ++a.exposure.open_orders;
       }
@@ -381,9 +397,9 @@ void RiskGate::check_consistency(const OrderBook& book) const {
   std::map<AccountId, Exposure> rebuilt;
   std::size_t resting = 0;
   book.for_each_order([&](OrderId id, const OrderBook::OrderView& o) {
-    const auto it = open_.find(id);
-    if (it == open_.end() || it->second.leaves != o.leaves_qty ||
-        it->second.price != o.price || it->second.account_id != o.account_id) {
+    const OpenOrder* open = open_.find(id);
+    if (open == nullptr || open->leaves != o.leaves_qty || open->price != o.price ||
+        open->account_id != o.account_id) {
       throw InvariantViolation("risk does not track resting order " + std::to_string(id));
     }
     Exposure& e = rebuilt[o.account_id];
@@ -396,7 +412,8 @@ void RiskGate::check_consistency(const OrderBook& book) const {
     throw InvariantViolation("risk tracks " + std::to_string(open_.size()) +
                              " open orders but the book holds " + std::to_string(resting));
   }
-  for (const auto& [id, a] : accounts_) {
+  for (const AccountId id : account_ids()) {
+    const Account& a = *find_account(id);
     const auto it = rebuilt.find(id);
     if (a.exposure != (it == rebuilt.end() ? Exposure{} : it->second)) {
       throw InvariantViolation("risk exposure of account " + std::to_string(id) +

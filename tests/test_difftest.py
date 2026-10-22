@@ -72,6 +72,12 @@ def test_difftest_ci(driver: Path, tmp_path: Path) -> None:
     assert difftest(CI_SEED, CI_COMMANDS, driver, tmp_path, REGRESSIONS_DIR) is None
 
 
+def test_difftest_ci_wide(driver: Path, tmp_path: Path) -> None:
+    """Many shallow levels, a drifting mid and far-away orders (M6): the price ranges a
+    flat tick array handles differently from a std::map."""
+    assert difftest(CI_SEED, CI_COMMANDS, driver, tmp_path, REGRESSIONS_DIR, profile="wide") is None
+
+
 def test_saved_regressions_agree(driver: Path) -> None:
     for path in sorted(REGRESSIONS_DIR.glob("*.cmds")):
         assert compare_file(path, driver) is None, path.name
@@ -88,3 +94,17 @@ def test_generated_flow_reaches_every_outcome() -> None:
         "type=MKT", "tif=FOK", "po=1", "stp=CO", "stp=CB",
     ):
         assert output.count(token) >= 20, token
+
+
+def test_wide_flow_reaches_every_outcome_and_spreads_levels() -> None:
+    output = list(run_lines(generate(CI_SEED, 100_000, profile="wide")))
+    text = "\n".join(output)
+    for token in (
+        "reason=DUPLICATE_ORDER_ID", "reason=UNKNOWN_ORDER", "reason=NO_LIQUIDITY",
+        "reason=FOK_NOT_FILLABLE", "reason=POST_ONLY_WOULD_CROSS", "reason=USER",
+        "reason=UNFILLED", "reason=SELF_TRADE", "prio=KEPT", "prio=LOST", "type=MKT",
+    ):
+        assert text.count(token) >= 20, token
+    levels = [line for line in output if line.startswith("LVL ")]
+    # Final depth: more levels than the narrow profile's 17 possible prices can hold.
+    assert len(levels) >= 30

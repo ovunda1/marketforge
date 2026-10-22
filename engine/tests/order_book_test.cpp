@@ -406,8 +406,10 @@ TEST(OrderBook, CancelOfOrderNotOnBookIsRejected) {
 
 // --- Contract and invariants ------------------------------------------------------
 
-TEST(OrderBook, InvariantChecksAreEnabledInTestBuilds) {
-  EXPECT_TRUE(kInvariantChecksEnabled);
+// The library and the tests see the same MF_CHECK_INVARIANTS: on by default (every CI
+// test job), off in the benchmark build (M6), where the suite must pass without the walk.
+TEST(OrderBook, InvariantChecksFollowTheBuildOption) {
+  EXPECT_EQ(kInvariantChecksEnabled, static_cast<bool>(MF_OPTION_CHECK_INVARIANTS));
 }
 
 TEST(OrderBook, ProcessAppendsWithoutClearingOutput) {
