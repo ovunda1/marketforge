@@ -93,4 +93,7 @@ outcome is unknown: retry with the same key, or GET).
 - `/ws/backtests/{id}` (key as above): `status`, `progress` stages, `equity` chunks, then
   `done` or `failed`.
 
-Close codes: 4401 no valid key, 4404 unknown symbol or run, 4008 slow consumer.
+Close codes: 4401 no valid key, 4404 unknown symbol or run, 4008 slow consumer. A client
+that stops reading entirely may instead be dropped by uvicorn's keepalive ping timeout
+(1011) before the queued 4008 reaches it. `mf_ws_slow_consumers_total` and
+`mf_ws_resnapshots_total` on `/metrics` count what the gateway did.

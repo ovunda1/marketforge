@@ -21,6 +21,14 @@ def book(symbol: str) -> dict:
         return c.get(f"/book/{symbol}?depth=50").json()
 
 
+def slow_consumer_actions() -> float:
+    """Slow-consumer closes plus resnapshots, summed over the API workers (/metrics)."""
+    with client() as c:
+        text = c.get("/metrics").text
+    return sum(float(line.rsplit(" ", 1)[1]) for line in text.splitlines()
+               if line.startswith(("mf_ws_slow_consumers_total", "mf_ws_resnapshots_total")))
+
+
 def send_until_answered(c: httpx.Client, body: dict, account: Account) -> httpx.Response:
     """A client that retries with the same client_order_id until it gets an answer."""
     while True:
@@ -111,6 +119,7 @@ def test_a_stalled_websocket_client_is_resnapshotted_or_dropped_while_orders_kee
     def logs() -> str:
         return subprocess.run(["docker", "logs", container], capture_output=True, text=True).stdout
     eventually(lambda: "connected" in logs(), what="the slow client to connect")
+    acted_before = slow_consumer_actions()
     subprocess.run(["docker", "pause", container], check=True)  # it stops reading, mid-stream
     paused = time.monotonic()
 
@@ -128,7 +137,11 @@ def test_a_stalled_websocket_client_is_resnapshotted_or_dropped_while_orders_kee
     out = logs()
     subprocess.run(["docker", "rm", container], capture_output=True)
     result = json.loads(out.strip().splitlines()[-1])
-    assert result["resnapshots"] > 0 or result["closed_code"] == 4008, result
+    # The gateway acted on it: resent a snapshot or closed it as a slow consumer. Which
+    # close the client sees first depends on timing: our 4008 (queued behind the backlog)
+    # or uvicorn's keepalive timeout (1011) if it stayed frozen past the ping timeout.
+    assert slow_consumer_actions() > acted_before, result
+    assert result["resnapshots"] > 0 or result["closed_code"] in (4008, 1011), result
     assert result["synced_after"] and result["matches_book"], result
 
     # The fast client saw every update in order, with no gap and no resnapshot.

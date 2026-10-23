@@ -38,6 +38,8 @@ from services.common.protocol import Request as MatcherRequest
 
 HTTP_REQUESTS = Counter("mf_http_requests_total", "HTTP requests", ["method", "route", "status"])
 HTTP_SECONDS = Histogram("mf_http_request_seconds", "HTTP request latency", ["method", "route"])
+WS_SLOW_CLOSED = Counter("mf_ws_slow_consumers_total", "WebSocket clients closed as slow consumers", ["channel"])
+WS_RESNAPSHOTS = Counter("mf_ws_resnapshots_total", "Snapshots resent after a slow-consumer overflow")
 
 ERROR_STATUS = {"IDEMPOTENCY_CONFLICT": 409, "UNKNOWN_SYMBOL": 404, "NOT_FOUND": 404, "SYMBOL_HALTED": 503,
                 "ENGINE_FAILED": 503, "EXPIRED": 504, "BAD_REQUEST": 400}
@@ -537,6 +539,7 @@ def create_app(settings: Settings | None = None, deps: Deps | None = None) -> Fa
                     sub._needs_snapshot = True
                     return True
                 if not state["first"]:
+                    WS_RESNAPSHOTS.inc()
                     await send_json(ws, sub, {"type": "resnapshot", "symbol": symbol})
                 state.update(first=False, epoch=snap["epoch"], md_seq=snap["md_seq"])
                 await send_json(ws, sub, snap)
@@ -554,6 +557,8 @@ def create_app(settings: Settings | None = None, deps: Deps | None = None) -> Fa
             pass
         finally:
             hub.unsubscribe(channel, sub)
+            if sub.closed:
+                WS_SLOW_CLOSED.labels("marketdata").inc()
             if sub.closed and ws.application_state == WebSocketState.CONNECTED:
                 # Queued behind whatever the client has not read yet. If it never reads
                 # again, the server's ping timeout drops the connection.
