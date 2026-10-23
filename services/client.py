@@ -92,17 +92,20 @@ def _slow(url: str, run_s: float, idle_s: float) -> dict[str, Any]:
     ws = wsc.connect(url, sock=sock, max_queue=1)
     feed.on_message(json.loads(ws.recv(timeout=10)))
     print("connected", flush=True)
-    start = last = time.monotonic()
+    start = last = tick = time.monotonic()
     try:
         while True:
             try:
                 msg = json.loads(ws.recv(timeout=0.5))
             except TimeoutError:
                 now = time.monotonic()
+                if now - tick > 2.0:  # this process was frozen: idle time starts again now
+                    last = now
+                tick = now
                 if now - start > run_s and now - last > idle_s:
                     break
                 continue
-            last = time.monotonic()
+            last = tick = time.monotonic()
             report["messages"] += 1
             feed.on_message(msg)
     except ConnectionClosed as e:
