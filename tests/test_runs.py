@@ -221,3 +221,14 @@ def test_costs_and_trials_are_recorded(tmp_path) -> None:
 def test_example_runs_carry_tearsheets() -> None:
     for record in sorted((EXAMPLES / "runs").glob("*/record.json")):
         assert (record.parent / "metrics.json").is_file() and (record.parent / "tearsheet.html").is_file()
+
+
+def test_progress_reports_do_not_change_the_run(tmp_path) -> None:
+    """The backtest worker (M10) streams progress; the hook must not change any output."""
+    seen = []
+    with_progress = runs.run(BARS, out_dir=tmp_path / "a", name="r", progress=lambda stage, info: seen.append(stage))
+    without = runs.run(BARS, out_dir=tmp_path / "b", name="r")
+    for name in ("results.json", "metrics.json", "tearsheet.html"):
+        assert (with_progress.path.parent / name).read_bytes() == (without.path.parent / name).read_bytes()
+    assert with_progress.data["outputs"] == without.data["outputs"]
+    assert seen == ["validated", "data_loaded", "simulated", "written"]

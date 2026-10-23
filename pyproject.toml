@@ -11,7 +11,13 @@ requires-python = ">=3.12"
 dependencies = ["numpy>=2.0", "pandas>=2.2", "pyarrow>=16"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "mypy>=1.11"]
+# The services (M10): gateway, matcher, projector and backtest worker.
+services = [
+    "fastapi>=0.115", "uvicorn[standard]>=0.30", "pydantic>=2.7", "sqlalchemy[asyncio]>=2.0.30",
+    "asyncpg>=0.29", "alembic>=1.13", "redis>=5.0", "arq>=0.26", "prometheus-client>=0.20",
+    "pyyaml>=6", "httpx>=0.27", "websockets>=12",
+]
+dev = ["pytest>=8", "mypy>=1.11", "marketforge[services]"]
 
 # The mfengine extension (M7) and the pure-Python reference engine in one wheel. The
 # dev install (make venv) is editable and checks invariants; make venv-release builds a
@@ -23,7 +29,7 @@ cmake.build-type = "RelWithDebInfo"
 build-dir = "build-py/{wheel_tag}"
 build.targets = ["_core"]
 install.components = ["mfengine"]
-wheel.packages = ["bindings/mfengine", "reference", "research"]
+wheel.packages = ["bindings/mfengine", "reference", "research", "services"]
 editable.mode = "redirect"
 editable.verbose = false
 
@@ -35,3 +41,4 @@ MF_BUILD_TESTS = "OFF"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra"
+markers = ["compose: needs the running compose stack (make test-services)"]

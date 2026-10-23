@@ -1,0 +1,11 @@
+# Instruments listed by `make up` (M10). Tick sizes are text, never floats. Each symbol
+# gets its own engine, journal and intake log under the matcher's data directory.
+instruments:
+  - symbol: AAPL
+    tick_size: "0.01"
+    risk_config: risk.yaml
+  - symbol: MSFT
+    tick_size: "0.01"
+    risk_config: risk.yaml
+  - symbol: BTCUSD
+    tick_size: "0.5"

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -507,6 +508,130 @@ TEST(JournalV2, RejectsBadAdminFieldsUnderAValidCrc) {
   r = kill;
   r[kPayload + 10] = 2;
   check(r, "cancel_open not 0 or 1");
+}
+
+
+// --- Resume (M10: a restarted live sequencer continues its journal) ----------------
+
+std::unique_ptr<JournalWriter> resume(const std::string& path, std::uint64_t* trimmed = nullptr) {
+  return JournalWriter::resume(path, trimmed);
+}
+
+TEST(JournalResume, ContinuesNumberingAndTimestampChecks) {
+  TempDir dir;
+  const auto path = write_journal(dir, sample_records());
+  std::uint64_t trimmed = 99;
+  auto writer = resume(path, &trimmed);
+  EXPECT_EQ(trimmed, 0u);
+  EXPECT_EQ(writer->last_seq_no(), 3u);
+  EXPECT_EQ(writer->bytes_written(), read_bytes(path).size());
+  EXPECT_THROW(writer->append(cancel(5, 2'000'000'000)), std::invalid_argument);  // gap
+  EXPECT_THROW(writer->append(cancel(4, 1'000'000'499)), std::invalid_argument);  // backwards
+  writer->append(cancel(4, 1'000'000'500));
+  writer->sync();
+  EXPECT_EQ(writer->bytes_written(), read_bytes(path).size());
+  writer.reset();
+
+  auto expected = sample_records();
+  expected.push_back(cancel(4, 1'000'000'500));
+  EXPECT_EQ(read_all(path), expected);
+}
+
+TEST(JournalResume, HeaderOnlyJournalStartsAtOne) {
+  TempDir dir;
+  const auto path = write_journal(dir, {});
+  auto writer = resume(path);
+  EXPECT_EQ(writer->last_seq_no(), 0u);
+  EXPECT_EQ(writer->bytes_written(), kJournalHeaderSize);
+  writer->append(cancel(1, 7));
+  writer.reset();
+  EXPECT_EQ(read_all(path), std::vector<JournalRecord>{cancel(1, 7)});
+}
+
+// A crash during an append leaves a torn final record. Write-ahead means the engine
+// never ran it, so resume cuts it off, at every possible tear point.
+TEST(JournalResume, TrimsATornFinalRecordAtEveryByte) {
+  TempDir dir;
+  const auto full = read_bytes(write_journal(dir, sample_records(), "full.mfj"));
+  const std::size_t last = encode_record(sample_records()[2]).size();
+  const std::size_t good = full.size() - last;
+  for (std::size_t cut = 1; cut < last; ++cut) {
+    const auto path = dir.file("torn-" + std::to_string(cut) + ".mfj");
+    write_bytes(path, full.substr(0, good + cut));
+    std::uint64_t trimmed = 0;
+    auto writer = resume(path, &trimmed);
+    EXPECT_EQ(trimmed, cut) << "cut " << cut;
+    EXPECT_EQ(writer->last_seq_no(), 2u);
+    EXPECT_EQ(writer->bytes_written(), good);
+    writer->append(sample_records()[2]);
+    writer.reset();
+    EXPECT_EQ(read_bytes(path), full) << "cut " << cut;
+  }
+}
+
+// Anything but a torn tail needs an operator: resume throws and leaves the file alone.
+TEST(JournalResume, RefusesOtherDamageAndLeavesTheFileUnchanged) {
+  TempDir dir;
+  const auto full = read_bytes(write_journal(dir, sample_records(), "full.mfj"));
+  const auto expect_refused = [&](const std::string& name, const std::string& bytes, Kind kind) {
+    const auto path = dir.file(name);
+    write_bytes(path, bytes);
+    try {
+      resume(path);
+      ADD_FAILURE() << name << ": expected JournalError";
+    } catch (const JournalError& e) {
+      EXPECT_EQ(e.kind(), kind) << name << ": " << e.what();
+    }
+    EXPECT_EQ(read_bytes(path), bytes) << name;
+  };
+
+  std::string corrupt = full;
+  corrupt[kJournalHeaderSize + 30] ^= 0x01;  // inside the first record
+  expect_refused("corrupt.mfj", corrupt, Kind::Corrupt);
+
+  std::string bad_last_crc = full;
+  bad_last_crc[bad_last_crc.size() - 1] ^= 0x01;  // a complete final record with a bad CRC
+  expect_refused("bad-last-crc.mfj", bad_last_crc, Kind::Corrupt);
+
+  std::string gap = encode_journal_header() + encode_record(cancel(1, 0)) + encode_record(cancel(3, 0));
+  expect_refused("gap.mfj", gap, Kind::SequenceGap);
+
+  std::string bad_header = full;
+  bad_header[0] = 'X';
+  expect_refused("bad-header.mfj", bad_header, Kind::BadHeader);
+  expect_refused("short-header.mfj", full.substr(0, kJournalHeaderSize - 1), Kind::Truncated);
+
+  // Version 1 cannot hold the admin commands a live sequencer appends.
+  const std::string v1 = read_bytes(std::string(MF_JOURNAL_FIXTURE_DIR) + "/v1.mfj");
+  expect_refused("v1.mfj", v1, Kind::BadHeader);
+
+  try {
+    resume(dir.file("missing.mfj"));
+    ADD_FAILURE() << "expected JournalError";
+  } catch (const JournalError& e) {
+    EXPECT_EQ(e.kind(), Kind::Io);
+  }
+}
+
+// A journal written by two writer lifetimes, with a torn tail between them, is the same
+// file as one uninterrupted writer's.
+TEST(JournalResume, ResumedJournalEqualsAnUninterruptedOne) {
+  TempDir dir;
+  std::vector<JournalRecord> records;
+  for (SeqNo s = 1; s <= 40; ++s) records.push_back(s % 3 == 0 ? replace(s, 1000 + s) : cancel(s, 1000 + s));
+  const auto once = read_bytes(write_journal(dir, records, "once.mfj"));
+
+  const auto path = dir.file("twice.mfj");
+  {
+    JournalWriter writer(path);
+    for (std::size_t i = 0; i < 25; ++i) writer.append(records[i]);
+    writer.sync();
+  }
+  write_bytes(path, read_bytes(path) + encode_record(records[25]).substr(0, 10));  // torn
+  auto writer = resume(path);
+  for (std::size_t i = 25; i < records.size(); ++i) writer->append(records[i]);
+  writer.reset();
+  EXPECT_EQ(read_bytes(path), once);
 }
 
 }  // namespace

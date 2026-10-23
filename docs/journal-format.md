@@ -106,31 +106,59 @@ never partially accepted.
 | `Io` | the file cannot be opened or read (`mf-replay` exit code 1) |
 
 A file that ends exactly on a record boundary is a clean end. A crash in the middle of
-an append leaves a torn final record. It is reported as `Truncated`, never replayed and
-never silently dropped. Automatically trimming a torn tail on restart is not implemented
-yet.
+an append leaves a torn final record. The reader reports it as `Truncated` and never
+replays it. `JournalWriter::resume` (M10), which a restarting live sequencer uses to
+continue its journal, validates every record and cuts a torn final record off (and
+syncs the cut): write-ahead means the engine never processed it. Any other damage
+(`Corrupt`, `SequenceGap`, ...) is refused and the file is left unchanged.
 
 `JournalWriter` refuses to create a journal that would fail these checks. It throws on a
-`seq_no` that is not `last + 1` or a timestamp earlier than the last one. It also
-refuses to open an existing file (`O_EXCL`), so a journal is never overwritten.
+`seq_no` that is not `last + 1` or a timestamp earlier than the last one. Its constructor
+refuses an existing file (`O_EXCL`), so a journal is never overwritten; only `resume`
+opens an existing (version 2) journal, to append after its last record.
 
 ## Durability
 
 `JournalWriter::append` hands each record to the OS with a single `write(2)` before the
-sequencer returns, so before the book sees the command. There is **no `fsync`**:
+sequencer returns, so before the book sees the command. `JournalWriter::sync()` (M10)
+calls `fdatasync(2)`, or `fsync(2)` on macOS, to put the appended records on stable
+storage.
 
-- **Process crash** (the engine is killed or segfaults): every appended record survives.
-  It is in the OS page cache and the kernel writes it out. At most the record being
-  written at that moment is torn, and the reader reports that as `Truncated`.
-- **OS crash, kernel panic or power loss**: records still in the page cache are lost,
-  and a record may be partly on disk. The journal on disk can end several records
-  before the last one the engine processed. Events already published for those records
-  are then not reproducible.
+**The live path fsyncs before replying (M10).** The matcher (services/matcher/core.py)
+processes requests in batches, and each batch is one group commit:
 
-Closing that gap needs `fsync` (or `fdatasync`) before acknowledging a command. Calling
-it per record costs a disk flush per command. The usual fix is group commit: fsync a
-batch, then release that batch's acknowledgements. Both are left for later milestones.
-The cost of the current `write` per record will be measured in M6.
+1. the batch's intake-log entries (request id, `client_order_id`, assigned order id;
+   docs/learning/m10.md) are written and fsynced;
+2. only then are its journal records written, each before the engine runs it;
+3. the journal is fsynced;
+4. only then do replies, execution reports and market data leave the matcher.
+
+So on a Linux host, a command whose reply a client has received survives power loss and
+OS crashes: its journal record and its intake entry are both on disk. The intake log
+goes first because the kernel may write a dirty journal page back at any time; if the
+journal were written before the intake fsync, an OS crash could keep a journal record
+whose `client_order_id` was lost, and a client's retry would then create a second order.
+One fsync per file per batch, not per record, keeps the cost per command small under
+load.
+
+- **Process crash** (killed, segfault): everything written survives in the page cache. At
+  most the record being written is torn; `JournalWriter::resume` cuts a torn final
+  record off on restart (it was never processed and never acknowledged) and refuses any
+  other damage.
+- **OS crash or power loss, Linux:** acknowledged commands survive. Records written but
+  not yet synced (no reply went out) may be lost or, partly, kept: a journal record
+  without a durable intake entry cannot happen, and intake entries beyond the journal
+  are dropped on restart.
+- **macOS:** `fsync` hands the data to the drive but does not flush the drive's own
+  write cache (that needs `fcntl(F_FULLFSYNC)`, which is not used). A power cut can lose
+  synced data, so the power-loss guarantee above is for Linux hosts only.
+- **Docker Desktop (macOS, Windows):** the containers run inside a Linux VM whose disk is
+  a file on the host. An fsync inside the container reaches the VM's disk, but whether
+  that reaches the physical disk depends on the VM and the host. The guarantee holds for
+  Docker on a Linux host, not for Docker Desktop.
+
+`mf-journal` and backtests (which write journals of simulated sessions) do not call
+`sync()`: their journals can be regenerated from their inputs.
 
 ## Tools
 

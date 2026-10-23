@@ -14,3 +14,8 @@ compile_commands.json
 /data/
 /runs/
 /research/examples/runs/*/journal.mfj
+
+# Secrets for docker compose (M10): never committed. .env.example is the template.
+.env
+.env.*
+!.env.example

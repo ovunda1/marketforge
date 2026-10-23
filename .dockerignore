@@ -1,0 +1,15 @@
+# Never sent to the docker build: secrets, local environments, build trees, data.
+.env
+.env.*
+!.env.example
+.git
+.venv
+.venv-*
+build
+build-*
+data
+runs
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.bench-ab

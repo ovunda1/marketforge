@@ -152,3 +152,20 @@ jobs:
           cmake --build build -j --target mf_driver mf-journal mf-replay
       - name: Test
         run: MF_DRIVER=build/engine/tools/mf_driver python -m pytest
+
+  services:
+    name: Services (compose stack)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # M10: the images are built from this commit, the stack comes up with a throwaway
+      # password (never committed: .env is git-ignored), and the API suite runs against
+      # it over HTTP and WebSocket. A failing test attaches the compose logs.
+      - name: Secrets for this run
+        run: echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" > .env
+      - name: Compose suite
+        run: make test-services

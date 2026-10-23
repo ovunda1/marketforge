@@ -246,3 +246,52 @@ def test_bad_config_raises_config_error_naming_the_key(tmp_path: Path) -> None:
         mf.parse_risk_config("bogus: 1\n")
     with pytest.raises(mf.ConfigError, match="missing.yaml"):
         mf.load_risk_config(tmp_path / "missing.yaml")
+
+
+# --- Resume and sync (M10: the live matcher continues its journal after a restart) ---
+
+
+def test_resume_continues_a_journal_and_trims_a_torn_tail(
+    flow: list[tuple[mf.Command, int]], tmp_path: Path
+) -> None:
+    once = write_journal(tmp_path / "once.mfj", flow).read_bytes()
+    path = write_journal(tmp_path / "twice.mfj", flow[:3000])
+    record = mf.JournalRecord(timestamp=flow[3000][1], command=flow[3000][0])
+    with path.open("ab") as f:  # a crash in the middle of the next append
+        f.write(b"\x3e\x00\x00\x00\x01\x02")
+
+    writer = mf.JournalWriter.resume(path)
+    assert writer.trimmed_bytes == 6
+    assert writer.last_seq_no == flow[2999][0].seq_no
+    assert writer.bytes_written == path.stat().st_size
+    with writer:
+        writer.append(record)
+        for command, ts in flow[3001:]:
+            writer.append(mf.JournalRecord(timestamp=ts, command=command))
+        writer.sync()
+    assert path.read_bytes() == once
+    with pytest.raises(ValueError, match="closed"):
+        writer.sync()
+
+
+def test_new_journal_has_nothing_trimmed_and_can_sync(tmp_path: Path) -> None:
+    with mf.JournalWriter(tmp_path / "j.mfj") as writer:
+        assert writer.trimmed_bytes == 0
+        writer.append(mf.JournalRecord(timestamp=1, command=mf.Cancel(seq_no=1, order_id=1)))
+        writer.sync()
+
+
+def test_resume_refuses_damage_other_than_a_torn_tail(
+    flow: list[tuple[mf.Command, int]], tmp_path: Path
+) -> None:
+    path = write_journal(tmp_path / "j.mfj", flow[:10])
+    data = bytearray(path.read_bytes())
+    data[HEADER_SIZE + 30] ^= 1
+    path.write_bytes(bytes(data))
+    with pytest.raises(mf.JournalError) as info:
+        mf.JournalWriter.resume(path)
+    assert info.value.kind == mf.JournalErrorKind.CORRUPT
+    assert path.read_bytes() == bytes(data)
+    with pytest.raises(mf.JournalError) as missing:
+        mf.JournalWriter.resume(tmp_path / "missing.mfj")
+    assert missing.value.kind == mf.JournalErrorKind.IO

@@ -28,19 +28,22 @@ MarketForge is a simulated exchange plus a research backtester: a C++ matching e
 
 ## Architecture
 
-MarketForge is one C++ engine library used in two places: embedded in the FastAPI gateway for the live exchange, and inside the backtest worker for research, so live and simulated trading share the same matching code.
+MarketForge is one C++ engine library used in two places: in a single matcher process for the live exchange, and inside the backtest worker for research, so live and simulated trading share the same matching code. The FastAPI gateway does not embed the engine: its worker processes forward commands to the matcher, which is the only writer of every symbol's sequencer, journal and book (M10).
 
 &#91;embedded content: MarketForge architecture · 4 layers\]
 
-Every command passes sequencer, risk gate and book in that order; the resulting events feed the journal, Redis and Postgres.
+Every command passes sequencer, risk gate and book in that order. The journal is the source of truth; Redis carries replies and market data; Postgres is a projection rebuilt from the journal.
 
 **Order path**
 
-1. A client submits an order to the gateway over REST or WebSocket.
-2. The gateway hands it to the symbol's sequencer, which assigns a `seq_no` and appends it to the journal.
-3. The risk gate accepts or rejects; accepted orders are matched by the book, which emits events.
-4. Events publish to Redis (market data and execution reports to WebSocket clients) and are written to Postgres in async batches.
-5. Backtests drive the same engine in-process through the worker; no network on the backtest path.
+1. A client submits an order to any gateway worker over REST.
+2. The worker forwards it to the single matcher on a Redis stream (`mf:cmd`), with a deadline and its own reply stream.
+3. The matcher assigns the order id and the symbol's `seq_no`, writes the intake log entry (request id, `client_order_id`) and then the journal record, and runs the command through the risk gate and book. Each batch is a group commit: intake log, then journal, both fsynced, before anything leaves the matcher.
+4. The reply goes back on the worker's reply stream; market data and execution reports are published to Redis and fanned out to WebSocket clients by the gateway workers.
+5. A separate projector replays the journals and writes Postgres in transactional batches, off the matching path.
+6. Backtests drive the same engine in-process through the worker; no network on the backtest path.
+
+On restart the matcher rebuilds each symbol from its newest snapshot plus the journal tail; the projector resumes from its stored cursor. docs/learning/m10.md has the details.
 
 **Tech choices**
 
@@ -62,7 +65,9 @@ marketforge/
 ├── reference/       # naive Python engine for differential tests
 ├── research/        # data adapters, backtester, strategies, costs, analytics
 ├── services/
-│   ├── api/         # FastAPI gateway
+│   ├── api/         # FastAPI gateway (no engine)
+│   ├── matcher/     # the single matcher: engines, sequencers, journals
+│   ├── projector/   # journals -> Postgres projection
 │   └── worker/      # backtest job runner
 ├── dashboard/       # web UI
 ├── deploy/          # Dockerfiles, docker-compose.yml, Grafana
@@ -229,7 +234,7 @@ Here Q is order size, ADV is average daily volume and k is a calibration constan
 
 ## Services: FastAPI, PostgreSQL and Redis
 
-A FastAPI gateway embeds the engine through pybind11 with one sequencer task per symbol shard, persists to PostgreSQL and fans market data out through Redis to WebSocket clients.
+A FastAPI gateway forwards commands to a single matcher process, which owns the engine (through pybind11), one sequencer and journal per symbol. A projector writes PostgreSQL from the journals, and market data fans out through Redis to WebSocket clients.
 
 **REST endpoints**
 
@@ -324,7 +329,7 @@ Benchmarks measure the engine core and the network gateway separately, and every
 
 One command brings up the whole system, and CI blocks merges unless C++ and Python builds, tests, sanitizers and linters all pass.
 
-- **docker compose services:** `postgres`, `redis`, `api` (gateway + engine), `worker` (backtests), `dashboard`; optional `prometheus` and `grafana`.
+- **docker compose services:** `postgres`, `redis`, `matcher` (engine, exactly one), `projector`, `api` (gateway, no engine), `worker` (backtests), `dashboard`; optional `prometheus` and `grafana`.
 - **Multi-stage Dockerfile:** build the engine with CMake, package the Python extension with scikit-build-core, copy into a slim runtime image.
 - **Makefile targets:** `build`, `test`, `bench`, `lint`, `fmt`, `up`, `down`, `replay`, `demo`.
 - **GitHub Actions:** gcc and clang builds, sanitizer builds, pytest, clang-format, clang-tidy, ruff, mypy, Docker image build.

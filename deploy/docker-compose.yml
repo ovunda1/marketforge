@@ -1,0 +1,135 @@
+# MarketForge (M10): `make up` / `make down`. Secrets come from the git-ignored .env at
+# the repository root (copy .env.example): compose refuses to start without
+# POSTGRES_PASSWORD.
+#
+#   postgres, redis    infrastructure
+#   migrate            one-shot: Alembic upgrade + instrument seed
+#   matcher            THE single writer: engines, sequencers, journals (exactly one)
+#   projector          journals -> Postgres projection (asynchronous)
+#   api                FastAPI gateway, several worker processes, no engine
+#   worker             backtest jobs (arq)
+
+name: marketforge
+
+x-image: &image
+  image: marketforge:dev
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+
+x-env: &env
+  MF_REDIS_URL: redis://redis:6379/0
+  PGHOST: postgres
+  PGUSER: marketforge
+  PGDATABASE: marketforge
+  PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: marketforge
+      POSTGRES_DB: marketforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketforge -d marketforge"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    # A subscriber (an API worker) more than 32 MB behind, or 8 MB for 60 s, is cut off;
+    # it reconnects and its clients resnapshot. Redis holds no state that matters:
+    # the stream's pending requests expire, the book cache is republished by the matcher.
+    command: ["redis-server", "--save", "", "--appendonly", "no",
+              "--client-output-buffer-limit", "pubsub 32mb 8mb 60"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *image
+    command: ["python", "-m", "services.db.migrate"]
+    environment:
+      <<: *env
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  matcher:
+    <<: *image
+    command: ["python", "-m", "services.matcher"]
+    environment:
+      <<: *env
+    volumes:
+      - data:/var/lib/marketforge/data
+    depends_on:
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+    stop_grace_period: 30s  # SIGTERM: finish the batch, sync, snapshot every symbol
+    deploy:
+      replicas: 1  # the single writer; the data-directory lock refuses a second one anyway
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9101/metrics')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  projector:
+    <<: *image
+    command: ["python", "-m", "services.projector", "run"]
+    environment:
+      <<: *env
+    volumes:
+      - data:/var/lib/marketforge/data:ro
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      matcher: {condition: service_started}
+    restart: unless-stopped
+
+  api:
+    <<: *image
+    # No permessage-deflate: compression state is per connection, so the gateway would
+    # compress every market-data message once per client; it also hides a slow client
+    # behind a ratio. Two worker processes; neither holds an engine.
+    command: ["sh", "-c", "rm -rf /tmp/prom/* && exec uvicorn --factory services.api.app:create_app
+              --host 0.0.0.0 --port 8000 --workers 2 --no-access-log --ws-per-message-deflate false"]
+    environment:
+      <<: *env
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+    volumes:
+      - runs:/var/lib/marketforge/runs:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      matcher: {condition: service_healthy}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    <<: *image
+    command: ["arq", "services.worker.tasks.WorkerSettings"]
+    environment:
+      <<: *env
+      TIINGO_API_KEY: ${TIINGO_API_KEY:-}
+    volumes:
+      - runs:/var/lib/marketforge/runs
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  data:
+  runs:

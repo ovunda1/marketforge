@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -60,7 +61,7 @@ std::string encode_record(const JournalRecord& record);
 
 // Creates a new journal file (never overwrites an existing one) and appends records.
 // Each append is one write(2) of the whole record, so a record handed to the OS
-// survives a process crash; without fsync it does not survive an OS crash or power
+// survives a process crash. Only sync() makes records survive an OS crash or power
 // loss (docs/journal-format.md, "Durability"). A crash in the middle of an append
 // leaves a torn final record, which the reader reports as Truncated.
 class JournalWriter {
@@ -71,14 +72,30 @@ class JournalWriter {
   JournalWriter(const JournalWriter&) = delete;
   JournalWriter& operator=(const JournalWriter&) = delete;
 
+  // Opens an existing journal to continue it (a restarted live sequencer, M10). Every
+  // record is read and validated first. A torn final record (Truncated: a crash during
+  // its append) is cut off and the cut is synced: write-ahead means the engine never
+  // processed it and nobody saw its events. Any other damage, a missing file or a
+  // version-1 journal (which cannot hold admin commands) throws JournalError and leaves
+  // the file unchanged. `trimmed_bytes`, if given, receives the size of the cut.
+  static std::unique_ptr<JournalWriter> resume(const std::string& path,
+                                               std::uint64_t* trimmed_bytes = nullptr);
+
   // Throws std::invalid_argument if the record would make an invalid journal
   // (seq_no not last + 1, or an earlier timestamp), JournalError(Io) on write failure.
   void append(const JournalRecord& record);
 
+  // Flushes every appended record to stable storage: fdatasync(2), or fsync(2) on macOS,
+  // where neither flushes the drive's own write cache (that needs F_FULLFSYNC). Throws
+  // JournalError(Io) on failure.
+  void sync();
+
   SeqNo last_seq_no() const { return last_seq_no_; }
+  // The file's size: the offset the next record will be written at.
   std::uint64_t bytes_written() const { return bytes_written_; }
 
  private:
+  JournalWriter() = default;
   void write_all(std::string_view bytes);
 
   std::string path_;

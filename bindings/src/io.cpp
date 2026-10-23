@@ -24,26 +24,51 @@ namespace {
 
 using Path = std::filesystem::path;
 
-// Writes a new journal; closed by close() or at the end of a with block.
+// Writes a new journal, or continues one (resume); closed by close() or at the end of
+// a with block.
 class JournalWriter {
  public:
-  explicit JournalWriter(const Path& path) : writer_(std::make_unique<mf::JournalWriter>(path.string())) {}
+  explicit JournalWriter(const Path& path) : writer_(std::make_unique<mf::JournalWriter>(path.string())) {
+    update();
+  }
+
+  static JournalWriter resume(const Path& path) {
+    std::uint64_t trimmed = 0;
+    JournalWriter w(mf::JournalWriter::resume(path.string(), &trimmed));
+    w.trimmed_bytes_ = trimmed;
+    return w;
+  }
 
   void append(const mf::JournalRecord& record) {
-    if (!writer_) throw py::value_error("journal is closed");
-    writer_->append(record);
-    last_seq_no_ = writer_->last_seq_no();
-    bytes_written_ = writer_->bytes_written();
+    get().append(record);
+    update();
+  }
+  void sync() {
+    auto& writer = get();
+    py::gil_scoped_release release;
+    writer.sync();
   }
   void close() { writer_.reset(); }
 
   mf::SeqNo last_seq_no() const { return last_seq_no_; }
   std::uint64_t bytes_written() const { return bytes_written_; }
+  std::uint64_t trimmed_bytes() const { return trimmed_bytes_; }
 
  private:
+  explicit JournalWriter(std::unique_ptr<mf::JournalWriter> writer) : writer_(std::move(writer)) { update(); }
+  mf::JournalWriter& get() {
+    if (!writer_) throw py::value_error("journal is closed");
+    return *writer_;
+  }
+  void update() {
+    last_seq_no_ = writer_->last_seq_no();
+    bytes_written_ = writer_->bytes_written();
+  }
+
   std::unique_ptr<mf::JournalWriter> writer_;
   mf::SeqNo last_seq_no_{};
   std::uint64_t bytes_written_{};
+  std::uint64_t trimmed_bytes_{};
 };
 
 struct ReplayResult {
@@ -64,12 +89,16 @@ void bind_io(py::module_& m) {
   py::class_<JournalWriter>(m, "JournalWriter",
                             "Creates a new journal (never overwrites) and appends records.")
       .def(py::init<const Path&>(), py::arg("path"))
+      .def_static("resume", &JournalWriter::resume, py::arg("path"),
+                  "Continues an existing journal; a torn final record is cut off (trimmed_bytes).")
       .def("append", &JournalWriter::append, py::arg("record"))
+      .def("sync", &JournalWriter::sync, "fdatasync (fsync on macOS) the appended records.")
       .def("close", &JournalWriter::close)
       .def("__enter__", [](py::handle self) { return self; })
       .def("__exit__", [](JournalWriter& w, const py::args&) { w.close(); })
       .def_property_readonly("last_seq_no", &JournalWriter::last_seq_no)
-      .def_property_readonly("bytes_written", &JournalWriter::bytes_written);
+      .def_property_readonly("bytes_written", &JournalWriter::bytes_written)
+      .def_property_readonly("trimmed_bytes", &JournalWriter::trimmed_bytes);
 
   py::class_<mf::JournalReader>(m, "JournalReader",
                                 "Reads and validates a journal; iterate it for its records.")

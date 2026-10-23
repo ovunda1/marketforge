@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 9 (Costs and analytics)
+## Current milestone: 10 (Services)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -88,6 +88,26 @@ make data-fred       # FRED DTB3, the risk-free rate (no key)
 make showcase        # M9: tsmom and xsmom on Tiingo, gross vs net (not in CI; outputs committed)
 ```
 
+Services (M10, `services/`, `deploy/`, docs/services.md, docs/learning/m10.md): exactly ONE
+process, the matcher (`services/matcher/`), owns every Engine, sequencer and journal;
+API workers (`services/api/`, never import mfengine: a test checks) forward requests over
+the Redis stream `mf:cmd` and get replies on their own reply stream. Each batch is a group
+commit: intake log (`<SYM>/intake.jsonl`: request id, client_order_id, order id) written
+and fsynced BEFORE the first journal write, then journal + engine, journal fsync, and only
+then replies and market data. Idempotency (client_order_id, Idempotency-Key) is decided in
+the matcher. Restart: `JournalWriter::resume` (trims a torn tail), drop orphan intake
+entries, newest snapshot + journal tail, new epoch. Postgres is a projection: the
+projector replays the journals, one transaction per batch with a per-symbol cursor
+(`python -m services.projector verify` compares with a fresh replay). Market data:
+snapshot + `md_seq` deltas per epoch; slow WebSocket clients are resnapshotted or closed
+(4008), never waited for. Secrets only from env / git-ignored `.env` (copy `.env.example`).
+
+```sh
+make up / make down          # the stack (needs .env); make gateway-smoke on a running stack
+make test-services           # API suite on a fresh compose project mf-test (KEEP=1 keeps it)
+make projection-rebuild      # Postgres projection rebuilt from the journals
+```
+
 `MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency
 walk after every command; benchmark builds turn it off. The `seq_no` monotonicity
 check in `OrderBook::process` is always on.
@@ -121,7 +141,7 @@ Golden scenarios live in `engine/tests/golden/` (`*.cmds` + hand-derived `*.even
 and run against both engines. Formats: `docs/event-format.md`; order-type rules:
 `docs/order-types.md`.
 
-Later milestones add `lint`, `fmt`, `up`, `down` and `demo` targets.
+Later milestones add `lint`, `fmt` and `demo` targets.
 
 ## Conventions
 

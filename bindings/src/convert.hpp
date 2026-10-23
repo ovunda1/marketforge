@@ -191,7 +191,7 @@ class ValueClass {
         T t{};
         std::vector<bool> seen(fields->size());
         for (const auto& [key, value] : kwargs) {
-          const auto k = key.cast<std::string>();
+          const auto k = py::cast<std::string>(key);  // not key.cast<>: gcc parses a structured binding in a template as dependent
           std::size_t i = 0;
           while (i < fields->size() && k != (*fields)[i].name) ++i;
           if (i == fields->size()) raise(PyExc_TypeError, "unexpected keyword argument '" + k + "'");

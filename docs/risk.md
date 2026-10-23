@@ -293,8 +293,9 @@ bad or duplicate account ids and malformed YAML all raise `ConfigError` naming t
 
 **The engine never reads YAML.** `mf_driver --config` runs the commands first as
 `seq_no` 1..k at time 0. `mf-journal --config` journals them the same way, so the
-command file continues at `k + 1`. The live gateway (M10) will sequence the same
-commands at startup, and the runtime admin endpoint will send the same command types.
+command file continues at `k + 1`. The live matcher (M10) journals the same
+commands at a symbol's first start (`risk_config` in the instruments file), and the
+`/admin/*` endpoints send the same command types.
 
 ## What is not here
 

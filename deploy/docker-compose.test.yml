@@ -1,0 +1,41 @@
+# Overrides for the compose-test stack (`make test-services`, project mf-test): the test
+# instruments, small WebSocket queues and socket buffers so a stalled client overflows
+# quickly, frequent snapshots, a short backtest timeout (a killed job is retried once
+# arq's lock expires, timeout + 70 s), and a `tester` container in the network for the
+# slow client (started with --no-deps, so compose never recreates the api under a test).
+
+x-test-env: &test-env
+  MF_INSTRUMENTS: /app/deploy/config/instruments.test.yaml
+
+services:
+  migrate:
+    environment:
+      <<: *test-env
+  matcher:
+    environment:
+      <<: *test-env
+      MF_SNAPSHOT_EVERY: "500"
+  projector:
+    environment:
+      <<: *test-env
+  api:
+    environment:
+      <<: *test-env
+      MF_WS_QUEUE: "16"
+      MF_WS_MAX_OVERFLOWS: "2"
+      MF_WS_SEND_TIMEOUT_S: "3"
+    sysctls:
+      net.ipv4.tcp_wmem: "4096 4096 4096"
+  worker:
+    environment:
+      <<: *test-env
+      MF_BACKTEST_TIMEOUT_S: "60"
+  tester:
+    image: marketforge:dev
+    profiles: ["test"]
+    environment:
+      <<: *test-env
+    sysctls:
+      net.ipv4.tcp_rmem: "4096 4096 4096"
+    depends_on:
+      api: {condition: service_healthy}
