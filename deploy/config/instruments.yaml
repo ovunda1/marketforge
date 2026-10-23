@@ -1,11 +1,21 @@
 # Instruments listed by `make up` (M10). Tick sizes are text, never floats. Each symbol
 # gets its own engine, journal and intake log under the matcher's data directory.
+# Every symbol is fictional (M11): simulated prices must never be mistaken for a real
+# stock's (a test checks this list against real tickers). SMOKE is for `make
+# gateway-smoke` only, so the smoke run never touches the demo market.
 instruments:
-  - symbol: AAPL
+  - symbol: ACME
+    name: Acme Corporation
     tick_size: "0.01"
     risk_config: risk.yaml
-  - symbol: MSFT
+  - symbol: GLOBEX
+    name: Globex
     tick_size: "0.01"
     risk_config: risk.yaml
-  - symbol: BTCUSD
-    tick_size: "0.5"
+  - symbol: INITECH
+    name: Initech
+    tick_size: "0.05"
+    risk_config: risk.yaml
+  - symbol: SMOKE
+    name: Smoke test (no demo flow)
+    tick_size: "0.01"

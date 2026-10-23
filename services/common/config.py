@@ -7,6 +7,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from services.common.instruments import Instrument
 
 
 def _env(name: str, default: str) -> str:
@@ -17,6 +21,7 @@ def _env(name: str, default: str) -> str:
 class Settings:
     symbols: tuple[str, ...] = ()
     instruments_file: Path | None = None
+    instruments: tuple[Instrument, ...] = ()  # symbol, tick size text, display name
     redis_url: str = "redis://localhost:6379/0"
     # libpq-style parts; the password comes from PGPASSWORD only.
     pg_host: str = "localhost"
@@ -36,6 +41,15 @@ class Settings:
     fsync: bool = True  # group commit: intake and journal fsynced before any reply
     depth: int = 50  # levels per side in published market data
     backtest_timeout_s: int = 1800
+    # M11, the dashboard. Demo mode turns on self-service practice accounts.
+    demo_mode: bool = False
+    # Peers whose X-Forwarded-For is believed (IPs, CIDRs or hostnames, e.g. the nginx
+    # container); any other peer's header is ignored.
+    trusted_proxies: tuple[str, ...] = ()
+    practice_per_ip_per_hour: int = 5  # practice accounts one client IP may create
+    practice_backtest_cap: int = 2  # queued + running backtests per practice account
+    showcase_dir: Path = Path("research/showcase")  # committed showcase runs, served read-only
+    data_root: Path = Path("data/normalized")  # the worker's datasets (the catalog)
 
     @property
     def database_url(self) -> str:
@@ -47,14 +61,15 @@ class Settings:
     @classmethod
     def from_env(cls) -> Settings:
         instruments_file = Path(_env("MF_INSTRUMENTS", "deploy/config/instruments.yaml"))
-        symbols: tuple[str, ...] = ()
+        instruments: tuple[Instrument, ...] = ()
         if instruments_file.is_file():
             from services.common.instruments import load_instruments
 
-            symbols = tuple(i.symbol for i in load_instruments(instruments_file))
+            instruments = tuple(load_instruments(instruments_file))
         return cls(
-            symbols=symbols,
+            symbols=tuple(i.symbol for i in instruments),
             instruments_file=instruments_file,
+            instruments=instruments,
             redis_url=_env("MF_REDIS_URL", cls.redis_url),
             pg_host=_env("PGHOST", cls.pg_host),
             pg_port=int(_env("PGPORT", str(cls.pg_port))),
@@ -73,4 +88,10 @@ class Settings:
             fsync=_env("MF_FSYNC", "1") != "0",
             depth=int(_env("MF_DEPTH", str(cls.depth))),
             backtest_timeout_s=int(_env("MF_BACKTEST_TIMEOUT_S", str(cls.backtest_timeout_s))),
+            demo_mode=_env("MF_DEMO_MODE", "0") == "1",
+            trusted_proxies=tuple(p.strip() for p in _env("MF_TRUSTED_PROXIES", "").split(",") if p.strip()),
+            practice_per_ip_per_hour=int(_env("MF_PRACTICE_PER_IP_PER_HOUR", str(cls.practice_per_ip_per_hour))),
+            practice_backtest_cap=int(_env("MF_PRACTICE_BACKTESTS", str(cls.practice_backtest_cap))),
+            showcase_dir=Path(_env("MF_SHOWCASE_DIR", str(cls.showcase_dir))),
+            data_root=Path(_env("MF_DATA_ROOT", str(cls.data_root))),
         )

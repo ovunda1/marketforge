@@ -1,6 +1,12 @@
 # The compose-test stack (deploy/docker-compose.test.yml): one symbol per test area so
 # tests do not disturb each other's books.
 instruments:
+  # The dashboard's end-to-end tests (M11), listed first: the demo market and the smoke symbol.
+  - {symbol: ACME, name: Acme Corporation, tick_size: "0.01", risk_config: risk.yaml}
+  - {symbol: GLOBEX, name: Globex, tick_size: "0.01", risk_config: risk.yaml}
+  - {symbol: INITECH, name: Initech, tick_size: "0.05", risk_config: risk.yaml}
+  - {symbol: SMOKE, tick_size: "0.01"}
+  # The API suite (M10):
   - {symbol: AAA, tick_size: "0.01"}
   - {symbol: BBB, tick_size: "0.01"}
   - {symbol: CCC, tick_size: "0.01"}

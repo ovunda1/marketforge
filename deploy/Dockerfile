@@ -32,10 +32,12 @@ COPY --from=build /wheels /wheels
 RUN wheel="$(ls /wheels/marketforge-*.whl)" && pip install "${wheel}[services]" && rm -rf /wheels \
  && python -c "import mfengine; assert not mfengine.INVARIANT_CHECKS; print('mfengine', mfengine.BUILD_TYPE)"
 RUN useradd --system --uid 10001 --home-dir /app mf \
- && mkdir -p /app /var/lib/marketforge/data /var/lib/marketforge/runs /tmp/prom \
+ && mkdir -p /app /var/lib/marketforge/data /var/lib/marketforge/runs /var/lib/marketforge/bot /tmp/prom \
  && chown -R mf /app /var/lib/marketforge /tmp/prom
 WORKDIR /app
 COPY deploy/config /app/deploy/config
+# The committed showcase runs (M11): the gateway serves them read-only as featured runs.
+COPY research/showcase /app/research/showcase
 USER mf
 EXPOSE 8000
 CMD ["python", "-m", "services.matcher"]

@@ -1,0 +1,1291 @@
+{
+ "_note": "Hand-written cases for the backtest form (M11). Each lists the fields that must report an error (sorted, unique). services/common/backtest_form.py and dashboard/src/lib/backtestForm.ts are both tested against every case with catalog.json.",
+ "cases": [
+  {
+   "name": "valid tsmom",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": []
+  },
+  {
+   "name": "valid xsmom",
+   "form": {
+    "dataset": "etf",
+    "strategy": "xsmom",
+    "params": {
+     "lookback_months": [
+      6,
+      12
+     ],
+     "skip_months": [
+      1
+     ],
+     "quantile": [
+      0.2
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "EEM",
+     "EFA",
+     "GLD",
+     "IWM",
+     "QQQ",
+     "SPY"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": []
+  },
+  {
+   "name": "valid synthetic, 2 years of training",
+   "form": {
+    "dataset": "synthetic",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2012-01-02",
+    "end": "2014-12-31",
+    "symbols": [
+     "AAA",
+     "BBB"
+    ],
+    "train_years": 2,
+    "costs": true
+   },
+   "error_fields": []
+  },
+  {
+   "name": "valid boundary: exactly train + test trading days",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-10-16",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 5,
+    "costs": true
+   },
+   "error_fields": []
+  },
+  {
+   "name": "valid: costs off",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": false
+   },
+   "error_fields": []
+  },
+  {
+   "name": "valid: a symbol that lists after the start",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "HYG"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": []
+  },
+  {
+   "name": "one day short of train + test",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-10-15",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 5,
+    "costs": true
+   },
+   "error_fields": [
+    "range"
+   ]
+  },
+  {
+   "name": "synthetic too short for 3 years of training",
+   "form": {
+    "dataset": "synthetic",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2012-01-02",
+    "end": "2014-12-31",
+    "symbols": [
+     "AAA",
+     "BBB"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "range"
+   ]
+  },
+  {
+   "name": "unknown dataset",
+   "form": {
+    "dataset": "nope",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "dataset"
+   ]
+  },
+  {
+   "name": "missing dataset",
+   "form": {
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "dataset"
+   ]
+  },
+  {
+   "name": "unknown strategy",
+   "form": {
+    "dataset": "etf",
+    "strategy": "magic",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "strategy"
+   ]
+  },
+  {
+   "name": "parameter value not allowed",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      61
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params.lookback"
+   ]
+  },
+  {
+   "name": "parameter with no value",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params.vol_window"
+   ]
+  },
+  {
+   "name": "parameter repeated",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      60
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params.lookback"
+   ]
+  },
+  {
+   "name": "parameter of another strategy",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ],
+     "quantile": [
+      0.2
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params.quantile"
+   ]
+  },
+  {
+   "name": "a boolean is not a number",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      true
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params.max_leverage"
+   ]
+  },
+  {
+   "name": "grid too large",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      20,
+      60,
+      120,
+      250
+     ],
+     "vol_window": [
+      20,
+      60
+     ],
+     "target_vol": [
+      0.05,
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params"
+   ]
+  },
+  {
+   "name": "params not an object",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": [
+     1,
+     2
+    ],
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "params"
+   ]
+  },
+  {
+   "name": "bad start date",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015/01/01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "start"
+   ]
+  },
+  {
+   "name": "bad end date",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": 20201231,
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "end"
+   ]
+  },
+  {
+   "name": "start before the data",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2014-12-31",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "start"
+   ]
+  },
+  {
+   "name": "end after the data",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2021-01-04",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "end"
+   ]
+  },
+  {
+   "name": "end before start",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2019-01-01",
+    "end": "2018-01-01",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "end"
+   ]
+  },
+  {
+   "name": "end equal to start",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2019-01-02",
+    "end": "2019-01-02",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "end"
+   ]
+  },
+  {
+   "name": "lookback longer than the training window",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      250
+     ],
+     "vol_window": [
+      60
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 1,
+    "costs": true
+   },
+   "error_fields": [
+    "train_years"
+   ]
+  },
+  {
+   "name": "xsmom lookback longer than the training window",
+   "form": {
+    "dataset": "etf",
+    "strategy": "xsmom",
+    "params": {
+     "lookback_months": [
+      12
+     ],
+     "skip_months": [
+      1
+     ],
+     "quantile": [
+      0.2
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "EEM",
+     "EFA",
+     "GLD",
+     "IWM",
+     "QQQ",
+     "SPY"
+    ],
+    "train_years": 1,
+    "costs": true
+   },
+   "error_fields": [
+    "train_years"
+   ]
+  },
+  {
+   "name": "symbol not in the dataset",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "AAPL"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "symbols"
+   ]
+  },
+  {
+   "name": "no symbols",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "symbols"
+   ]
+  },
+  {
+   "name": "symbols not a list",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": "SPY",
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "symbols"
+   ]
+  },
+  {
+   "name": "symbol listed twice",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "SPY"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "symbols"
+   ]
+  },
+  {
+   "name": "too few symbols for cross-sectional momentum",
+   "form": {
+    "dataset": "etf",
+    "strategy": "xsmom",
+    "params": {
+     "lookback_months": [
+      6,
+      12
+     ],
+     "skip_months": [
+      1
+     ],
+     "quantile": [
+      0.2
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "symbols"
+   ]
+  },
+  {
+   "name": "symbol with no data in the range",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2017-01-02",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "OLD"
+    ],
+    "train_years": 3,
+    "costs": true
+   },
+   "error_fields": [
+    "symbols"
+   ]
+  },
+  {
+   "name": "training years out of range",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 0,
+    "costs": true
+   },
+   "error_fields": [
+    "train_years"
+   ]
+  },
+  {
+   "name": "training years not a whole number",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 2.5,
+    "costs": true
+   },
+   "error_fields": [
+    "train_years"
+   ]
+  },
+  {
+   "name": "training years as a boolean",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": true,
+    "costs": true
+   },
+   "error_fields": [
+    "train_years"
+   ]
+  },
+  {
+   "name": "costs missing",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3
+   },
+   "error_fields": [
+    "costs"
+   ]
+  },
+  {
+   "name": "costs not a boolean",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": "yes"
+   },
+   "error_fields": [
+    "costs"
+   ]
+  },
+  {
+   "name": "an unknown field",
+   "form": {
+    "dataset": "etf",
+    "strategy": "tsmom",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "2015-01-01",
+    "end": "2020-12-31",
+    "symbols": [
+     "SPY",
+     "TLT",
+     "GLD"
+    ],
+    "train_years": 3,
+    "costs": true,
+    "colour": "blue"
+   },
+   "error_fields": [
+    "dataset"
+   ]
+  },
+  {
+   "name": "several problems at once",
+   "form": {
+    "dataset": "etf",
+    "strategy": "magic",
+    "params": {
+     "lookback": [
+      60,
+      120
+     ],
+     "vol_window": [
+      20
+     ],
+     "target_vol": [
+      0.1
+     ],
+     "max_leverage": [
+      2.0
+     ]
+    },
+    "start": "x",
+    "end": "2020-12-31",
+    "symbols": [],
+    "train_years": 3,
+    "costs": null
+   },
+   "error_fields": [
+    "costs",
+    "start",
+    "strategy",
+    "symbols"
+   ]
+  }
+ ]
+}

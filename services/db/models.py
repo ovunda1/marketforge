@@ -1,5 +1,5 @@
-"""PostgreSQL schema (M10), SQLAlchemy 2.0 Core. The migration in migrations/versions/
-creates exactly these tables.
+"""PostgreSQL schema (M10), SQLAlchemy 2.0 Core. The migrations in migrations/versions/
+create exactly these tables.
 
 Projection tables (rebuilt from the journals by the projector; `make projection-rebuild`):
 orders, fills, trades, positions, risk_limits, sessions, projection_cursor. Their
@@ -17,7 +17,7 @@ BIGINT nanoseconds, as in the journal.
 from __future__ import annotations
 
 from sqlalchemy import (BigInteger, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, MetaData, Numeric,
-                        String, Table, Text, UniqueConstraint, func)
+                        String, Table, Text, UniqueConstraint, false, func)
 from sqlalchemy.dialects.postgresql import JSONB
 
 metadata = MetaData()
@@ -36,6 +36,7 @@ accounts = Table(
     Column("api_key_prefix", String(8), nullable=False, unique=True),
     Column("api_key_hash", String(64), nullable=False, unique=True),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("practice", Boolean, nullable=False, server_default=false()),  # M11: self-service, demo mode
 )
 
 risk_limits = Table(
@@ -138,6 +139,7 @@ backtest_runs = Table(
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("started_at", DateTime(timezone=True)),
     Column("finished_at", DateTime(timezone=True)),
+    Index("ix_backtest_runs_account_status", "account_id", "status"),
 )
 
 backtest_metrics = Table(

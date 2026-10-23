@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 10 (Services)
+## Current milestone: 11 (Dashboard)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -106,6 +106,30 @@ snapshot + `md_seq` deltas per epoch; slow WebSocket clients are resnapshotted o
 make up / make down          # the stack (needs .env); make gateway-smoke on a running stack
 make test-services           # API suite on a fresh compose project mf-test (KEEP=1 keeps it)
 make projection-rebuild      # Postgres projection rebuilt from the journals
+```
+
+Dashboard (M11, `dashboard/`, docs/dashboard.md, docs/learning/m11.md): React + TypeScript
+(strict) + Vite, served by nginx in the compose stack (http://127.0.0.1:8080; `/api/*` and
+`/ws/*` proxied to the gateway). Node from Homebrew; `make dashboard-deps` runs `npm ci`.
+The market-data client (`src/lib/bookClient.ts`), the price parser (`src/lib/money.ts`) and
+the backtest form rules (`src/lib/backtestForm.ts`) have Python twins; both sides run the
+fixtures in `tests/fixtures/{marketdata,ticks,backtest_form}/` (regenerate market data with
+`.venv/bin/python tests/services/marketdata_fixtures.py`). Prices stay integer ticks in the
+browser (BigInt digits, never a float). Every integer the API returns is bounded below 2**53
+or a string (`services/common/safe_json.py`); the gateway refuses an unsafe one and the
+browser's `parseJson` throws on one. API keys: memory + sessionStorage only, never
+localStorage. Live symbols are fictional (ACME, GLOBEX, INITECH; SMOKE for gateway-smoke);
+real tickers only on backtest pages, labelled historical. Every reject and error code has a
+message + fix in `dashboard/src/content/rejects.json` (a test compares with the enums). The
+Overview's numbers come from results files at build time (`dashboard/facts.config.ts`):
+`make facts` writes `results/tests.json`, `make difftest-long` writes `results/difftest.json`.
+Practice accounts (demo mode, `MF_DEMO_MODE`): per-IP limit with `X-Forwarded-For` believed
+only from `MF_TRUSTED_PROXIES`; at most 2 backtests queued/running, form only.
+
+```sh
+make test-dashboard      # tsc + Vitest
+make e2e                 # Playwright (headless Chromium) on a fresh test stack (KEEP=1 keeps it)
+make facts               # every offline suite with JUnit output -> results/tests.json
 ```
 
 `MF_CHECK_INVARIANTS` (CMake option, default ON) runs the O(N) order book consistency

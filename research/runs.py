@@ -26,6 +26,7 @@ import hashlib
 import itertools
 import json
 import platform
+import re
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -129,9 +130,11 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
             except (TypeError, ValueError) as err:
                 raise ConfigError(f"[data.synthetic]: {err}") from None
     else:
-        if set(data) - {"rates"} not in ({"synthetic_bars"}, {"bars"}):
+        if set(data) - {"rates", *BAR_FILTERS} not in ({"synthetic_bars"}, {"bars"}):
             raise ConfigError("[data] for a bar run: either synthetic_bars = {...} or bars = path "
-                              "(and optionally rates = path, the risk-free rate)")
+                              "(and optionally rates = path, the risk-free rate, and the filters "
+                              "start, end, symbols)")
+        _check_filters(data)
     out["data"] = data
 
     registry = EVENT_STRATEGIES if kind == "event" else BAR_STRATEGIES
@@ -174,6 +177,38 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
 
 
 canonical_config = validate_config
+
+BAR_FILTERS = ("start", "end", "symbols")  # M11: a date range and a universe out of a bar dataset
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _check_filters(data: dict[str, Any]) -> None:
+    for name in ("start", "end"):
+        if name in data and (not isinstance(data[name], str) or not _ISO_DATE.match(data[name])):
+            raise ConfigError(f"[data] {name} must be a date like \"2015-01-02\"")
+    if "start" in data and "end" in data and data["start"] > data["end"]:
+        raise ConfigError("[data] start is after end")
+    if "symbols" in data:
+        syms = data["symbols"]
+        if not isinstance(syms, list) or not syms or not all(isinstance(x, str) for x in syms) \
+                or len(set(syms)) != len(syms):
+            raise ConfigError("[data] symbols must be a non-empty list of distinct symbol names")
+
+
+def _filter_bars(df: Any, data: dict[str, Any]) -> Any:
+    """The rows inside [start, end] (inclusive) for the chosen symbols."""
+    if "symbols" in data:
+        missing = sorted(set(data["symbols"]) - set(df["symbol"].astype(str).unique()))
+        if missing:
+            raise ConfigError(f"[data] symbols not in the data: {', '.join(missing)}")
+        df = df[df["symbol"].isin(data["symbols"])]
+    if "start" in data:
+        df = df[df["date"] >= data["start"]]
+    if "end" in data:
+        df = df[df["date"] <= data["end"]]
+    if len(df) == 0:
+        raise ConfigError("[data] no bars left after the start/end/symbols filters")
+    return df.reset_index(drop=True)
 
 
 def _analytics(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -232,6 +267,9 @@ def _load_data(cfg: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any
         entry = {"name": "bars", "path": None, "generated": params, "sha256": store.content_hash(df, "bars", meta),
                  "rows": len(df), "survivorship": "synthetic: no symbol ever delists"}
         entries, frames = [entry], {"bars": df, "survivorship": entry["survivorship"]}
+        if any(k in data for k in BAR_FILTERS):
+            entry["filter"] = {k: data[k] for k in BAR_FILTERS if k in data}
+            frames["bars"] = _filter_bars(df, data)
     else:
         entries, frames = [], {}
         for name in ("quotes", "trades", "bars"):
@@ -239,13 +277,17 @@ def _load_data(cfg: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any
                 ds = store.load(data[name], name)
                 entry = {"name": name, "path": str(data[name]), "generated": None, "sha256": ds.sha256,
                          "rows": len(ds.df)}
+                df = ds.df
                 if name == "bars":
                     entry["survivorship"] = ds.meta.get("survivorship", "unknown: not stated by the dataset")
                     frames["survivorship"] = entry["survivorship"]
+                    if any(k in data for k in BAR_FILTERS):
+                        entry["filter"] = {k: data[k] for k in BAR_FILTERS if k in data}
+                        df = _filter_bars(df, data)
                 else:
                     frames["tick_size"] = ds.meta.get("instrument", {}).get("tick_size", "1")
                 entries.append(entry)
-                frames[name] = ds.df
+                frames[name] = df
         frames.setdefault("survivorship", "recorded single instrument")
     if "rates" in data:
         ds = store.load(data["rates"], "rates")

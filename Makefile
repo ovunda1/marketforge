@@ -28,7 +28,8 @@ SEED       ?= 20261020
 .PHONY: venv venv-release build test test-cpp test-py sanitize difftest difftest-long difftest-replay \
         replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean \
         backtest reproduce examples showcase data-binance data-tiingo data-fred \
-        env-check up down test-services gateway-smoke projection-rebuild
+        env-check up down test-services gateway-smoke projection-rebuild \
+        dashboard-deps test-dashboard e2e facts
 
 venv: $(VENV)/.installed
 
@@ -87,9 +88,11 @@ difftest: venv build
 	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 100000
 
 # Both generator profiles: narrow (fixed mid) and wide (drifting mid, far-away orders).
+# Records the outcome in results/difftest.json (the dashboard's Overview reads it).
 difftest-long: venv build
-	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 1000000
-	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 1000000 --profile wide
+	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 1000000 --record results/difftest.json
+	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --seed $(SEED) --n 1000000 --profile wide \
+	  --record results/difftest.json
 
 difftest-replay: venv build
 	$(VENV_PY) -m reference.difftest --driver $(DRIVER) --replay
@@ -219,7 +222,37 @@ test-services: env-check venv
 # fan-out lag, printed as JSON. Not a benchmark (bench/ measures the engine).
 gateway-smoke: venv
 	$(VENV_PY) -m services.smoke --url $(API_URL) --key $(call new_key,$(COMPOSE),smoke-a) \
-	  --key2 $(call new_key,$(COMPOSE),smoke-b) $(if $(N),--n $(N))
+	  --key2 $(call new_key,$(COMPOSE),smoke-b) $(if $(N),--n $(N)) --symbol SMOKE
+
+# --- Dashboard (M11) ------------------------------------------------------------------------
+DASHBOARD_URL ?= http://127.0.0.1:8080
+
+dashboard/node_modules/.installed: dashboard/package.json dashboard/package-lock.json
+	cd dashboard && npm ci --no-audit --no-fund
+	touch $@
+
+dashboard-deps: dashboard/node_modules/.installed
+
+# Type check and unit tests (including the shared fixtures with the Python client).
+test-dashboard: dashboard-deps
+	cd dashboard && npx tsc -p . && npx vitest run
+
+# The browser tests (Playwright, headless Chromium) on a fresh test stack, like
+# test-services; screenshots land in dashboard/test-results/screenshots.
+e2e: env-check dashboard-deps
+	cd dashboard && npx playwright install chromium
+	$(COMPOSE_TEST) down -v --remove-orphans
+	$(COMPOSE_TEST) up -d --build --wait
+	(cd dashboard && MF_COMPOSE="$(COMPOSE_TEST)" MF_DASHBOARD_URL=$(DASHBOARD_URL) npx playwright test); \
+	  status=$$?; [ -n "$(KEEP)" ] || $(COMPOSE_TEST) down -v; exit $$status
+
+# results/tests.json: every offline suite with JUnit output, counted (the Overview reads it).
+facts: venv build dashboard-deps
+	ctest --test-dir $(BUILD_DIR) --no-tests=error --output-junit $(abspath $(BUILD_DIR))/ctest-junit.xml
+	MF_DRIVER=$(DRIVER) $(VENV_PY) -m pytest -q --junitxml=$(BUILD_DIR)/pytest-junit.xml
+	cd dashboard && npx vitest run --reporter=default --reporter=junit --outputFile.junit=../$(BUILD_DIR)/vitest-junit.xml
+	$(VENV_PY) results/facts.py "C++ (GoogleTest)=$(BUILD_DIR)/ctest-junit.xml" \
+	  "Python (pytest)=$(BUILD_DIR)/pytest-junit.xml" "Dashboard (Vitest)=$(BUILD_DIR)/vitest-junit.xml"
 
 # Forget the Postgres projection; the projector rebuilds it from the journals.
 projection-rebuild:

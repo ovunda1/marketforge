@@ -39,7 +39,7 @@ def test_no_secret_values_in_deploy_files() -> None:
     for p in files:
         text = p.read_text()
         for name in ("POSTGRES_PASSWORD", "PGPASSWORD", "TIINGO_API_KEY", "MF_BOOTSTRAP_ADMIN_KEY"):
-            for m in re.finditer(rf"(?<![{{\w]){name}\s*[:=]\s*(\S*)", text):  # not a ${NAME} reference
+            for m in re.finditer(rf"(?<![{{\w]){name}[ \t]*[:=][ \t]*(\S*)", text):  # not a ${NAME} reference
                 value = m.group(1).strip("\"'")
                 assert value == "" or value.startswith("${") or value == "change-me", (p, m.group(0))
     dockerfile = (DEPLOY / "Dockerfile").read_text()
