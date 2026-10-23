@@ -12,7 +12,7 @@ from .stack import WS, Account, client, eventually, order
 
 
 def test_snapshot_plus_deltas_equal_the_rest_book(alice: Account, bob: Account) -> None:
-    ws = wsc.connect(f"{WS}/ws/marketdata/HHH")
+    ws = wsc.connect(f"{WS}/ws/marketdata/HHH", max_queue=None)  # never stops reading
     feed = BookClient("HHH")
     first = json.loads(ws.recv(timeout=10))
     assert first["type"] == "snapshot" and feed.on_message(first)

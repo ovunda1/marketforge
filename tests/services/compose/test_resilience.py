@@ -45,7 +45,7 @@ def test_kill_the_matcher_under_load_then_retry_with_the_same_keys() -> None:
     accounts = [create_account() for _ in range(4)]
     bodies = [(accounts[i % 4], order("EEE", "buy" if i % 2 else "sell", 6000 + i % 5 - 2, 1 + i % 3))
               for i in range(400)]
-    ws = wsc.connect(f"{WS}/ws/marketdata/EEE")
+    ws = wsc.connect(f"{WS}/ws/marketdata/EEE", max_queue=None)  # never stops reading
     feed = BookClient("EEE")
     assert feed.on_message(json.loads(ws.recv(timeout=10)))
     old_epoch = feed.epoch
@@ -112,6 +112,19 @@ def test_a_stalled_websocket_client_is_resnapshotted_or_dropped_while_orders_kee
     fast = wsc.connect(f"{WS}/ws/marketdata/GGG")
     fast_feed = BookClient("GGG")
     fast_feed.on_message(json.loads(fast.recv(timeout=10)))
+    fast_gaps: list[dict] = []
+    stop_fast = threading.Event()
+
+    def read_fast() -> None:  # a client that keeps up: reads all the time, in its own thread
+        while not stop_fast.is_set():
+            try:
+                msg = json.loads(fast.recv(timeout=0.5))
+            except TimeoutError:
+                continue
+            if not fast_feed.on_message(msg):
+                fast_gaps.append(msg)
+    reader = threading.Thread(target=read_fast)
+    reader.start()
     # --no-deps: compose must not recreate the api (its dependency) under the test.
     run = compose("run", "-d", "--no-deps", "tester", "python", "-m", "services.client", "slow",
                   "--url", "ws://api:8000/ws/marketdata/GGG", "--run-s", "15")
@@ -146,16 +159,12 @@ def test_a_stalled_websocket_client_is_resnapshotted_or_dropped_while_orders_kee
     assert result["synced_after"] and result["matches_book"], result
 
     # The fast client saw every update in order, with no gap and no resnapshot.
-    gaps = 0
-    while True:
-        try:
-            msg = json.loads(fast.recv(timeout=1))
-        except TimeoutError:
-            break
-        if not fast_feed.on_message(msg):
-            gaps += 1
-    assert gaps == 0 and fast_feed.synced and fast_feed.resnapshots == 0
-    assert fast_feed.md_seq == book("GGG")["md_seq"]
+    final = book("GGG")["md_seq"]
+    eventually(lambda: fast_feed.md_seq >= final, what="the fast client to catch up")
+    stop_fast.set()
+    reader.join()
+    assert fast_gaps == [] and fast_feed.synced and fast_feed.resnapshots == 0
+    assert fast_feed.md_seq == final
     fast.close()
     print(f"4000 orders in {elapsed:.1f}s with a frozen client attached: {result}")
 
