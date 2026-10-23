@@ -47,3 +47,35 @@ def test_test_services_uses_its_own_project_and_tears_it_down(tmp_path) -> None:
     assert "MF_COMPOSE_API=" in out
     up = subprocess.run(["make", "-n", "up"], cwd=REPO_ROOT, capture_output=True, text=True, check=True).stdout
     assert "-p mf-test" not in up and "docker-compose.test.yml" not in up
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make not installed")
+def test_e2e_uses_the_test_project_and_tears_it_down_from_the_repo_root() -> None:
+    # M11: like test-services, and the teardown runs outside dashboard/ (where .env is not).
+    out = subprocess.run(["make", "-n", "-W", "dashboard/package.json", "e2e"], cwd=REPO_ROOT, capture_output=True,
+                         text=True, check=True).stdout
+    assert "-p mf-test" in out and "down -v" in out and "exit $status" in out
+    run = next(line for line in out.splitlines() if "playwright test" in line)
+    assert run.lstrip().startswith("(cd dashboard &&") and "MF_COMPOSE=" in run
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make not installed")
+def test_difftest_long_records_its_outcome_for_the_overview() -> None:
+    out = subprocess.run(["make", "-n", "difftest-long"], cwd=REPO_ROOT, capture_output=True, text=True,
+                         check=True).stdout
+    assert out.count("--record results/difftest.json") == 2 and "--profile wide" in out
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make not installed")
+def test_only_the_demo_and_the_browser_tests_start_the_bot() -> None:
+    # M11: the demo bot writes all the time; the API suite's projection checks need a quiet
+    # exchange, so its stack starts without the "demo" profile (and removes a leftover bot).
+    def dry(target: str) -> list[str]:
+        out = subprocess.run(["make", "-n", "-W", "dashboard/package.json", target], cwd=REPO_ROOT,
+                             capture_output=True, text=True, check=True).stdout
+        return [line for line in out.splitlines() if " up " in line or " down " in line]
+    services = dry("test-services")
+    assert any("up -d" in line and "--profile demo" not in line for line in services)
+    assert all("--profile demo" in line for line in services if " down " in line)
+    assert all("--profile demo" in line for line in dry("e2e"))
+    assert all("--profile demo" in line for line in dry("up"))

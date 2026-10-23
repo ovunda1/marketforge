@@ -3,109 +3,16 @@ through `Deps`, requests through httpx's in-process ASGI transport (no sockets).
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
-import httpx
 import pytest
 
-from services.api.app import create_app
-from services.api.auth import generate_api_key
-from services.api.deps import Account, Deps, MatcherTimeout
-from services.api.hub import Hub
-from services.common.config import Settings
-from services.common.protocol import Reply, Request
-
-TRADER_KEY, TRADER_PREFIX, TRADER_HASH = generate_api_key()
-OTHER_KEY, OTHER_PREFIX, OTHER_HASH = generate_api_key()
-ADMIN_KEY, ADMIN_PREFIX, ADMIN_HASH = generate_api_key()
-ACCOUNTS = {TRADER_PREFIX: Account(7, "trader", TRADER_HASH), OTHER_PREFIX: Account(8, "trader", OTHER_HASH),
-            ADMIN_PREFIX: Account(1, "admin", ADMIN_HASH)}
-
-
-class FakeMatcher:
-    def __init__(self) -> None:
-        self.sent: list[Request] = []
-        self.reply: Reply | Exception | None = None
-
-    async def request(self, req: Request) -> Reply:
-        self.sent.append(req)
-        if isinstance(self.reply, Exception):
-            raise self.reply
-        assert self.reply is not None
-        return self.reply
-
-
-class FakeStore:
-    def __init__(self) -> None:
-        self.orders: dict[int, dict[str, Any]] = {}
-        self.waited: list[tuple[str, int]] = []
-        self.backtests: dict[str, dict[str, Any]] = {}
-
-    async def account_by_prefix(self, prefix: str) -> Account | None:
-        return ACCOUNTS.get(prefix)
-
-    async def wait_for(self, symbol: str, seq_no: int, timeout_s: float) -> bool:
-        self.waited.append((symbol, seq_no))
-        return True
-
-    async def get_order(self, order_id: int) -> dict[str, Any] | None:
-        return self.orders.get(order_id)
-
-    async def trades(self, symbol: str, limit: int) -> list[dict[str, Any]]:
-        return [{"trade_id": 1, "price": 100, "qty": 2}][:limit]
-
-    async def positions(self, account_id: int) -> list[dict[str, Any]]:
-        return [{"symbol": "AAA", "qty": 3, "cash": -300, "open_buy_qty": 0, "open_sell_qty": 0,
-                 "open_notional": 0, "mark": 101}]
-
-    async def create_backtest(self, run_id: str, account_id: int, config: dict[str, Any]) -> None:
-        self.backtests[run_id] = {"id": run_id, "account_id": account_id, "status": "queued", "config": config}
-
-    async def get_backtest(self, run_id: str) -> dict[str, Any] | None:
-        return self.backtests.get(run_id)
-
-
-class FakeCache:
-    async def get_book(self, symbol: str) -> dict[str, Any] | None:
-        if symbol != "AAA":
-            return None
-        return {"type": "snapshot", "symbol": "AAA", "epoch": 1, "md_seq": 4, "seq_no": 9,
-                "bids": [[100 - i, 1, 1] for i in range(20)], "asks": [[101 + i, 1, 1] for i in range(20)]}
-
-
-class FakeLimiter:
-    def __init__(self) -> None:
-        self.allow_requests = True
-
-    async def allow(self, account_id: int) -> bool:
-        return self.allow_requests
-
-
-class FakeQueue:
-    def __init__(self) -> None:
-        self.jobs: list[str] = []
-
-    async def enqueue(self, run_id: str) -> None:
-        self.jobs.append(run_id)
+from api_fakes import ADMIN_KEY, OTHER_KEY, TRADER_KEY, Deps, MatcherTimeout, Reply, call, error, make_deps
 
 
 @pytest.fixture
 def deps() -> Deps:
-    return Deps(matcher=FakeMatcher(), store=FakeStore(), cache=FakeCache(), limiter=FakeLimiter(), hub=Hub(),
-                queue=FakeQueue())
-
-
-SETTINGS = Settings(symbols=("AAA", "BBB"), request_timeout_s=0.5)
-
-
-def call(deps: Deps, method: str, path: str, key: str | None = TRADER_KEY, **kw: Any) -> httpx.Response:
-    async def go() -> httpx.Response:
-        app = create_app(SETTINGS, deps=deps)
-        headers = {"X-API-Key": key} if key else {}
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as client:
-            return await client.request(method, path, headers=headers, **kw)
-    return asyncio.run(go())
+    return make_deps()
 
 
 ORDER = {"symbol": "AAA", "side": "buy", "type": "limit", "tif": "gtc", "price": 100, "qty": 5,
@@ -114,12 +21,6 @@ ACK = {"type": "ack", "seq_no": 9, "order_id": 42, "side": "buy", "order_type": 
        "post_only": False, "stp": "cancel_newest", "price": 100, "qty": 5}
 FILL = {"type": "fill", "seq_no": 9, "trade_id": 3, "order_id": 42, "account_id": 7, "side": "buy",
         "liquidity": "taker", "price": 100, "qty": 2, "leaves_qty": 3, "cum_qty": 2}
-
-
-def error(resp: httpx.Response) -> dict[str, Any]:
-    body = resp.json()
-    assert set(body) == {"error"} and {"code", "message", "request_id"} <= set(body["error"]), body
-    return body["error"]
 
 
 def test_requests_without_a_valid_key_are_unauthorized(deps: Deps) -> None:
@@ -221,7 +122,7 @@ def test_the_rate_limit_is_a_429(deps: Deps) -> None:
 def test_positions_are_only_for_the_own_account(deps: Deps) -> None:
     assert call(deps, "GET", "/accounts/8/positions").status_code == 404
     [p] = call(deps, "GET", "/accounts/7/positions").json()["positions"]
-    assert p["pnl"] == -300 + 3 * 101  # cash + qty * mark, integer ticks x qty
+    assert p["pnl"] == str(-300 + 3 * 101)  # cash + qty * mark, integer ticks x qty, as text (M11)
 
 
 def test_a_backtest_is_queued_with_its_config(deps: Deps) -> None:
@@ -232,7 +133,8 @@ def test_a_backtest_is_queued_with_its_config(deps: Deps) -> None:
     run_id = r.json()["id"]
     assert deps.queue.jobs == [run_id] and deps.store.backtests[run_id]["config"] == config
     assert call(deps, "GET", f"/backtests/{run_id}").json()["status"] == "queued"
-    assert call(deps, "GET", f"/backtests/{run_id}", key=OTHER_KEY).status_code == 404
+    assert call(deps, "GET", f"/backtests/{run_id}", key=None).status_code == 200  # public since M11
+    assert call(deps, "GET", "/backtests/nope", key=None).status_code == 404
     assert call(deps, "POST", "/backtests", json={"config": {"kind": "nope"}}).status_code == 422
 
 

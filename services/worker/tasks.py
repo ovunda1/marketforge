@@ -95,6 +95,11 @@ async def startup(ctx: dict[str, Any]) -> None:
     logging.basicConfig(level=logging.INFO, format='{"level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}')
     ctx["settings"] = Settings.from_env()
     ctx["engine"] = make_engine(ctx["settings"])
+    from services.worker.catalog import build_catalog
+
+    catalog = await asyncio.to_thread(build_catalog, ctx["settings"].data_root)
+    await ctx["redis"].set(keys.CATALOG, json.dumps(catalog))
+    log.info("catalog: %s", [d["id"] for d in catalog["datasets"]])
 
 
 async def shutdown(ctx: dict[str, Any]) -> None:

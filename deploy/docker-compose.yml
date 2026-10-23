@@ -8,6 +8,14 @@
 #   projector          journals -> Postgres projection (asynchronous)
 #   api                FastAPI gateway, several worker processes, no engine
 #   worker             backtest jobs (arq)
+#   dashboard          (M11) the web UI: nginx serving the site, proxying /api and /ws to api
+#   demo-bot           (M11) liquidity for the fictional demo symbols, through the public API
+#                      (profile "demo": `make up` and `make e2e` start it; the API suite
+#                      needs a quiet exchange and runs without it)
+#
+# The dashboard is at http://127.0.0.1:8080. Demo mode (practice accounts, the bot) is on
+# by default here: this file runs a local demo. MF_DEMO_MODE=0 in .env turns practice
+# accounts off.
 
 name: marketforge
 
@@ -97,11 +105,16 @@ services:
     # No permessage-deflate: compression state is per connection, so the gateway would
     # compress every market-data message once per client; it also hides a slow client
     # behind a ratio. Two worker processes; neither holds an engine.
+    # --no-proxy-headers: uvicorn never rewrites the client address; the gateway believes
+    # X-Forwarded-For only from the dashboard's nginx (services/api/proxies.py).
     command: ["sh", "-c", "rm -rf /tmp/prom/* && exec uvicorn --factory services.api.app:create_app
-              --host 0.0.0.0 --port 8000 --workers 2 --no-access-log --ws-per-message-deflate false"]
+              --host 0.0.0.0 --port 8000 --workers 2 --no-access-log --ws-per-message-deflate false
+              --no-proxy-headers"]
     environment:
       <<: *env
       PROMETHEUS_MULTIPROC_DIR: /tmp/prom
+      MF_DEMO_MODE: ${MF_DEMO_MODE:-1}
+      MF_TRUSTED_PROXIES: dashboard
     volumes:
       - runs:/var/lib/marketforge/runs:ro
     ports:
@@ -124,12 +137,51 @@ services:
       TIINGO_API_KEY: ${TIINGO_API_KEY:-}
     volumes:
       - runs:/var/lib/marketforge/runs
+      # The host's normalized datasets (make data-tiingo, make data-fred), read-only: the
+      # backtest form's catalog lists them (dates and symbols only). Absent: synthetic only.
+      - type: bind
+        source: ../data/normalized
+        target: /app/data/normalized
+        read_only: true
+        bind: {create_host_path: true}
     depends_on:
       migrate: {condition: service_completed_successfully}
       redis: {condition: service_healthy}
+    restart: unless-stopped
+
+  dashboard:
+    image: marketforge-dashboard:dev
+    build:
+      context: ..
+      dockerfile: deploy/dashboard.Dockerfile
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  demo-bot:
+    <<: *image
+    profiles: ["demo"]
+    command: ["python", "-m", "services.demo"]
+    environment:
+      <<: *env
+      MF_API_URL: http://api:8000
+      MF_BOT_SYMBOLS: "ACME:4200,GLOBEX:1850,INITECH:640"
+      MF_BOT_STATE: /var/lib/marketforge/bot/keys.json
+    volumes:
+      - bot:/var/lib/marketforge/bot
+    depends_on:
+      api: {condition: service_healthy}
     restart: unless-stopped
 
 volumes:
   pgdata:
   data:
   runs:
+  bot:

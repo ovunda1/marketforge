@@ -40,7 +40,7 @@ def test_an_order_lifecycle(alice: Account, bob: Account) -> None:
 
         pos = {p["symbol"]: p for p in c.get(f"/accounts/{bob.account_id}/positions?min_seq_no={seq}",
                                              headers=bob.headers).json()["positions"]}
-        assert (pos["AAA"]["qty"], pos["AAA"]["cash"]) == (3, -15003)
+        assert (pos["AAA"]["qty"], pos["AAA"]["cash"]) == (3, "-15003")  # money as text (M11)
         trades = c.get("/trades/AAA?limit=5", headers=bob.headers).json()["trades"]
         assert any(t["seq_no"] == seq and t["price"] == 5001 for t in trades)
         asks = c.get("/book/AAA?depth=50", headers=bob.headers).json()["asks"]

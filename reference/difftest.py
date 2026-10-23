@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -145,9 +146,12 @@ def _report(m: Mismatch, seed: int, n: int) -> None:
 
 
 def difftest(
-    seed: int, n: int, driver: Path, workdir: Path, regressions_dir: Path, profile: str = "narrow"
+    seed: int, n: int, driver: Path, workdir: Path, regressions_dir: Path, profile: str = "narrow",
+    record: Path | None = None,
 ) -> Mismatch | None:
-    """Generates `n` commands from `seed`, runs both engines and compares their output."""
+    """Generates `n` commands from `seed`, runs both engines and compares their output.
+    With `record`, the outcome is written into that JSON file (results/difftest.json:
+    the dashboard's Overview reads it), one entry per profile."""
     start = time.monotonic()
     commands = generate(seed, n, profile)
     name = f"seed-{seed}" if profile == "narrow" else f"{profile}-seed-{seed}"
@@ -163,6 +167,8 @@ def difftest(
         return m
 
     m, lines = _compare(run_lines(commands), _lines(events_path), commands)
+    if record is not None:
+        _record(record, profile, seed, n, lines, m)
     if m is not None:
         _report(m, seed, n)
         print(f"  saved regression: {save_regression(commands, m.seq, name, regressions_dir)}")
@@ -170,6 +176,20 @@ def difftest(
     print(f"difftest ok: {profile} profile, seed {seed}, {n} commands, {lines} output lines identical "
           f"({time.monotonic() - start:.1f}s)")
     return None
+
+
+def _record(path: Path, profile: str, seed: int, n: int, lines: int, m: Mismatch | None) -> None:
+    # Committed with the work it checks: it names the commit that work is based on and
+    # whether the tree had changes, not its own commit.
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip() or None
+    dirty = bool(subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout.strip())
+    doc = json.loads(path.read_text()) if path.is_file() else {"schema": 1, "runs": {}}
+    doc["generated_by"] = "make difftest-long"
+    doc["reference"] = "reference/ (the Python reference engine)"
+    doc["runs"][profile] = {"seed": seed, "commands": n, "output_lines": lines,
+                            "result": "identical" if m is None else f"mismatch at seq_no {m.seq}", "base_commit": commit,
+                            "dirty": dirty}
+    path.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
 
 
 def main(argv: list[str]) -> int:
@@ -180,6 +200,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--regressions-dir", type=Path, default=DEFAULT_REGRESSIONS_DIR)
     parser.add_argument("--profile", choices=PROFILES, default="narrow")
     parser.add_argument("--replay", action="store_true", help="replay saved regressions only")
+    parser.add_argument("--record", type=Path, help="write the outcome into this JSON file")
     args = parser.parse_args(argv)
 
     if args.replay:
@@ -191,7 +212,7 @@ def main(argv: list[str]) -> int:
         return 1 if failed else 0
 
     with tempfile.TemporaryDirectory() as tmp:
-        m = difftest(args.seed, args.n, args.driver, Path(tmp), args.regressions_dir, args.profile)
+        m = difftest(args.seed, args.n, args.driver, Path(tmp), args.regressions_dir, args.profile, args.record)
     return 1 if m else 0
 
 

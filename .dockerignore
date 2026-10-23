@@ -13,3 +13,7 @@ runs
 **/*.pyc
 .pytest_cache
 .bench-ab
+dashboard/node_modules
+dashboard/dist
+dashboard/test-results
+dashboard/playwright-report

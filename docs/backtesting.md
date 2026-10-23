@@ -102,6 +102,16 @@ shows what that prevents:
 - the best of 40 noise strategies averages an in-sample Sharpe above 1.5;
 - the same selection out of sample stays within three standard errors of zero.
 
+## Date range and universe (M11)
+
+A bar run's `[data]` may narrow its dataset: `start` and `end` (ISO dates, inclusive) and
+`symbols` (a list). The filters are applied after the dataset is loaded and validated, so
+its hash (and the manifest pin) is the whole file's; the run record's data entry carries a
+`filter` with what was kept. An unknown symbol, or nothing left, is a config error. The
+dashboard's backtest form (`services/common/backtest_form.py`) produces such configs: a
+walk-forward of `train_years` x 252 trading days, then 252 of testing, with the
+showcase's cost models when costs are on.
+
 ## Costs (M9)
 
 `research/backtest/costs.py`. A `[costs]` table turns components on, one sub-table each

@@ -1,0 +1,340 @@
+{
+ "_note": "Hand-written cases (M11): decimal text typed by a person -> integer ticks, and ticks -> text. services/common/money.py and dashboard/src/lib/money.ts must agree on every case. Ticks given as strings are beyond 2**53 (money aggregates arrive as text).",
+ "parse_price": [
+  {
+   "text": "42.17",
+   "tick_size": "0.01",
+   "ticks": 4217
+  },
+  {
+   "text": "42.1",
+   "tick_size": "0.01",
+   "ticks": 4210
+  },
+  {
+   "text": "42",
+   "tick_size": "0.01",
+   "ticks": 4200
+  },
+  {
+   "text": "0.01",
+   "tick_size": "0.01",
+   "ticks": 1
+  },
+  {
+   "text": " 42.17 ",
+   "tick_size": "0.01",
+   "ticks": 4217
+  },
+  {
+   "text": "042.17",
+   "tick_size": "0.01",
+   "ticks": 4217
+  },
+  {
+   "text": "42.170",
+   "tick_size": "0.01",
+   "ticks": 4217
+  },
+  {
+   "text": "42.1700000",
+   "tick_size": "0.01",
+   "ticks": 4217
+  },
+  {
+   "text": "1.05",
+   "tick_size": "0.05",
+   "ticks": 21
+  },
+  {
+   "text": "1.1",
+   "tick_size": "0.05",
+   "ticks": 22
+  },
+  {
+   "text": "10",
+   "tick_size": "0.05",
+   "ticks": 200
+  },
+  {
+   "text": "0.5",
+   "tick_size": "0.5",
+   "ticks": 1
+  },
+  {
+   "text": "7",
+   "tick_size": "1",
+   "ticks": 7
+  },
+  {
+   "text": "7.0",
+   "tick_size": "1",
+   "ticks": 7
+  },
+  {
+   "text": "0.0001",
+   "tick_size": "0.0001",
+   "ticks": 1
+  },
+  {
+   "text": "10000000",
+   "tick_size": "0.01",
+   "ticks": 1000000000
+  },
+  {
+   "text": "1.07",
+   "tick_size": "0.05",
+   "error": "off_grid",
+   "suggestions": [
+    "1.05",
+    "1.10"
+   ]
+  },
+  {
+   "text": "42.175",
+   "tick_size": "0.01",
+   "error": "off_grid",
+   "suggestions": [
+    "42.17",
+    "42.18"
+   ]
+  },
+  {
+   "text": "0.03",
+   "tick_size": "0.05",
+   "error": "off_grid",
+   "suggestions": [
+    "0.05"
+   ]
+  },
+  {
+   "text": "7.5",
+   "tick_size": "1",
+   "error": "off_grid",
+   "suggestions": [
+    "7",
+    "8"
+   ]
+  },
+  {
+   "text": "0.1",
+   "tick_size": "0.25",
+   "error": "off_grid",
+   "suggestions": [
+    "0.25"
+   ]
+  },
+  {
+   "text": "",
+   "tick_size": "0.01",
+   "error": "empty"
+  },
+  {
+   "text": "   ",
+   "tick_size": "0.01",
+   "error": "empty"
+  },
+  {
+   "text": "1e3",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": ".5",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "1.",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "+1",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "-1",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "1,000",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "1 000",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "Infinity",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "NaN",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "0x10",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "１２",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "$42",
+   "tick_size": "0.01",
+   "error": "format"
+  },
+  {
+   "text": "0",
+   "tick_size": "0.01",
+   "error": "not_positive"
+  },
+  {
+   "text": "0.00",
+   "tick_size": "0.01",
+   "error": "not_positive"
+  },
+  {
+   "text": "10000000.01",
+   "tick_size": "0.01",
+   "error": "too_large"
+  },
+  {
+   "text": "99999999999999999999",
+   "tick_size": "0.01",
+   "error": "too_large"
+  },
+  {
+   "text": "9007199254740993",
+   "tick_size": "1",
+   "error": "too_large"
+  }
+ ],
+ "parse_qty": [
+  {
+   "text": "10",
+   "qty": 10
+  },
+  {
+   "text": " 7 ",
+   "qty": 7
+  },
+  {
+   "text": "007",
+   "qty": 7
+  },
+  {
+   "text": "1000000000",
+   "qty": 1000000000
+  },
+  {
+   "text": "",
+   "error": "empty"
+  },
+  {
+   "text": "0",
+   "error": "not_positive"
+  },
+  {
+   "text": "1.5",
+   "error": "format"
+  },
+  {
+   "text": "10.0",
+   "error": "format"
+  },
+  {
+   "text": "-3",
+   "error": "format"
+  },
+  {
+   "text": "1e2",
+   "error": "format"
+  },
+  {
+   "text": "1000000001",
+   "error": "too_large"
+  },
+  {
+   "text": "99999999999999999999",
+   "error": "too_large"
+  }
+ ],
+ "format": [
+  {
+   "ticks": 4217,
+   "tick_size": "0.01",
+   "text": "42.17"
+  },
+  {
+   "ticks": 1,
+   "tick_size": "0.01",
+   "text": "0.01"
+  },
+  {
+   "ticks": 0,
+   "tick_size": "0.01",
+   "text": "0.00"
+  },
+  {
+   "ticks": -5,
+   "tick_size": "0.01",
+   "text": "-0.05"
+  },
+  {
+   "ticks": 21,
+   "tick_size": "0.05",
+   "text": "1.05"
+  },
+  {
+   "ticks": 22,
+   "tick_size": "0.05",
+   "text": "1.10"
+  },
+  {
+   "ticks": 1,
+   "tick_size": "0.5",
+   "text": "0.5"
+  },
+  {
+   "ticks": 3,
+   "tick_size": "0.5",
+   "text": "1.5"
+  },
+  {
+   "ticks": 7,
+   "tick_size": "1",
+   "text": "7"
+  },
+  {
+   "ticks": 1000000000,
+   "tick_size": "0.01",
+   "text": "10000000.00"
+  },
+  {
+   "ticks": 1,
+   "tick_size": "0.0001",
+   "text": "0.0001"
+  },
+  {
+   "ticks": "123456789012345678901",
+   "tick_size": "0.01",
+   "text": "1234567890123456789.01"
+  },
+  {
+   "ticks": "-123456789012345678901",
+   "tick_size": "0.05",
+   "text": "-6172839450617283945.05"
+  }
+ ]
+}
