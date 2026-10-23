@@ -8,7 +8,8 @@ the event loop stays free for Redis), writes the run's outputs under MF_RUNS_DIR
 then its metrics and equity curve to Postgres, and streams progress on `bt:<id>`.
 
 A killed worker leaves its job in the queue; arq runs it again once the job's
-in-progress lock expires (the job timeout). Backtests are deterministic and every write
+in-progress lock expires (arq's timeout + 10 s). A run longer than MF_BACKTEST_TIMEOUT_S
+is marked failed. Backtests are deterministic and every write
 is keyed by the run id, so the retry rewrites the same rows: one run, same metrics.
 A run that fails (a bad config, missing data) is marked failed and not retried.
 """
@@ -66,8 +67,16 @@ async def run_backtest(ctx: dict[str, Any], run_id: str) -> str:
         asyncio.run_coroutine_threadsafe(redis.publish(channel, msg), loop)
 
     try:
-        record = await asyncio.to_thread(runs.run, row["config"], out_dir=settings.runs_dir, name=run_id,
-                                         progress=progress)
+        record = await asyncio.wait_for(
+            asyncio.to_thread(runs.run, row["config"], out_dir=settings.runs_dir, name=run_id, progress=progress),
+            settings.backtest_timeout_s)
+    except TimeoutError:
+        # Our own timeout, so the run is marked failed instead of staying "running" (arq's
+        # is longer and only cancels). The thread cannot be killed; it ends on its own.
+        message = f"timed out after {settings.backtest_timeout_s} s"
+        await backtests.mark_failed(engine, run_id, message)
+        await redis.publish(channel, json.dumps({"type": "failed", "id": run_id, "error": message}))
+        return "failed"
     except Exception as e:  # noqa: BLE001 - recorded on the run, not retried
         log.warning("backtest %s failed: %s", run_id, e)
         await backtests.mark_failed(engine, run_id, f"{type(e).__name__}: {e}")
@@ -95,10 +104,15 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 _settings = Settings.from_env()
 
 
+# arq's timeout is above the run's own (which marks the run failed); arq reruns a job whose
+# worker died once the job's lock expires: this timeout + 10 s.
+ARQ_TIMEOUT_S = _settings.backtest_timeout_s + 60
+
+
 class WorkerSettings:
-    functions = [func(run_backtest, timeout=_settings.backtest_timeout_s, max_tries=3)]  # type: ignore[arg-type]
+    functions = [func(run_backtest, timeout=ARQ_TIMEOUT_S, max_tries=3)]  # type: ignore[arg-type]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(_settings.redis_url)
     max_jobs = 2
-    job_timeout = _settings.backtest_timeout_s
+    job_timeout = ARQ_TIMEOUT_S

@@ -112,7 +112,8 @@ def test_a_stalled_websocket_client_is_resnapshotted_or_dropped_while_orders_kee
     fast = wsc.connect(f"{WS}/ws/marketdata/GGG")
     fast_feed = BookClient("GGG")
     fast_feed.on_message(json.loads(fast.recv(timeout=10)))
-    run = compose("run", "-d", "tester", "python", "-m", "services.client", "slow",
+    # --no-deps: compose must not recreate the api (its dependency) under the test.
+    run = compose("run", "-d", "--no-deps", "tester", "python", "-m", "services.client", "slow",
                   "--url", "ws://api:8000/ws/marketdata/GGG", "--run-s", "15")
     container = run.stdout.strip().splitlines()[-1]
 
@@ -160,9 +161,10 @@ def test_a_stalled_websocket_client_is_resnapshotted_or_dropped_while_orders_kee
 
 
 def test_kill_the_backtest_worker_mid_job_and_the_job_is_retried_to_completion(alice: Account) -> None:
-    # About 10 s of work in the worker image (2.5 h of synthetic flow): long enough to be
-    # killed mid-run, inside the test stack's 30 s job timeout.
-    config = {"kind": "event", "seed": 3, "data": {"synthetic": {"seed": 21, "duration_ns": 9_000_000_000_000}},
+    # A few seconds of work (75 min of synthetic flow, ~5 s on a laptop, more on CI): long
+    # enough to be killed mid-run, well inside the test stack's 60 s backtest timeout. The
+    # retry starts once arq's lock expires (timeout + 70 s), hence the long wait below.
+    config = {"kind": "event", "seed": 3, "data": {"synthetic": {"seed": 21, "duration_ns": 4_500_000_000_000}},
               "broker": {"latency_ns": 1_000_000, "jitter_ns": 200_000},
               "strategy": {"name": "obmom", "params": {"horizon_ns": 200_000_000, "threshold": 2.0, "qty": 2,
                                                        "max_position": 6}}}
@@ -173,7 +175,7 @@ def test_kill_the_backtest_worker_mid_job_and_the_job_is_retried_to_completion(a
         compose("kill", "-s", "SIGKILL", "worker")
         compose("start", "worker")
         done = eventually(lambda: (lambda r: r if r["status"] in ("done", "failed") else None)(
-            c.get(f"/backtests/{run_id}", headers=alice.headers).json()), timeout=180, what="the retried backtest")
+            c.get(f"/backtests/{run_id}", headers=alice.headers).json()), timeout=360, what="the retried backtest")
         assert done["status"] == "done", done
         assert done["attempts"] >= 2 and done["metrics"]["kind"] == "event"
         sheet = c.get(done["tearsheet_url"], headers=alice.headers)

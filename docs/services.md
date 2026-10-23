@@ -49,7 +49,7 @@ symbol's first start.
 | `MF_DEPTH` | `50` | matcher: levels per side in market data |
 | `MF_WS_QUEUE`, `MF_WS_MAX_OVERFLOWS`, `MF_WS_OVERFLOW_WINDOW_S`, `MF_WS_SEND_TIMEOUT_S` | `1000`, `3`, `30`, `5` | api: slow-consumer policy |
 | `MF_RATE_LIMIT_PER_S` | `2000` | api: requests per account per second |
-| `MF_BACKTEST_TIMEOUT_S` | `1800` | worker: job timeout (a killed job is retried after timeout + 10 s) |
+| `MF_BACKTEST_TIMEOUT_S` | `1800` | worker: a longer run is marked failed; a killed worker's job is rerun after timeout + 70 s (arq's lock) |
 | `TIINGO_API_KEY` | empty | worker only |
 
 ## REST
