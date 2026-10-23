@@ -32,3 +32,18 @@ def test_asan_runtime_refuses_an_empty_compiler() -> None:
     )
     assert result.returncode != 0
     assert "empty compiler" in result.stderr
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make not installed")
+def test_test_services_uses_its_own_project_and_tears_it_down(tmp_path) -> None:
+    # M10: the compose suite must not run against (or delete) the `make up` stack, and
+    # must remove its stack and volumes even when tests fail, unless KEEP is set.
+    def dry(*args: str) -> str:
+        return subprocess.run(["make", "-n", "test-services", *args], cwd=REPO_ROOT, capture_output=True,
+                              text=True, check=True).stdout
+    out = dry()
+    assert "-p mf-test" in out and "deploy/docker-compose.test.yml" in out and "--env-file .env" in out
+    assert "down -v" in out and "exit $status" in out
+    assert "MF_COMPOSE_API=" in out
+    up = subprocess.run(["make", "-n", "up"], cwd=REPO_ROOT, capture_output=True, text=True, check=True).stdout
+    assert "-p mf-test" not in up and "docker-compose.test.yml" not in up

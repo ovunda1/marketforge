@@ -28,6 +28,7 @@ import json
 import platform
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -469,20 +470,31 @@ def _execute(cfg: dict[str, Any], frames: dict[str, Any], run_dir: Path,
     return outputs, assumptions
 
 
-def run(config: dict[str, Any], *, out_dir: str | Path = "runs", name: str | None = None) -> Record:
+Progress = Callable[[str, dict[str, Any]], None]
+
+
+def run(config: dict[str, Any], *, out_dir: str | Path = "runs", name: str | None = None,
+        progress: Progress | None = None) -> Record:
     """Run ``config`` into ``<out_dir>/<name>`` (default ``<kind>-<run id>``); the run id
-    is a hash of the canonical config and the data hashes."""
+    is a hash of the canonical config and the data hashes. ``progress(stage, info)`` is
+    called after each stage (validated, data_loaded, simulated, written) and never
+    changes the outputs (the backtest worker streams it, M10)."""
+    report = progress or (lambda stage, info: None)
     cfg = validate_config(config)
+    report("validated", {"kind": cfg["kind"]})
     entries, frames = _load_data(cfg)
+    report("data_loaded", {"datasets": len(entries)})
     run_id = hashlib.sha256(_canonical_bytes({"config": cfg, "data": [e["sha256"] for e in entries]})).hexdigest()[:12]
     run_dir = Path(out_dir) / (name or f"{cfg['kind']}-{run_id}")
     outputs, assumptions = _execute(cfg, frames, run_dir, entries)
+    report("simulated", {"outputs": sorted(outputs)})
     hashes = {k: hashlib.sha256(v).hexdigest() for k, v in outputs.items()}
     record = {"record_version": RECORD_VERSION, "run_id": run_id, "kind": cfg["kind"], "seed": cfg["seed"],
               "config": cfg, "data": entries, "assumptions": assumptions, **_environment(),
               "results_file": "results.json", "results_sha256": hashes["results.json"], "outputs": hashes}
     path = run_dir / "record.json"
     path.write_bytes(_canonical_bytes(record))
+    report("written", {"run_dir": str(run_dir)})
     return Record(path=path, data=record)
 
 

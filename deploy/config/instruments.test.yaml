@@ -1,0 +1,13 @@
+# The compose-test stack (deploy/docker-compose.test.yml): one symbol per test area so
+# tests do not disturb each other's books.
+instruments:
+  - {symbol: AAA, tick_size: "0.01"}
+  - {symbol: BBB, tick_size: "0.01"}
+  - {symbol: CCC, tick_size: "0.01"}
+  - {symbol: DDD, tick_size: "0.01"}
+  - {symbol: EEE, tick_size: "0.01"}
+  - {symbol: FFF, tick_size: "0.01"}
+  - {symbol: GGG, tick_size: "0.01"}
+  - {symbol: HHH, tick_size: "0.01"}
+  - {symbol: HALT, tick_size: "0.01"}
+  - {symbol: RISK, tick_size: "0.01", risk_config: risk.test.yaml}

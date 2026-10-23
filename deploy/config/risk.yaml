@@ -1,0 +1,8 @@
+# Journaled as admin commands at a symbol's first start (docs/risk.md). Values are
+# per account on one symbol: there is one engine per symbol.
+instrument:
+  max_qty: 100000
+accounts:
+  default:
+    max_open_orders: 1000
+    rate: {per_sec: 1000, burst: 200}

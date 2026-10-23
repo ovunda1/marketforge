@@ -27,7 +27,8 @@ SEED       ?= 20261020
 
 .PHONY: venv venv-release build test test-cpp test-py sanitize difftest difftest-long difftest-replay \
         replay bench bench-build bench-test bench-smoke bench-ab bench-docs bench-bindings gate clean \
-        backtest reproduce examples showcase data-binance data-tiingo data-fred
+        backtest reproduce examples showcase data-binance data-tiingo data-fred \
+        env-check up down test-services gateway-smoke projection-rebuild
 
 venv: $(VENV)/.installed
 
@@ -186,6 +187,43 @@ data-fred: venv
 # the benchmark build, and the benchmark workloads replayed with the walk on.
 gate: test sanitize difftest-long bench-test
 	$(VENV_PY) -m bench.crosscheck --bench-dir $(BENCH_DIR) --replay $(REPLAY)
+
+# --- Services (M10, deploy/) ------------------------------------------------------------
+# Secrets come from the git-ignored .env (copy .env.example). The test stack is a separate
+# compose project (mf-test) with deploy/docker-compose.test.yml on top.
+
+COMPOSE      := docker compose --env-file .env -f deploy/docker-compose.yml
+COMPOSE_TEST := docker compose --env-file .env -p mf-test -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml
+API_URL      ?= http://127.0.0.1:8000
+new_key = $$($(1) exec -T api python -m services.api.accounts create --name $(2) | tail -1 | \
+          $(VENV_PY) -c "import json,sys; print(json.load(sys.stdin)['api_key'])")
+
+env-check:
+	@test -f .env || { echo "no .env: cp .env.example .env and set POSTGRES_PASSWORD"; exit 1; }
+
+up: env-check
+	$(COMPOSE) up -d --build --wait
+
+down:
+	$(COMPOSE) down
+
+# The API suite against a fresh test stack (any previous one is removed first), torn
+# down afterwards (KEEP=1 keeps it for inspection).
+test-services: env-check venv
+	$(COMPOSE_TEST) down -v --remove-orphans
+	$(COMPOSE_TEST) up -d --build --wait
+	MF_COMPOSE="$(COMPOSE_TEST)" MF_COMPOSE_API=$(API_URL) $(VENV_PY) -m pytest tests/services/compose; \
+	  status=$$?; [ -n "$(KEEP)" ] || $(COMPOSE_TEST) down -v; exit $$status
+
+# A quick gateway check on the running `make up` stack: REST round trip and WebSocket
+# fan-out lag, printed as JSON. Not a benchmark (bench/ measures the engine).
+gateway-smoke: venv
+	$(VENV_PY) -m services.smoke --url $(API_URL) --key $(call new_key,$(COMPOSE),smoke-a) \
+	  --key2 $(call new_key,$(COMPOSE),smoke-b) $(if $(N),--n $(N))
+
+# Forget the Postgres projection; the projector rebuilds it from the journals.
+projection-rebuild:
+	$(COMPOSE) exec -T projector python -m services.projector rebuild
 
 clean:
 	rm -rf $(BUILD_DIR) $(ASAN_DIR) $(BENCH_DIR) .bench-ab build-py build-py-release

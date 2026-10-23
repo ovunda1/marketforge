@@ -5,6 +5,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <filesystem>
 #include <stdexcept>
 #include <type_traits>
 
@@ -180,6 +181,74 @@ JournalWriter::JournalWriter(const std::string& path) : path_(path) {
   write_all(encode_journal_header());
 }
 
+std::unique_ptr<JournalWriter> JournalWriter::resume(const std::string& path,
+                                                     std::uint64_t* trimmed_bytes) {
+  std::uint64_t good = 0;
+  std::uint64_t size = 0;
+  SeqNo last_seq_no = 0;
+  std::optional<Timestamp> last_timestamp;
+  {
+    JournalReader reader(path);  // validates the header
+    size = static_cast<std::uint64_t>(std::filesystem::file_size(path));
+    {
+      std::ifstream in(path, std::ios::binary);
+      char header[kJournalHeaderSize];
+      in.read(header, sizeof header);
+      const auto version = static_cast<std::uint16_t>(static_cast<unsigned char>(header[8]) |
+                                                      (static_cast<unsigned char>(header[9]) << 8));
+      if (version != kJournalVersion) {
+        throw JournalError(JournalError::Kind::BadHeader,
+                           path + ": cannot resume a version " + std::to_string(version) +
+                               " journal; the live sequencer writes version " +
+                               std::to_string(kJournalVersion));
+      }
+    }
+    try {
+      while (reader.next()) {
+      }
+    } catch (const JournalError& e) {
+      if (e.kind() != JournalError::Kind::Truncated) throw;
+    }
+    good = reader.offset();
+    last_seq_no = reader.last_seq_no();
+    last_timestamp = reader.last_timestamp();
+  }
+
+  std::unique_ptr<JournalWriter> writer(new JournalWriter());
+  writer->path_ = path;
+  writer->fd_ = ::open(path.c_str(), O_WRONLY | O_CLOEXEC);
+  if (writer->fd_ < 0) {
+    throw JournalError(JournalError::Kind::Io,
+                       path + ": cannot open journal: " + std::strerror(errno));
+  }
+  if (good < size) {
+    if (::ftruncate(writer->fd_, static_cast<off_t>(good)) != 0) {
+      throw JournalError(JournalError::Kind::Io,
+                         path + ": cannot trim a torn record: " + std::strerror(errno));
+    }
+    writer->sync();
+  }
+  if (::lseek(writer->fd_, static_cast<off_t>(good), SEEK_SET) < 0) {
+    throw JournalError(JournalError::Kind::Io, path + ": seek failed: " + std::strerror(errno));
+  }
+  writer->last_seq_no_ = last_seq_no;
+  writer->last_timestamp_ = last_timestamp;
+  writer->bytes_written_ = good;
+  if (trimmed_bytes) *trimmed_bytes = size - good;
+  return writer;
+}
+
+void JournalWriter::sync() {
+#if defined(__APPLE__)
+  const int rc = ::fsync(fd_);
+#else
+  const int rc = ::fdatasync(fd_);
+#endif
+  if (rc != 0) {
+    throw JournalError(JournalError::Kind::Io, path_ + ": sync failed: " + std::strerror(errno));
+  }
+}
+
 JournalWriter::~JournalWriter() {
   if (fd_ >= 0) ::close(fd_);
 }
@@ -201,7 +270,7 @@ void JournalWriter::append(const JournalRecord& record) {
 }
 
 // One write(2) per record in the normal case: once it returns, the record is in the
-// OS page cache and survives a crash of this process. No fsync (see the header).
+// OS page cache and survives a crash of this process. Durable only after sync().
 void JournalWriter::write_all(std::string_view bytes) {
   while (!bytes.empty()) {
     const ssize_t n = ::write(fd_, bytes.data(), bytes.size());
