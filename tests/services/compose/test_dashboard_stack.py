@@ -1,6 +1,7 @@
 """The M11 additions on the real stack: the smoke run leaves no resting orders, the client
-IP behind the dashboard's nginx cannot be spoofed, the worker publishes its catalog, and
-the demo bot keeps the fictional market trading."""
+IP behind the dashboard's nginx cannot be spoofed, and the worker publishes its catalog.
+The demo bot is not running here (profile "demo"): the API suite needs a quiet exchange;
+the browser tests (make e2e) run with it."""
 
 from __future__ import annotations
 
@@ -71,16 +72,6 @@ def test_the_worker_publishes_a_catalog_of_dates_and_symbols_only() -> None:
                           "end", "calendar", "symbols", "synthetic_bars"}
 
 
-def test_the_demo_bot_keeps_the_fictional_market_trading() -> None:
-    with client() as c:
-        for sym in ("ACME", "GLOBEX", "INITECH"):
-            book = eventually(lambda: (lambda bk: bk if bk["bids"] and bk["asks"] else None)(
-                c.get(f"/book/{sym}").json()), timeout=60, what=f"quotes on {sym}")
-            assert book["bids"][0][0] < book["asks"][0][0]
-            eventually(lambda: c.get(f"/trades/{sym}?limit=1").json()["trades"], timeout=60, what=f"a trade on {sym}")
-    assert "AAPL" not in httpx.get(f"{DASHBOARD}/api/instruments", timeout=10).text
-
-
 def test_the_dashboard_is_served_with_its_routes_and_security_headers() -> None:
     for path in ("/", "/market/ACME", "/backtests/showcase-tsmom"):
         r = httpx.get(f"{DASHBOARD}{path}", timeout=10)
@@ -88,3 +79,4 @@ def test_the_dashboard_is_served_with_its_routes_and_security_headers() -> None:
         assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert httpx.get(f"{DASHBOARD}/api/health", timeout=10).json()["status"] == "ok"
     assert "securitySchemes" in httpx.get(f"{DASHBOARD}/openapi.json", timeout=10).text
+    assert "AAPL" not in httpx.get(f"{DASHBOARD}/api/instruments", timeout=10).text

@@ -3,7 +3,8 @@
 # quickly, frequent snapshots, a short backtest timeout (a killed job is retried once
 # arq's lock expires, timeout + 70 s), and a `tester` container in the network for the
 # slow client (started with --no-deps, so compose never recreates the api under a test).
-# The dashboard and the demo bot run too (M11): the browser tests drive them.
+# The dashboard runs too (M11); the demo bot only with --profile demo (make e2e): the API
+# suite's projection checks need an exchange nobody else is writing to.
 
 x-test-env: &test-env
   MF_INSTRUMENTS: /app/deploy/config/instruments.test.yaml

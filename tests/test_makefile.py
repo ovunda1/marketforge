@@ -64,3 +64,18 @@ def test_difftest_long_records_its_outcome_for_the_overview() -> None:
     out = subprocess.run(["make", "-n", "difftest-long"], cwd=REPO_ROOT, capture_output=True, text=True,
                          check=True).stdout
     assert out.count("--record results/difftest.json") == 2 and "--profile wide" in out
+
+
+@pytest.mark.skipif(shutil.which("make") is None, reason="make not installed")
+def test_only_the_demo_and_the_browser_tests_start_the_bot() -> None:
+    # M11: the demo bot writes all the time; the API suite's projection checks need a quiet
+    # exchange, so its stack starts without the "demo" profile (and removes a leftover bot).
+    def dry(target: str) -> list[str]:
+        out = subprocess.run(["make", "-n", "-W", "dashboard/package.json", target], cwd=REPO_ROOT,
+                             capture_output=True, text=True, check=True).stdout
+        return [line for line in out.splitlines() if " up " in line or " down " in line]
+    services = dry("test-services")
+    assert any("up -d" in line and "--profile demo" not in line for line in services)
+    assert all("--profile demo" in line for line in services if " down " in line)
+    assert all("--profile demo" in line for line in dry("e2e"))
+    assert all("--profile demo" in line for line in dry("up"))

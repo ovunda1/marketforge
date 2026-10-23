@@ -1,5 +1,5 @@
 {
-  "base_commit": "d714e7527b5ffe16bbd6843e9d9bc9fee8fb1636",
+  "base_commit": "d0364bc53b285461144f8d7d98ce55a4e60a857f",
   "date": "2026-10-23",
   "dirty": true,
   "generated_by": "make facts",
@@ -22,16 +22,16 @@
     "Python (pytest)": {
       "errors": 0,
       "failures": 0,
-      "passed": 856,
-      "skipped": 24,
+      "passed": 857,
+      "skipped": 23,
       "tests": 880
     }
   },
   "total": {
     "errors": 0,
     "failures": 0,
-    "passed": 1285,
-    "skipped": 25,
+    "passed": 1286,
+    "skipped": 24,
     "tests": 1310
   }
 }

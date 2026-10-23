@@ -51,13 +51,17 @@ export function Market() {
     };
   }, [session, symbol]);
 
+  // The tour starts once, shortly after the book first arrives; a later resync (the feed
+  // flipping to unsynced and back) must not cancel or restart it.
   const synced = feed?.client.synced ?? false;
+  const tourTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (synced && !seenTour()) {
-      const t = setTimeout(() => setTour(true), 400);
-      return () => clearTimeout(t);
-    }
+    if (synced && tourTimer.current === null && !seenTour()) tourTimer.current = setTimeout(() => setTour(true), 400);
   }, [synced]);
+  useEffect(() => () => {
+    if (tourTimer.current) clearTimeout(tourTimer.current);
+    tourTimer.current = null; // StrictMode remounts: arm again
+  }, []);
 
   const onPick = useCallback((price: number) => setPicked((p) => ({ price, n: (p?.n ?? 0) + 1 })), []);
   const onPlaced = useCallback((seqNo: number | null) => setRefresh((x) => ({ seqNo, n: x.n + 1 })), []);

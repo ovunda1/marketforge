@@ -10,6 +10,8 @@
 #   worker             backtest jobs (arq)
 #   dashboard          (M11) the web UI: nginx serving the site, proxying /api and /ws to api
 #   demo-bot           (M11) liquidity for the fictional demo symbols, through the public API
+#                      (profile "demo": `make up` and `make e2e` start it; the API suite
+#                      needs a quiet exchange and runs without it)
 #
 # The dashboard is at http://127.0.0.1:8080. Demo mode (practice accounts, the bot) is on
 # by default here: this file runs a local demo. MF_DEMO_MODE=0 in .env turns practice
@@ -165,6 +167,7 @@ services:
 
   demo-bot:
     <<: *image
+    profiles: ["demo"]
     command: ["python", "-m", "services.demo"]
     environment:
       <<: *env

@@ -33,7 +33,7 @@ page has an Authorize button; public routes carry no security requirement.
 | `worker` | `arq services.worker.tasks.WorkerSettings` | backtest outputs, backtest tables | the only service that gets `TIINGO_API_KEY` |
 | `migrate` | `python -m services.db.migrate` | schema, instrument seed | one-shot, before the others |
 | `dashboard` | nginx (`deploy/dashboard.Dockerfile`, `deploy/nginx.conf`) | nothing | the static site; `/api/*` (prefix stripped) and `/ws/*` proxied to `api`; overwrites `X-Forwarded-For` |
-| `demo-bot` | `python -m services.demo` | its two accounts' keys (volume `bot`) | quotes ACME, GLOBEX, INITECH through the public REST API (`services/demo/bot.py`) |
+| `demo-bot` | `python -m services.demo` | its two accounts' keys (volume `bot`) | quotes ACME, GLOBEX, INITECH through the public REST API (`services/demo/bot.py`); compose profile `demo`: started by `make up` and `make e2e`, not by `make test-services`, whose projection checks need a quiet exchange |
 
 Files of the matcher (volume `data`, `MF_DATA_DIR`), per symbol:
 `<SYM>/journal.mfj` (docs/journal-format.md), `<SYM>/intake.jsonl`,

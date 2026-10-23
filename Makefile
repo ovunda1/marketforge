@@ -204,19 +204,20 @@ new_key = $$($(1) exec -T api python -m services.api.accounts create --name $(2)
 env-check:
 	@test -f .env || { echo "no .env: cp .env.example .env and set POSTGRES_PASSWORD"; exit 1; }
 
+# The demo profile adds the liquidity bot (M11).
 up: env-check
-	$(COMPOSE) up -d --build --wait
+	$(COMPOSE) --profile demo up -d --build --wait
 
 down:
-	$(COMPOSE) down
+	$(COMPOSE) --profile demo down
 
 # The API suite against a fresh test stack (any previous one is removed first), torn
 # down afterwards (KEEP=1 keeps it for inspection).
 test-services: env-check venv
-	$(COMPOSE_TEST) down -v --remove-orphans
+	$(COMPOSE_TEST) --profile demo down -v --remove-orphans
 	$(COMPOSE_TEST) up -d --build --wait
 	MF_COMPOSE="$(COMPOSE_TEST)" MF_COMPOSE_API=$(API_URL) $(VENV_PY) -m pytest tests/services/compose; \
-	  status=$$?; [ -n "$(KEEP)" ] || $(COMPOSE_TEST) down -v; exit $$status
+	  status=$$?; [ -n "$(KEEP)" ] || $(COMPOSE_TEST) --profile demo down -v; exit $$status
 
 # A quick gateway check on the running `make up` stack: REST round trip and WebSocket
 # fan-out lag, printed as JSON. Not a benchmark (bench/ measures the engine).
@@ -241,10 +242,10 @@ test-dashboard: dashboard-deps
 # test-services; screenshots land in dashboard/test-results/screenshots.
 e2e: env-check dashboard-deps
 	cd dashboard && npx playwright install chromium
-	$(COMPOSE_TEST) down -v --remove-orphans
-	$(COMPOSE_TEST) up -d --build --wait
+	$(COMPOSE_TEST) --profile demo down -v --remove-orphans
+	$(COMPOSE_TEST) --profile demo up -d --build --wait
 	(cd dashboard && MF_COMPOSE="$(COMPOSE_TEST)" MF_DASHBOARD_URL=$(DASHBOARD_URL) npx playwright test); \
-	  status=$$?; [ -n "$(KEEP)" ] || $(COMPOSE_TEST) down -v; exit $$status
+	  status=$$?; [ -n "$(KEEP)" ] || $(COMPOSE_TEST) --profile demo down -v; exit $$status
 
 # results/tests.json: every offline suite with JUnit output, counted (the Overview reads it).
 facts: venv build dashboard-deps
