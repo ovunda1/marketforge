@@ -1,10 +1,11 @@
-# Dashboard (M11)
+# Dashboard (M11, M11b)
 
 The web UI of the compose stack: <http://127.0.0.1:8080> after `make up`. React 18 and
 TypeScript (strict), built by Vite into a static site that nginx serves (`deploy/
 dashboard.Dockerfile`, `deploy/nginx.conf`); nginx also proxies `/api/*` (prefix
 stripped) and `/ws/*` to the gateway, so the site and the API share one origin. The design
-and its reasons are in `docs/learning/m11.md`.
+and its reasons are in `docs/learning/m11.md`; the Swiss redesign (M11b) in
+`docs/learning/m11b.md`.
 
 ```sh
 make up                 # the stack, dashboard included
@@ -24,9 +25,13 @@ cd dashboard && npm run dev   # Vite on :5173, proxying to a running gateway (MF
 | `/backtests/new` | the backtest form | `GET /backtests/catalog`, `POST /backtests` |
 | `/backtests/:id` | one run: summary sentence, progress, equity curve, drawdown, costs, gross vs net | `GET /backtests/{id}`, `/ws/backtests/{id}` |
 | `/how-it-works` | the life of an order, links to the code and docs | static |
+| `/glossary` | every underlined term, defined | static (`copy.ts`) |
+| `/about` | who built it and why, links | static |
 
-Every page carries the banner "Simulated market · fictional symbols · practice money
-only". Live market lists only the instruments the exchange lists, all fictional (ACME,
+Every page carries the banner "Simulated market"; the Live market page labels each
+symbol "fictional company · simulated prices". The footer credits the author and links to
+GitHub, About and the Glossary. "Backtests use historical data and are not investment
+advice." appears on the backtest list, every run page and About. Live market lists only the instruments the exchange lists, all fictional (ACME,
 GLOBEX, INITECH, SMOKE). Real tickers appear only on backtest pages, marked "historical
 data".
 
@@ -93,14 +98,34 @@ this server has made, failed ones included, with a note on overfitting.
 
 Charts are hand-written SVG (`src/components/Charts.tsx`): 2 px lines, a recessive grid,
 one axis, a legend plus end labels for two series, a crosshair tooltip on hover and on the
-arrow keys, and a year-end data table under each chart. The series colors (net `#c07a24`,
-gross `#4f8ef0`) pass the dataviz palette validator on the dark surface.
+arrow keys, and a year-end data table under each chart. Net is solid `#111`, gross dashed
+`#767676`: line style tells them apart as well as color. The SVG is drawn at its measured
+width, so its text keeps its size on a phone.
+
+## Design and words (M11b)
+
+- Swiss style: white, `#111` text, one grotesk (Hanken Grotesk, self-hosted through
+  `@fontsource`, tabular digits by default), a 12-column grid, 2–3 px black rules, numbered
+  sections; no rounded corners, shadows, cards or gradients. Monospace only inside "Show
+  technical details". Tokens are on `:root` in `src/styles/app.css`.
+- Color has one meaning each: green `#007A33` buy, red `#E3001B` sell or error, gold
+  `#B08D1F` only as a line or fill (active nav, section numbers, the tour outline, the Live
+  dot, the Try trading hover), never as text. `src/lib/contrast.test.ts` checks every pair
+  from the tokens.
+- Every user-visible sentence is in `src/copy.ts` (reject messages stay in
+  `src/content/rejects.json`, re-exported there). `src/lib/copy.test.ts` walks every other
+  source file's syntax tree and fails on JSX text, on readable attributes (aria-label,
+  title, placeholder, alt) and on any phrase in a string literal.
+- Terms are dotted-underline buttons (`src/components/Term.tsx`): hover or keyboard focus
+  shows the definition, a click or tap pins it, a tap elsewhere or Esc closes it. The
+  definitions are the Glossary page.
 
 ## Accessibility
 
-Buy and sell always carry an arrow and a word, never color alone; the side toggle and the
-segmented controls are real radio buttons (arrow keys work); every ⓘ is a button that
-opens on focus and closes on Esc; the account tabs follow the tab pattern; the tour is a
+Buy and sell always carry the word, never color alone; the side toggle and the
+segmented controls are real radio buttons (arrow keys work); every term is a button that
+opens on focus or tap and closes on Esc; the focus ring is 2 px solid `#111` (white on the
+black status bar); the account tabs follow the tab pattern; the tour is a
 non-modal dialog that takes focus and closes on Esc. Axe (WCAG 2.1 A/AA, serious and
 critical) runs on every page at desktop and phone width (375 px, no sideways scroll) in the
 end-to-end suite.
@@ -109,6 +134,6 @@ end-to-end suite.
 
 | Suite | What |
 | --- | --- |
-| Vitest (`src/lib/*.test.ts`) | the book client and money parser against the shared fixtures; the order sentence; the form rules (shared cases); reject messages; the run summary; key storage; source rules |
+| Vitest (`src/lib/*.test.ts`) | the book client and money parser against the shared fixtures; the order sentence; the form rules (shared cases); reject messages; the run summary; key storage; source rules; token contrast; copy location |
 | pytest | the same fixtures for the Python side (`tests/services/test_client_fixtures.py`, `test_backtest_form.py`); the gateway's M11 behavior (`test_dashboard_api.py`); content (`test_dashboard_content.py`) |
-| Playwright (`dashboard/e2e/`) | the Overview against the results files; ladder vs `GET /book`; a matcher restart; trading end to end; reject messages; keyboard-only trading; key storage; a backtest from the form to its result; the practice cap; axe and phone width on every page; the tour; tooltips; the docs' Authorize button. Screenshots: `dashboard/test-results/screenshots/` |
+| Playwright (`dashboard/e2e/`) | the Overview against the results files; ladder vs `GET /book`; a matcher restart; trading end to end; reject messages; keyboard-only trading; key storage; a backtest from the form to its result; the practice cap; axe and phone width on every page; the tour; term tooltips by keyboard, mouse and touch (390 px); the footer, Glossary and About; the docs' Authorize button. Screenshots: `dashboard/test-results/screenshots/` |

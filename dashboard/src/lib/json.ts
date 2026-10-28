@@ -4,9 +4,11 @@
 // throws on any such value: the gateway sends big integers as strings
 // (services/common/safe_json.py), so seeing one means a bug, and it fails loudly.
 
+import { fallbackErrors } from "../copy";
+
 export class UnsafeIntegerError extends Error {
   constructor(public readonly path: string, public readonly value: number) {
-    super(`integer beyond 2**53 - 1 at ${path} (would be rounded to ${value})`);
+    super(fallbackErrors.unsafeInteger(path, String(value)));
     this.name = "UnsafeIntegerError";
   }
 }

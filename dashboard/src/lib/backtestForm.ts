@@ -1,7 +1,9 @@
 // The backtest form's rules (M11), mirroring services/common/backtest_form.py so mistakes
 // show as you type. The gateway re-checks every submission and is the authority; both
 // implementations run tests/fixtures/backtest_form/cases.json and must report the same
-// fields.
+// fields. The messages are in copy.ts (the gateway's own are in Python).
+
+import { formErrors as E, strategies } from "../copy";
 
 export const DAYS_PER_YEAR = 252;
 export const TEST_DAYS = DAYS_PER_YEAR;
@@ -9,9 +11,9 @@ export const TRAIN_YEARS = [1, 2, 3, 4, 5];
 export const MAX_GRID = 12;
 
 export const STRATEGIES: Record<string, { label: string; minSymbols: number; params: Record<string, number[]> }> = {
-  tsmom: { label: "Time-series momentum", minSymbols: 1, params: {
+  tsmom: { label: strategies.tsmom!, minSymbols: 1, params: {
     lookback: [20, 60, 120, 250], vol_window: [20, 60], target_vol: [0.05, 0.1, 0.15], max_leverage: [1.0, 2.0] } },
-  xsmom: { label: "Cross-sectional momentum", minSymbols: 5, params: {
+  xsmom: { label: strategies.xsmom!, minSymbols: 5, params: {
     lookback_months: [3, 6, 12], skip_months: [0, 1], quantile: [0.2, 0.3, 0.5] } },
 };
 
@@ -80,44 +82,44 @@ const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInt
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
 export function validate(raw: unknown, catalog: Catalog): FieldError[] {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return [{ field: "dataset", message: "The form is missing." }];
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return [{ field: "dataset", message: E.missing }];
   const form = raw as Record<string, unknown>;
   const errors: FieldError[] = [];
   const err = (field: string, message: string) => errors.push({ field, message });
   const unknown = Object.keys(form).filter((k) => !FIELDS.includes(k)).sort();
-  if (unknown.length) err("dataset", `Unknown field(s): ${unknown.join(", ")}.`);
+  if (unknown.length) err("dataset", E.unknown(unknown));
   const ds = catalog.datasets.find((d) => d.id === form.dataset);
-  if (!ds) err("dataset", "Choose one of the available datasets.");
+  if (!ds) err("dataset", E.dataset);
   const strategy = typeof form.strategy === "string" ? form.strategy : null;
   const spec = strategy !== null && Object.prototype.hasOwnProperty.call(STRATEGIES, strategy) ? STRATEGIES[strategy] : undefined;
-  if (!spec) err("strategy", "Choose a strategy.");
+  if (!spec) err("strategy", E.strategy);
 
   const params = form.params;
   let paramsOk = false;
   if (spec) {
     if (typeof params !== "object" || params === null || Array.isArray(params)) {
-      err("params", "Choose at least one value for every parameter.");
+      err("params", E.everyParam);
     } else {
       const p = params as Record<string, unknown>;
       paramsOk = true;
       for (const extra of Object.keys(p).filter((k) => !(k in spec.params)).sort()) {
-        err(`params.${extra}`, `${strategy} has no parameter ${extra}.`);
+        err(`params.${extra}`, E.noSuchParam(String(strategy), extra));
         paramsOk = false;
       }
       for (const [name, allowed] of Object.entries(spec.params)) {
         const chosen = p[name];
         if (!Array.isArray(chosen) || chosen.length === 0) {
-          err(`params.${name}`, "Choose at least one value.");
+          err(`params.${name}`, E.oneValue);
           paramsOk = false;
         } else if (chosen.some((v) => !isNum(v) || !allowed.includes(v)) || new Set(chosen).size !== chosen.length) {
-          err(`params.${name}`, `Choose from ${allowed.join(", ")}.`);
+          err(`params.${name}`, E.chooseFrom(allowed));
           paramsOk = false;
         }
       }
       if (paramsOk) {
         const size = Object.keys(spec.params).reduce((n, k) => n * (p[k] as unknown[]).length, 1);
         if (size > MAX_GRID) {
-          err("params", `That is ${size} combinations; choose at most ${MAX_GRID}.`);
+          err("params", E.tooMany(size, MAX_GRID));
           paramsOk = false;
         }
       }
@@ -128,21 +130,21 @@ export function validate(raw: unknown, catalog: Catalog): FieldError[] {
   let datesOk = true;
   for (const [name, value] of [["start", start], ["end", end]] as const) {
     if (typeof value !== "string" || !DATE.test(value)) {
-      err(name, "Use a date like 2015-01-02.");
+      err(name, E.date);
       datesOk = false;
     }
   }
   if (datesOk && ds) {
     if ((start as string) < ds.start) {
-      err("start", `The data starts on ${ds.start}.`);
+      err("start", E.dataStarts(ds.start));
       datesOk = false;
     }
     if ((end as string) > ds.end) {
-      err("end", `The data ends on ${ds.end}.`);
+      err("end", E.dataEnds(ds.end));
       datesOk = false;
     }
     if (datesOk && (start as string) >= (end as string)) {
-      err("end", "The end must be after the start.");
+      err("end", E.endAfterStart);
       datesOk = false;
     }
   }
@@ -151,39 +153,37 @@ export function validate(raw: unknown, catalog: Catalog): FieldError[] {
   if (ds) {
     const bySymbol = new Map(ds.symbols.map((s) => [s.symbol, s]));
     if (!Array.isArray(symbols) || symbols.length === 0 || !symbols.every((s) => typeof s === "string")) {
-      err("symbols", "Choose at least one symbol.");
+      err("symbols", E.oneSymbol);
     } else if (new Set(symbols).size !== symbols.length) {
-      err("symbols", "A symbol is listed twice.");
+      err("symbols", E.twice);
     } else if (symbols.some((s) => !bySymbol.has(s))) {
-      err("symbols", `Not in this dataset: ${symbols.filter((s) => !bySymbol.has(s)).join(", ")}.`);
+      err("symbols", E.notInDataset(symbols.filter((s) => !bySymbol.has(s))));
     } else {
       if (spec && symbols.length < spec.minSymbols) {
-        err("symbols", `${spec.label} ranks symbols against each other: choose at least ${spec.minSymbols}.`);
+        err("symbols", E.minSymbols(spec.label, spec.minSymbols));
       }
       if (datesOk) {
         const empty = (symbols as string[]).filter((s) => bySymbol.get(s)!.last < (start as string)
                                                       || bySymbol.get(s)!.first > (end as string));
-        if (empty.length) err("symbols", `No data in the chosen dates for ${empty.join(", ")}.`);
+        if (empty.length) err("symbols", E.noData(empty));
       }
     }
   }
 
   const trainYears: number | null = isInt(form.train_years) && TRAIN_YEARS.includes(form.train_years) ? form.train_years : null;
-  if (trainYears === null) err("train_years", "Choose 1 to 5 years of training.");
-  if (typeof form.costs !== "boolean") err("costs", "Choose whether to include costs.");
+  if (trainYears === null) err("train_years", E.trainYears);
+  if (typeof form.costs !== "boolean") err("costs", E.costs);
 
   if (ds && datesOk && trainYears !== null) {
     const have = tradingDays(ds.calendar, start as string, end as string);
     const need = trainYears * DAYS_PER_YEAR + TEST_DAYS;
     if (have < need) {
-      err("range", `These dates hold ${have} trading days; walk-forward with ${trainYears} year(s) of training and ` +
-        `1 year of testing needs at least ${need}. Start earlier or train for fewer years.`);
+      err("range", E.range(have, trainYears, need));
     }
     if (paramsOk && spec) {
       const needed = lookbackDays(strategy!, params as Record<string, number[]>);
       if (needed >= trainYears * DAYS_PER_YEAR) {
-        err("train_years", `The longest lookback needs ${needed} trading days of history, more than ` +
-          `${trainYears} year(s) of training (${trainYears * DAYS_PER_YEAR} days).`);
+        err("train_years", E.lookback(needed, trainYears, trainYears * DAYS_PER_YEAR));
       }
     }
   }

@@ -1,48 +1,53 @@
-// The frame (M11): skip link, the simulated-market banner on every page, navigation, routes.
+// The frame (M11, M11b): skip link, the simulated-market bar on every page, navigation,
+// routes, and the footer with the author and the code.
 import { useEffect } from "react";
 import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 
 import { TryTrading } from "./components/TryTrading";
+import { site } from "./copy";
+import { REPO_URL } from "./lib/links";
 import { useSession } from "./lib/session";
+import { About } from "./pages/About";
 import { BacktestRun } from "./pages/BacktestRun";
 import { Backtests } from "./pages/Backtests";
+import { Glossary } from "./pages/Glossary";
 import { HowItWorks } from "./pages/HowItWorks";
 import { Market } from "./pages/Market";
 import { NewBacktest } from "./pages/NewBacktest";
 import { NotFound } from "./pages/NotFound";
 import { Overview } from "./pages/Overview";
 
-export const REPO_URL = "https://github.com/ovunda1/marketforge";
-
-const TITLES: [RegExp, string][] = [[/^\/market/, "Live market"], [/^\/backtests\/new/, "New backtest"],
-  [/^\/backtests\/./, "Backtest result"], [/^\/backtests/, "Backtests"], [/^\/how-it-works/, "How it works"],
-  [/^\/$/, "Overview"]];
+const T = site.titles;
+const TITLES: [RegExp, string][] = [[/^\/market/, T.market], [/^\/backtests\/new/, T.newBacktest],
+  [/^\/backtests\/./, T.run], [/^\/backtests/, T.backtests], [/^\/how-it-works/, T.how], [/^\/glossary/, T.glossary],
+  [/^\/about/, T.about], [/^\/$/, T.overview]];
 
 export function App() {
   const { session } = useSession();
   const { pathname } = useLocation();
   useEffect(() => {
-    const t = TITLES.find(([re]) => re.test(pathname))?.[1] ?? "Not found";
-    document.title = `${t} · MarketForge`;
+    const t = TITLES.find(([re]) => re.test(pathname))?.[1] ?? T.notFound;
+    document.title = `${t} · ${site.name}`;
   }, [pathname]);
   return (
     <>
-      <a className="skip" href="#main">Skip to content</a>
+      <a className="skip" href="#main">{site.skip}</a>
       <div className="banner" role="note">
-        <strong>Simulated market</strong> · fictional symbols · practice money only
+        <span className="wrap"><strong>{site.banner}</strong></span>
       </div>
       <header className="nav">
-        <Link className="brand" to="/"><span className="logo" aria-hidden="true">MF</span>MarketForge</Link>
-        <nav aria-label="Main">
-          <NavLink to="/" end>Overview</NavLink>
-          <NavLink to="/market">Live market</NavLink>
-          <NavLink to="/backtests">Backtests</NavLink>
-          <NavLink to="/how-it-works">How it works</NavLink>
-        </nav>
-        <div className="nav-right">
-          <a className="nav-link" href={REPO_URL}>GitHub</a>
-          {session ? <span className="account-chip" title="Your practice account">{session.name}</span>
-            : <TryTrading compact />}
+        <div className="wrap nav-in">
+          <Link className="brand" to="/">{site.name}</Link>
+          <nav aria-label={site.navLabel}>
+            <NavLink to="/" end>{site.nav.overview}</NavLink>
+            <NavLink to="/market">{site.nav.market}</NavLink>
+            <NavLink to="/backtests">{site.nav.backtests}</NavLink>
+            <NavLink to="/how-it-works">{site.nav.how}</NavLink>
+          </nav>
+          <div className="nav-right">
+            {session ? <span className="account-chip" title={site.accountTitle}>{session.name}</span>
+              : <TryTrading compact />}
+          </div>
         </div>
       </header>
       <main id="main" tabIndex={-1}>
@@ -54,12 +59,20 @@ export function App() {
           <Route path="/backtests/new" element={<NewBacktest />} />
           <Route path="/backtests/:id" element={<BacktestRun />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/glossary" element={<Glossary />} />
+          <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <footer className="footer">
-        MarketForge is a learning project. The market is simulated and every symbol on the Live market page is
-        fictional; backtests use historical data and are not investment advice.
+        <div className="wrap footer-in">
+          <p className="footer-by">{site.footerBuilt} {site.author}</p>
+          <nav aria-label={site.footerLabel} className="footer-links">
+            <a href={REPO_URL}>{site.nav.github}</a>
+            <Link to="/about">{site.nav.about}</Link>
+            <Link to="/glossary">{site.nav.glossary}</Link>
+          </nav>
+        </div>
       </footer>
     </>
   );

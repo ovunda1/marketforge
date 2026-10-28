@@ -1,13 +1,14 @@
-// The price ladder (M11): L2 depth from the market feed. Asks above, bids below, each side
-// labelled with a word and an arrow (never color alone). Clicking a price (or pressing
-// Enter on it) puts it in the order form. Levels with your own open orders are marked.
+// The order book (M11, M11b): L2 depth from the market feed. Asks above, bids below, each side
+// named in words (asks red, bids green, never color alone). Selecting a price (click, or Enter on
+// it) puts it in the order form. Levels with your own open orders are marked.
 import { useMemo } from "react";
 
+import { book as C, market } from "../copy";
 import type { Level } from "../lib/bookClient";
 import type { MarketFeed } from "../lib/feeds";
 import { formatInt, formatTicks } from "../lib/money";
-import { Info } from "./Info";
 import { Panel } from "./Panel";
+import { Term } from "./Term";
 
 const LEVELS = 8;
 
@@ -26,8 +27,7 @@ export function Ladder({ feed, tickSize, onPick, mine }: {
       <tr key={`${side}${p}`} className={side} data-testid={`${side}-row`}>
         <td className="num qty">{side === "bid" && <>{bar}{qty}</>}</td>
         <th scope="row" className="num price">
-          <button type="button" onClick={() => onPick(p)}
-                  aria-label={`${side === "bid" ? "Bid" : "Ask"} ${px(p)}, ${formatInt(q)} shares in ${n} order${n === 1 ? "" : "s"}. Use this price.`}>
+          <button type="button" onClick={() => onPick(p)} aria-label={C.pick(side, px(p), formatInt(q), n)}>
             {px(p)}{mine.has(p) && <span className="mine" aria-hidden="true">●</span>}
           </button>
         </th>
@@ -37,31 +37,36 @@ export function Ladder({ feed, tickSize, onPick, mine }: {
     );
   };
   const spread = bids[0] && asks[0] ? asks[0][0] - bids[0][0] : null;
+  // Space for the missing levels (no empty rows), so the spread stays in the middle of the panel
+  // and the book keeps its height as levels come and go.
+  const ROW = 46; // px, .ladder td height
+  const space = (have: number) => have >= LEVELS ? null : (
+    <tr className="spacer" aria-hidden="true"><td colSpan={4} style={{ height: (LEVELS - Math.max(have, 1)) * ROW }} /></tr>);
   return (
-    <Panel id="book" focal className="ladder" title={<>Order book <Info term="orderBook" label="the order book" /></>}
-           right={<span className="src">top {LEVELS} levels · click a price to use it</span>}>
+    <Panel id="book" n="01" className="ladder" title={market.sections.book} right={<span className="src">{C.hint(LEVELS)}</span>}>
       <table className="ladder-table">
-        <caption className="sr-only">Order book: asks (sell orders) above the spread, bids (buy orders) below</caption>
+        <caption className="sr-only">{C.caption}</caption>
         <thead>
           <tr>
-            <th scope="col" className="num"><span className="tag buy">▲ Bids</span> <Info term="bids" label="bids" /></th>
-            <th scope="col" className="c">Price</th>
-            <th scope="col"><span className="tag sell">▼ Asks</span> <Info term="asks" label="asks" /></th>
-            <th scope="col" className="num">Orders <Info term="orders" label="orders" /></th>
+            <th scope="col" className="num"><span className="buy-ink">{C.bids}</span><span className="sub">{C.bidsSub}</span></th>
+            <th scope="col" className="c">{C.price}</th>
+            <th scope="col"><span className="sell-ink">{C.asks}</span><span className="sub">{C.asksSub}</span></th>
+            <th scope="col" className="num"><Term k="orders">{C.orders}</Term></th>
           </tr>
         </thead>
         <tbody data-testid="ladder">
-          {!feed?.client.synced && <tr className="empty-side"><td colSpan={4}>Loading the book…</td></tr>}
-          {feed?.client.synced && asks.length === 0 && <tr className="empty-side"><td colSpan={4}>No sellers</td></tr>}
+          {space(asks.length)}
+          {!feed?.client.synced && <tr className="empty-side"><td colSpan={4}>{C.loading}</td></tr>}
+          {feed?.client.synced && asks.length === 0 && <tr className="empty-side"><td colSpan={4}>{C.noSellers}</td></tr>}
           {[...asks].reverse().map((a) => row("ask", a))}
           <tr className="spread-row">
             <td colSpan={4}>
-              spread <span className="num" data-testid="spread">{spread !== null ? px(spread) : "–"}</span>{" "}
-              <Info term="spread" label="the spread" />
+              <Term k="spread">{C.spread}</Term> <span className="num hi" data-testid="spread">{spread !== null ? px(spread) : "–"}</span>
             </td>
           </tr>
           {bids.map((b) => row("bid", b))}
-          {feed?.client.synced && bids.length === 0 && <tr className="empty-side"><td colSpan={4}>No buyers</td></tr>}
+          {feed?.client.synced && bids.length === 0 && <tr className="empty-side"><td colSpan={4}>{C.noBuyers}</td></tr>}
+          {space(bids.length)}
         </tbody>
       </table>
     </Panel>

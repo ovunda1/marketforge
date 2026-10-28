@@ -4,7 +4,9 @@
 // No floating point anywhere: the text is split into digits and handled as BigInt, so
 // "0.1" is exactly one tick of 0.1. A price off the tick grid is an error naming the two
 // nearest valid prices, never rounded. Results are checked against the gateway's bounds
-// before they become JSON numbers.
+// before they become JSON numbers. The messages are in copy.ts.
+
+import { inputErrors as E } from "../copy";
 
 export const MAX_PRICE_TICKS = 1_000_000_000n; // services/common/safe_json.py
 export const MAX_ORDER_QTY = 1_000_000_000n;
@@ -56,22 +58,22 @@ export function formatTicks(ticks: number | bigint | string, tickSize: string): 
 /** A typed price -> ticks (a safe JS number), or an InputError. */
 export function parsePrice(text: string, tickSize: string): number {
   const t = text.trim();
-  if (!t) throw new InputError("empty", "Enter a price.");
-  if (!PRICE.test(t)) throw new InputError("format", "Use digits with an optional decimal point, like 42.15.");
+  if (!t) throw new InputError("empty", E.enterPrice);
+  if (!PRICE.test(t)) throw new InputError("format", E.priceFormat);
   const [units, places] = tick(tickSize);
   const [value, decimals] = scaled(t);
   const scale = Math.max(decimals, places);
   const v = value * 10n ** BigInt(scale - decimals);
   const u = units * 10n ** BigInt(scale - places);
-  if (v === 0n) throw new InputError("not_positive", "The price must be greater than zero.");
+  if (v === 0n) throw new InputError("not_positive", E.pricePositive);
   if (v % u !== 0n) {
     const lower = v / u;
     const options = [lower, lower + 1n].filter((x) => x > 0n && x <= MAX_PRICE_TICKS).map((x) => formatTicks(x, tickSize));
-    throw new InputError("off_grid", `Prices move in steps of ${tickSize}. Try ${options.join(" or ")}.`, options);
+    throw new InputError("off_grid", E.offGrid(tickSize, options), options);
   }
   const ticks = v / u;
   if (ticks > MAX_PRICE_TICKS) {
-    throw new InputError("too_large", `The highest price accepted is ${formatTicks(MAX_PRICE_TICKS, tickSize)}.`);
+    throw new InputError("too_large", E.priceMax(formatTicks(MAX_PRICE_TICKS, tickSize)));
   }
   return Number(ticks);
 }
@@ -79,12 +81,12 @@ export function parsePrice(text: string, tickSize: string): number {
 /** A typed quantity (whole units) -> a safe JS number, or an InputError. */
 export function parseQty(text: string): number {
   const t = text.trim();
-  if (!t) throw new InputError("empty", "Enter a quantity.");
-  if (!QTY.test(t)) throw new InputError("format", "Use a whole number of shares, like 10.");
+  if (!t) throw new InputError("empty", E.enterQty);
+  if (!QTY.test(t)) throw new InputError("format", E.qtyFormat);
   const q = BigInt(t);
-  if (q === 0n) throw new InputError("not_positive", "The quantity must be at least 1.");
+  if (q === 0n) throw new InputError("not_positive", E.qtyPositive);
   if (q > MAX_ORDER_QTY) {
-    throw new InputError("too_large", `The largest quantity accepted is ${MAX_ORDER_QTY.toLocaleString("en-US")}.`);
+    throw new InputError("too_large", E.qtyMax(MAX_ORDER_QTY.toLocaleString("en-US")));
   }
   return Number(q);
 }

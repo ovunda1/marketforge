@@ -3,6 +3,7 @@
 // (metrics.performance.dsr, research/analytics): the probability that the strategy's true
 // Sharpe ratio beats the best of `dsr_trials` zero-skill strategies. It must reach 0.95.
 
+import { runSummary as R } from "../copy";
 import { pct } from "./format";
 
 export const DSR_THRESHOLD = 0.95;
@@ -14,31 +15,21 @@ export interface RunMetrics {
   period?: { start?: string; end?: string };
 }
 
-function returned(x: number): string {
-  return x >= 0 ? `returned ${pct(x)} a year` : `lost ${pct(-x)} a year`;
-}
-
 export function summarizeRun(m: RunMetrics): { sentence: string; significant: boolean | null } {
   const p = m.performance;
   const sharpe = p?.sharpe, ann = p?.annual_return;
   if (!sharpe || sharpe.net === null || sharpe.net === undefined || !ann || ann.net === null || ann.net === undefined) {
-    return { sentence: "This run has no performance numbers yet.", significant: null };
+    return { sentence: R.noNumbers, significant: null };
   }
   const trials = m.trials?.dsr_trials ?? 1;
-  const head = `After costs, this strategy ${returned(ann.net)}` +
-    (ann.gross !== null && ann.gross !== undefined ? ` (${pct(ann.gross)} before costs)` : "") +
-    ` with a Sharpe ratio of ${sharpe.net.toFixed(2)}` +
-    (sharpe.gross !== null && sharpe.gross !== undefined ? ` (${sharpe.gross.toFixed(2)} before costs)` : "") + ".";
+  const known = (x: number | null | undefined): x is number => x !== null && x !== undefined;
+  const head = R.head(ann.net >= 0 ? R.returned(pct(ann.net)) : R.lost(pct(-ann.net)),
+                      known(ann.gross) ? pct(ann.gross) : null, sharpe.net.toFixed(2),
+                      known(sharpe.gross) ? sharpe.gross.toFixed(2) : null);
   const dsr = p?.dsr?.net;
-  if (dsr === null || dsr === undefined || !Number.isFinite(dsr)) {
-    return { sentence: `${head} Its statistical significance could not be assessed.`, significant: null };
-  }
-  const tried = `${trials} parameter combination${trials === 1 ? "" : "s"} tried`;
-  if (dsr >= DSR_THRESHOLD) {
-    return { sentence: `${head} That is statistically significant even allowing for the ${tried} ` +
-      `(deflated Sharpe ratio ${dsr.toFixed(2)}, at least ${DSR_THRESHOLD} needed).`, significant: true };
-  }
-  return { sentence: `${head} That is not statistically significant: allowing for the ${tried}, the deflated ` +
-    `Sharpe ratio is ${dsr.toFixed(2)}, below the ${DSR_THRESHOLD} needed, so it could well be luck.`,
-           significant: false };
+  if (dsr === null || dsr === undefined || !Number.isFinite(dsr)) return { sentence: R.noDsr(head), significant: null };
+  const tried = R.tried(trials);
+  return dsr >= DSR_THRESHOLD
+    ? { sentence: R.significant(head, tried, dsr.toFixed(2), DSR_THRESHOLD), significant: true }
+    : { sentence: R.notSignificant(head, tried, dsr.toFixed(2), DSR_THRESHOLD), significant: false };
 }

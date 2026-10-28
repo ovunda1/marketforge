@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { tryTrading as C } from "../copy";
 import { useDeployConfig } from "../lib/hooks";
 import { explain, type Explained } from "../lib/rejects";
 import { useSession } from "../lib/session";
@@ -48,13 +49,14 @@ export function TryTrading({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return demo ? (
       <span className="try-compact">
-        <button type="button" className="btn outline small" onClick={start} disabled={busy} data-testid="try-trading">
-          {busy ? "Creating…" : "Try trading"}
+        <button type="button" className="btn outline small try-btn" onClick={start} disabled={busy} aria-busy={busy}
+                data-testid="try-trading">
+          {busy ? C.creating : C.button}
         </button>
         {error && (
           <span className="nav-error">
             <ErrorNote e={error} />
-            <button type="button" className="linkish" onClick={() => setError(null)}>Dismiss</button>
+            <button type="button" className="linkish" onClick={() => setError(null)}>{C.dismiss}</button>
           </span>
         )}
       </span>
@@ -64,18 +66,17 @@ export function TryTrading({ compact = false }: { compact?: boolean }) {
     <div className="try">
       {demo && (
         <>
-          <p className="muted">Trading needs an account. A practice account is created in one click: no sign-up,
-            practice money only, and its key stays in this browser tab.</p>
+          <p>{C.intro}</p>
           <button type="button" className="btn primary" onClick={start} disabled={busy} data-testid="try-trading-main">
-            {busy ? "Creating your practice account…" : "Try trading with a practice account"}
+            {busy ? C.mainBusy : C.main}
           </button>
         </>
       )}
-      <form className="key-form" onSubmit={paste} aria-label="Use an API key">
-        <label className="sr-only" htmlFor="api-key">API key</label>
-        <input id="api-key" type="password" autoComplete="off" placeholder={demo ? "…or paste an API key" : "Paste an API key"}
+      <form className="key-form" onSubmit={paste} aria-label={C.keyForm}>
+        <label className="sr-only" htmlFor="api-key">{C.keyLabel}</label>
+        <input id="api-key" type="password" autoComplete="off" placeholder={demo ? C.keyPlaceholderDemo : C.keyPlaceholder}
                value={key} onChange={(e) => setKey(e.target.value)} />
-        <button type="submit" className="btn outline small" disabled={busy || !key.trim()}>Use key</button>
+        <button type="submit" className="btn outline small" disabled={busy || !key.trim()}>{C.useKey}</button>
       </form>
       {error && <ErrorNote e={error} />}
     </div>

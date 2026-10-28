@@ -40,7 +40,7 @@ test("try trading: rest an order, cancel it, then fill and hold a position", asy
   await page.getByTestId("place-order").click();
   await expect(page.getByTestId("order-result")).toContainText(/Filled|Partly filled|Bought/);
   await page.getByRole("tab", { name: "Fills" }).click();
-  await expect(page.getByTestId("account-fills")).toContainText("▲ bought");
+  await expect(page.getByTestId("account-fills")).toContainText("Bought");
   await page.getByRole("tab", { name: "Positions" }).click();
   await expect(page.getByTestId("account-positions")).toContainText("ACME");
   await expect(page.getByTestId("pnl-ACME")).toHaveText(/\$\d/);

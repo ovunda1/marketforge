@@ -1,17 +1,18 @@
-// Live market (M11): the status strip, the price ladder and the order form as the focal
-// points, the trade tape, and your account once you trade. Symbols are fictional.
+// Live market (M11, M11b): the black status bar, the last price in large type, the order book
+// as the dominant element (8 of 12 columns), the order form and the trades beside it, and
+// your account once you trade. Symbols are fictional.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 
 import { AccountPanel } from "../components/AccountPanel";
 import { ErrorNote } from "../components/ErrorNote";
-import { Info } from "../components/Info";
 import { Ladder } from "../components/Ladder";
 import { OrderForm } from "../components/OrderForm";
 import { StatusStrip } from "../components/StatusStrip";
 import { Tape } from "../components/Tape";
 import { TechDetails } from "../components/TechDetails";
 import { seenTour, Tour } from "../components/Tour";
+import { market as C } from "../copy";
 import { ExecutionsFeed } from "../lib/feeds";
 import { useInstruments, useMarketFeed } from "../lib/hooks";
 import { formatTicks } from "../lib/money";
@@ -71,7 +72,7 @@ export function Market() {
   }
   if (!param && list.length) return <Navigate to={`/market/${list[0]!.symbol}`} replace />;
   if (param && list.length && !instrument) {
-    return <div className="page"><p>No symbol {param} here. <Link to="/market">See the listed symbols</Link>.</p></div>;
+    return <div className="page"><p>{C.noSymbol(param)} <Link to="/market">{C.seeSymbols}</Link></p></div>;
   }
   const tick = instrument?.tick_size ?? "0.01";
   const bestBid = feed?.client.synced ? feed.client.bids()[0]?.[0] ?? null : null;
@@ -79,33 +80,39 @@ export function Market() {
   const last = feed?.lastPrice ?? null;
 
   return (
-    <div className="page wide">
+    <div className="page mk">
       <StatusStrip feed={feed} />
       {show && <TechDetails feed={feed} executions={executions} />}
+      <h1 className="sr-only">{C.heading(symbol ?? "")}</h1>
       <div className="ticker">
-        <nav className="symbols" aria-label="Symbols">
-          {list.map((i) => (
-            <Link key={i.symbol} to={`/market/${i.symbol}`} aria-current={i.symbol === symbol ? "page" : undefined}>{i.symbol}</Link>
-          ))}
-        </nav>
-        {instrument && <span className="muted">{instrument.name}</span>}
-        <span className="chip">fictional company · simulated prices</span>
-        <div className="last">
-          <span className="muted">Last <Info term="lastPrice" label="last price" /></span>
-          <span className="last-v num" data-testid="last-price">{last !== null ? formatTicks(last, tick) : "–"}</span>
+        <div className="ticker-l">
+          <nav className="symbols" aria-label={C.symbols}>
+            {list.map((i) => (
+              <Link key={i.symbol} to={`/market/${i.symbol}`} aria-current={i.symbol === symbol ? "page" : undefined}>{i.symbol}</Link>
+            ))}
+          </nav>
+          <div className="last">
+            <span className="last-v num" data-testid="last-price">{last !== null ? formatTicks(last, tick) : "–"}</span>
+            <span className="last-k">
+              <b>{symbol}</b>
+              <span>{C.last}{instrument?.name ? ` · ${instrument.name}` : ""}</span>
+            </span>
+          </div>
         </div>
-        <button type="button" className="btn outline small tour-btn" onClick={() => setTour(true)}>Take the 30-second tour</button>
+        <div className="ticker-r">
+          <span className="chip">{C.fictional}</span>
+          <button type="button" className="linkish tour-btn" onClick={() => setTour(true)}>{C.tourButton}</button>
+        </div>
       </div>
-      <h1 className="sr-only">Live market: {symbol}</h1>
       <div className="grid">
         <Ladder feed={feed} tickSize={tick} onPick={onPick} mine={mine} />
         <div className="stack">
-          {instrument && <OrderForm symbol={instrument.symbol} tickSize={tick} bestBid={bestBid} bestAsk={bestAsk}
+          {instrument && <OrderForm n="02" symbol={instrument.symbol} tickSize={tick} bestBid={bestBid} bestAsk={bestAsk}
                                     picked={picked} onPlaced={onPlaced} />}
-          <Tape feed={feed} tickSize={tick} />
+          <Tape n="03" feed={feed} tickSize={tick} />
         </div>
+        {session && symbol && <AccountPanel n="04" symbol={symbol} instruments={list} refresh={refresh} onOpenPrices={setMine} />}
       </div>
-      {session && symbol && <AccountPanel symbol={symbol} instruments={list} refresh={refresh} onOpenPrices={setMine} />}
       <Tour open={tour} onClose={() => setTour(false)} />
     </div>
   );

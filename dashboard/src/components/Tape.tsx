@@ -1,33 +1,35 @@
-// The trade tape (M11): newest first; the aggressor side as an arrow and a word.
+// The trade tape (M11, M11b): newest first; the side that started each trade as a word.
+import { market, tape as C } from "../copy";
 import type { MarketFeed } from "../lib/feeds";
 import { formatInt, formatTicks } from "../lib/money";
 import { useTech } from "../lib/tech";
-import { Info } from "./Info";
 import { Panel } from "./Panel";
+import { Term } from "./Term";
 
-export function Tape({ feed, tickSize }: { feed: MarketFeed | null; tickSize: string }) {
+export function Tape({ feed, tickSize, n }: { feed: MarketFeed | null; tickSize: string; n: string }) {
   const { show } = useTech();
-  const trades = (feed?.trades ?? []).slice(0, 12);
+  const trades = (feed?.trades ?? []).slice(0, 10);
   return (
-    <Panel id="tape" title={<>Trades <Info term="trades" label="trades" /></>}>
-      {trades.length === 0 ? <p className="empty">No trades yet.</p> : (
-        <table>
-          <caption className="sr-only">Recent trades, newest first</caption>
+    <Panel id="tape" n={n} title={market.sections.tape}>
+      {trades.length === 0 ? <p className="empty">{C.empty}</p> : (
+        <table className="data">
+          <caption className="sr-only">{C.caption}</caption>
           <thead>
             <tr>
-              {show && <th scope="col" className="num">seq_no</th>}
-              <th scope="col" className="num">Price</th>
-              <th scope="col" className="num">Qty</th>
-              <th scope="col">Aggressor <Info term="aggressor" label="the aggressor" /></th>
+              {show && <th scope="col" className="num">{C.seqNo}</th>}
+              <th scope="col" className="num">{C.price}</th>
+              <th scope="col" className="num">{C.qty}</th>
+              <th scope="col" className="num"><Term k="aggressor">{C.side}</Term></th>
             </tr>
           </thead>
           <tbody data-testid="tape">
             {trades.map((t) => (
               <tr key={t.trade_id}>
-                {show && <td className="num muted">{formatInt(t.seq_no)}</td>}
+                {show && <td className="num muted mono">{formatInt(t.seq_no)}</td>}
                 <td className="num">{formatTicks(t.price, tickSize)}</td>
                 <td className="num">{formatInt(t.qty)}</td>
-                <td><span className={`tag ${t.aggressor_side}`}>{t.aggressor_side === "buy" ? "▲ buy" : "▼ sell"}</span></td>
+                <td className="num"><span className={`side-word ${t.aggressor_side}`}>
+                  {t.aggressor_side === "buy" ? C.buy : C.sell}</span></td>
               </tr>
             ))}
           </tbody>
