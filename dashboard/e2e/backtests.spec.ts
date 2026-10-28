@@ -11,6 +11,7 @@ test("the list shows the showcase runs, labelled as historical data, and every r
   await expect(page.locator("#featured")).toContainText("historical data");
   await expect(page.getByTestId("overfitting-note")).toContainText("Every run is recorded");
   await expect(page.getByTestId("total-runs")).toHaveText(/^\d+$/);
+  await expect(page.getByTestId("not-advice")).toHaveText("Backtests use historical data and are not investment advice.");
   await shot(page, "backtests");
   await expectAccessible(page, "backtests");
 });
@@ -21,6 +22,7 @@ test("a featured run leads with its plain-language summary", async ({ page }) =>
   await expect(page.locator(".meta")).toContainText("historical data");
   await expect(page.getByTestId("gross-net")).toContainText("Sharpe ratio");
   await expect(page.locator("#costs svg")).toBeVisible();
+  await expect(page.getByTestId("not-advice")).toBeVisible();
   await shot(page, "backtest-showcase");
   await expectAccessible(page, "backtest result");
 });

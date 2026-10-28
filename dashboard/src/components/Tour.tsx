@@ -1,23 +1,14 @@
-// The 30-second guided tour of Live market (M11): five short steps, each pointing at one
+// The 30-second guided tour of Live market (M11, M11b): five short steps, each pointing at one
 // part of the page. Starts once per tab (remembered in sessionStorage), can be reopened
 // from its button, and is skippable at any point (Skip, or Esc). It is a non-modal
 // dialog: focus moves to it, the page stays usable.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { tour as C } from "../copy";
+
 export const TOUR_KEY = "mf.tour.seen";
 
-const STEPS = [
-  { target: "#book", title: "The order book",
-    text: "Sellers' prices are on top (▼ asks), buyers' below (▲ bids). A trade happens when a new order meets a price on the other side." },
-  { target: "#tape", title: "Trades",
-    text: "Every trade prints here as it happens. The arrow shows which side started it." },
-  { target: "[data-testid=status-strip]", title: "Live connection",
-    text: "This strip shows the connection to the exchange. If an update is ever missed, the page notices and refetches the book." },
-  { target: "#order", title: "Place an order",
-    text: "Choose Buy or Sell, a quantity and a price. The sentence under the form says exactly what the order will do before you place it." },
-  { target: "#order", title: "Practice money only",
-    text: "Click Try trading for a practice account: no sign-up, and nothing here is real money or a real company." },
-];
+const STEPS = C.steps;
 
 export function seenTour(): boolean {
   try {
@@ -87,15 +78,15 @@ export function Tour({ open, onClose }: { open: boolean; onClose: () => void }) 
   return (
     <div className="tour" role="dialog" aria-modal="false" aria-labelledby="tour-h" ref={ref} style={pos}
          data-testid="tour">
-      <div className="tour-step">{step + 1} / {STEPS.length}</div>
+      <div className="tour-step">{C.of(step + 1, STEPS.length)}</div>
       <h2 id="tour-h" tabIndex={-1} ref={headRef}>{current.title}</h2>
       <p>{current.text}</p>
       <div className="tour-actions">
-        <button type="button" className="linkish" onClick={close}>Skip tour (Esc)</button>
+        <button type="button" className="linkish" onClick={close}>{C.skip}</button>
         <span style={{ display: "flex", gap: 8 }}>
-          {step > 0 && <button type="button" className="btn outline small" onClick={() => setStep(step - 1)}>Back</button>}
+          {step > 0 && <button type="button" className="btn outline small" onClick={() => setStep(step - 1)}>{C.back}</button>}
           <button type="button" className="btn primary small" onClick={() => (last ? close() : setStep(step + 1))}>
-            {last ? "Done" : "Next →"}
+            {last ? C.done : C.next}
           </button>
         </span>
       </div>

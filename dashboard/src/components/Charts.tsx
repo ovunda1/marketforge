@@ -1,13 +1,31 @@
-// Backtest charts (M11), hand-written SVG: equity curve (gross and net), drawdown, and the
-// cost breakdown. Thin marks, recessive grid, one axis per chart, a legend whenever there
+// Backtest charts (M11, M11b), hand-written SVG: equity curve (gross and net), drawdown, and
+// the cost breakdown. Thin marks, recessive grid, one axis per chart, a legend whenever there
 // are two series plus direct end labels, a crosshair tooltip on hover or keyboard, and a
-// data table for each chart. Series colors were checked with the dataviz validator against
-// the dark surface (lightness band, colorblind separation, contrast).
-import { useId, useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
+// data table for each chart. Net is solid black, gross dashed grey: line style as well as
+// color tells them apart (checked with the dataviz validator on white).
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
+import { charts as C } from "../copy";
 import { microDollars, pct } from "../lib/format";
 
-const W = 760, H = 260, M = { top: 12, right: 64, bottom: 28, left: 56 };
+const keyStyle = (key: Series["key"]) => ({ borderTopColor: `var(--series-${key})`,
+                                            borderTopStyle: key === "gross" ? "dashed" as const : "solid" as const });
+
+const M = { top: 12, right: 64, bottom: 28, left: 56 };
+
+/** The element's width in CSS pixels, so the SVG draws 1:1 and its text keeps its size on a phone. */
+function useWidth<T extends HTMLElement>(fallback = 760) {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(fallback);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => { if (e && e.contentRect.width > 0) setW(Math.round(e.contentRect.width)); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
 
 function niceTicks(lo: number, hi: number, n = 5): number[] {
   if (!(hi > lo)) return [lo];
@@ -35,6 +53,8 @@ export function LineChart({ title, dates, series, area = false, format = (v: num
 }) {
   const id = useId();
   const [hover, setHover] = useState<number | null>(null);
+  const [ref, W] = useWidth<HTMLElement>();
+  const H = Math.round(Math.min(380, Math.max(220, W * 0.32)));
   const n = dates.length;
   const { lo, hi, ticks, xYears } = useMemo(() => {
     const all = series.flatMap((s) => s.values).filter(Number.isFinite);
@@ -46,11 +66,11 @@ export function LineChart({ title, dates, series, area = false, format = (v: num
     dates.forEach((d, i) => {
       if (i === 0 ? d.slice(5, 7) === "01" : d.slice(0, 4) !== dates[i - 1]!.slice(0, 4)) years.push({ i, y: d.slice(0, 4) });
     });
-    const every = Math.ceil(years.length / 8);
+    const every = Math.ceil(years.length / Math.max(3, Math.floor(W / 110)));
     return { lo: Math.min(lo0 - pad, t[0]!), hi: Math.max(hi0 + pad, t[t.length - 1]!), ticks: t,
              xYears: years.filter((_, k) => k % every === 0) };
-  }, [dates, series]);
-  if (n < 2) return <p className="muted">Not enough data to draw.</p>;
+  }, [dates, series, W]);
+  if (n < 2) return <p className="muted">{C.tooShort}</p>;
   const x = (i: number) => M.left + (i / (n - 1)) * (W - M.left - M.right);
   const y = (v: number) => M.top + (1 - (v - lo) / (hi - lo)) * (H - M.top - M.bottom);
   const idx = thin(n);
@@ -72,15 +92,15 @@ export function LineChart({ title, dates, series, area = false, format = (v: num
   const yearEnds = dates.map((d, i) => (i === n - 1 || d.slice(0, 4) !== dates[i + 1]!.slice(0, 4) ? i : -1)).filter((i) => i >= 0);
 
   return (
-    <figure className="chart-wrap" style={{ margin: 0 }}>
+    <figure className="chart-wrap" ref={ref} style={{ margin: 0 }}>
       {series.length > 1 && (
         <div className="legend" aria-hidden="true">
-          {series.map((s) => <span key={s.key}><span className="key" style={{ background: `var(--series-${s.key})` }} />{s.label}</span>)}
+          {series.map((s) => <span key={s.key}><span className="key" style={keyStyle(s.key)} />{s.label}</span>)}
         </div>
       )}
       <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-labelledby={`${id}-t`} tabIndex={0} onKeyDown={onKey}
            onBlur={() => setHover(null)}>
-        <title id={`${id}-t`}>{title}. Use the left and right arrow keys to read values; the table below lists them by year.</title>
+        <title id={`${id}-t`}>{C.keys(title)}</title>
         {ticks.map((t) => (
           <g key={t} className="axis">
             <line className={t === 0 ? "zero" : "grid-line"} x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} />
@@ -110,15 +130,15 @@ export function LineChart({ title, dates, series, area = false, format = (v: num
         <div className="chart-tip" role="status" style={{ left: `${(x(hover) / W) * 100}%`, top: 24,
                                                            transform: x(hover) > W / 2 ? "translateX(-105%)" : "translateX(8px)" }}>
           <div className="num">{dates[hover]}</div>
-          {series.map((s) => <div key={s.key}><span className="key legend" style={{ display: "inline-block", width: 10, height: 3, background: `var(--series-${s.key})`, marginRight: 6 }} />{s.label}: <b className="num">{format(s.values[hover]!)}</b></div>)}
+          {series.map((s) => <div key={s.key}>{s.label}: <b className="num">{format(s.values[hover]!)}</b></div>)}
         </div>
       )}
       <details>
-        <summary className="linkish">Show the data as a table</summary>
+        <summary className="linkish">{C.table}</summary>
         <div className="scroll-x">
           <table className="data">
-            <caption className="sr-only">{title}, at each year end</caption>
-            <thead><tr><th scope="col">Date</th>{series.map((s) => <th key={s.key} scope="col" className="num">{s.label}</th>)}</tr></thead>
+            <caption className="sr-only">{C.atYearEnd(title)}</caption>
+            <thead><tr><th scope="col">{C.date}</th>{series.map((s) => <th key={s.key} scope="col" className="num">{s.label}</th>)}</tr></thead>
             <tbody>
               {yearEnds.map((i) => (
                 <tr key={i}><th scope="row" className="num">{dates[i]}</th>
@@ -132,45 +152,40 @@ export function LineChart({ title, dates, series, area = false, format = (v: num
   );
 }
 
-const COST_LABELS: Record<string, string> = {
-  spread: "Bid-ask spread", impact: "Market impact", commission: "Commission", borrow: "Borrow (short selling)",
-  sec_fee: "SEC fee", financing: "Financing", carry_on_costs: "Interest lost on costs", slippage: "Slippage",
-  vol_slippage: "Volatility slippage", latency: "Latency", maker_taker: "Maker-taker fees",
-};
-
 export function CostBars({ byComponent }: { byComponent: Record<string, number | string> }) {
   const id = useId();
+  const [ref, w] = useWidth<HTMLElement>();
   const rows = Object.entries(byComponent)
-    .map(([k, v]) => ({ key: k, label: COST_LABELS[k] ?? k, value: Number(v), raw: v }))
+    .map(([k, v]) => ({ key: k, label: C.costs[k] ?? k, value: Number(v), raw: v }))
     .filter((r) => r.value !== 0)
     .sort((a, b) => b.value - a.value);
-  if (!rows.length) return <p className="muted">No costs were charged (costs were off for this run).</p>;
+  if (!rows.length) return <p className="muted">{C.noCostsCharged}</p>;
   const max = Math.max(...rows.map((r) => Math.abs(r.value)));
-  const rowH = 36, labelW = 230, valueW = 130, w = 760;
+  const rowH = 32, labelW = Math.min(200, Math.round(w * 0.42)), valueW = Math.min(110, Math.round(w * 0.27));
   const h = rows.length * rowH + 8;
   return (
-    <figure style={{ margin: 0 }}>
+    <figure ref={ref} style={{ margin: 0 }}>
       <svg viewBox={`0 0 ${w} ${h}`} className="chart" role="img" aria-labelledby={`${id}-t`}>
-        <title id={`${id}-t`}>Costs by component, largest first, in dollars over the whole run</title>
+        <title id={`${id}-t`}>{C.costsTitle}</title>
         {rows.map((r, i) => {
           const bw = Math.max(2, (Math.abs(r.value) / max) * (w - labelW - valueW));
           const y0 = 4 + i * rowH;
           return (
             <g key={r.key}>
-              <text className="label big" x={labelW - 10} y={y0 + 21} textAnchor="end">{r.label}</text>
-              <path className="bar" d={`M${labelW},${y0 + 7} h${bw - 4} a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h${-(bw - 4)} z`}>
+              <text className="label" x={labelW - 10} y={y0 + 19} textAnchor="end">{r.label}</text>
+              <rect className="bar" x={labelW} y={y0 + 6} width={bw} height={18}>
                 <title>{`${r.label}: ${microDollars(r.raw)}`}</title>
-              </path>
-              <text className="label big num" x={labelW + bw + 8} y={y0 + 21}>{microDollars(r.raw)}</text>
+              </rect>
+              <text className="label num" x={labelW + bw + 8} y={y0 + 19}>{microDollars(r.raw)}</text>
             </g>
           );
         })}
       </svg>
       <details>
-        <summary className="linkish">Show the data as a table</summary>
+        <summary className="linkish">{C.table}</summary>
         <table className="data">
-          <caption className="sr-only">Costs by component</caption>
-          <thead><tr><th scope="col">Component</th><th scope="col" className="num">Cost</th></tr></thead>
+          <caption className="sr-only">{C.costsCaption}</caption>
+          <thead><tr><th scope="col">{C.component}</th><th scope="col" className="num">{C.cost}</th></tr></thead>
           <tbody>{rows.map((r) => <tr key={r.key}><th scope="row">{r.label}</th><td className="num">{microDollars(r.raw)}</td></tr>)}</tbody>
         </table>
       </details>

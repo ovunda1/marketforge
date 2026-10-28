@@ -1,4 +1,4 @@
-// Order entry (M11): a big Buy/Sell toggle (real radio buttons: arrow keys work), the
+// Order entry (M11, M11b): a big Buy/Sell toggle (real radio buttons: arrow keys work), the
 // price pre-filled from the other side of the book, and a sentence saying what the order
 // will do before it is placed. Typed text becomes integer ticks through money.ts (no
 // floating point); a price off the tick grid shows the two nearest valid prices.
@@ -11,14 +11,13 @@ import { summarize, type OrderType, type Side, type Tif } from "../lib/orderSumm
 import { explain, type Explained } from "../lib/rejects";
 import { isAuthError, useSession } from "../lib/session";
 import { useTech } from "../lib/tech";
+import { market, order as C } from "../copy";
 import { ErrorNote } from "./ErrorNote";
-import { Info } from "./Info";
 import { Panel } from "./Panel";
+import { Term } from "./Term";
 import { TryTrading } from "./TryTrading";
 
-const TIFS: { value: Tif; label: string }[] = [
-  { value: "gtc", label: "Good till cancelled" }, { value: "day", label: "Day (cancelled at the close)" },
-  { value: "ioc", label: "Immediate or cancel" }, { value: "fok", label: "Fill or kill" }];
+const TIFS: Tif[] = ["gtc", "day", "ioc", "fok"];
 
 function parsed<T>(fn: () => T): { value: T | null; error: InputError | null } {
   try {
@@ -29,8 +28,8 @@ function parsed<T>(fn: () => T): { value: T | null; error: InputError | null } {
   }
 }
 
-export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced }: {
-  symbol: string; tickSize: string; bestBid: number | null; bestAsk: number | null;
+export function OrderForm({ n, symbol, tickSize, bestBid, bestAsk, picked, onPlaced }: {
+  n: string; symbol: string; tickSize: string; bestBid: number | null; bestAsk: number | null;
   picked: { price: number; n: number } | null; onPlaced: (seqNo: number | null) => void;
 }) {
   const { session, end } = useSession();
@@ -101,27 +100,27 @@ export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced
   };
 
   return (
-    <Panel id="order" focal title="New order" right={<span className="src">{symbol} · tick {tickSize}</span>}>
+    <Panel id="order" n={n} title={market.sections.order} right={<span className="src">{C.meta(symbol, tickSize)}</span>}>
       <form className="panel-b" onSubmit={place} noValidate aria-describedby="order-summary">
         <fieldset className="toggle" id="side">
-          <legend className="sr-only">Side</legend>
+          <legend className="sr-only">{C.side}</legend>
           <label className="buy">
             <input type="radio" name="side" value="buy" checked={side === "buy"} onChange={() => setSide("buy")} />
-            <span>▲ Buy</span>
+            <span>{C.buy}</span>
           </label>
           <label className="sell">
             <input type="radio" name="side" value="sell" checked={side === "sell"} onChange={() => setSide("sell")} />
-            <span>▼ Sell</span>
+            <span>{C.sell}</span>
           </label>
         </fieldset>
 
         <fieldset>
-          <legend>Order type <Info term="orderType" label="order type" /></legend>
+          <legend><Term k="orderType">{C.type}</Term></legend>
           <div className="seg">
             {(["limit", "market"] as const).map((t) => (
               <label key={t}>
                 <input type="radio" name="type" value={t} checked={type === t} onChange={() => setType(t)} />
-                <span>{t === "limit" ? "Limit" : "Market"}</span>
+                <span>{t === "limit" ? C.limit : C.market}</span>
               </label>
             ))}
           </div>
@@ -129,7 +128,7 @@ export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced
 
         <div className="two">
           <div className="field">
-            <label className="label" htmlFor="qty">Quantity <Info term="qty" label="quantity" /></label>
+            <label className="label" htmlFor="qty">{C.qty}</label>
             <input id="qty" type="text" inputMode="numeric" autoComplete="off" value={qtyText}
                    aria-invalid={submitted && qty.error ? true : undefined} aria-describedby="qty-err"
                    onChange={(e) => setQtyText(e.target.value)} />
@@ -139,20 +138,20 @@ export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced
           </div>
           {type === "limit" ? (
             <div className="field">
-              <label className="label" htmlFor="price">Limit price ($) <Info term="limitPrice" label="limit price" /></label>
+              <label className="label" htmlFor="price">{C.price}</label>
               <input id="price" ref={priceRef} type="text" inputMode="decimal" autoComplete="off" value={priceText}
                      aria-invalid={price.error && (submitted || priceTouched) ? true : undefined}
                      aria-describedby="price-hint"
                      onChange={(e) => { setPriceText(e.target.value); setPriceTouched(true); }} />
               <span id="price-hint" className={price.error && (submitted || priceTouched) ? "err" : "hint"}>
                 {price.error && (submitted || priceTouched) ? price.error.message
-                  : priceTouched ? `Steps of ${tickSize}.` : "Pre-filled with the best price on the other side."}
+                  : priceTouched ? C.steps(tickSize) : C.prefilled}
               </span>
             </div>
           ) : (
             <div className="field">
-              <span className="label">Price</span>
-              <p className="hint" style={{ margin: "8px 0 0" }}>Best available now</p>
+              <span className="label">{C.marketPrice}</span>
+              <p className="hint" style={{ margin: "10px 0 0" }}>{C.bestNow}</p>
             </div>
           )}
         </div>
@@ -160,16 +159,16 @@ export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced
         {type === "limit" && (
           <div className="two">
             <div className="field">
-              <label className="label" htmlFor="tif">Time in force <Info term="tif" label="time in force" /></label>
+              <label className="label" htmlFor="tif"><Term k="tif">{C.tif}</Term></label>
               <select id="tif" value={tif} onChange={(e) => setTif(e.target.value as Tif)}>
-                {TIFS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {TIFS.map((t) => <option key={t} value={t}>{C.tifs[t]}</option>)}
               </select>
             </div>
             <div className="field" style={{ alignSelf: "end" }}>
               <label className="check">
                 <input type="checkbox" checked={effectivePostOnly} disabled={tif === "ioc" || tif === "fok"}
                        onChange={(e) => setPostOnly(e.target.checked)} />
-                Post-only <Info term="postOnly" label="post-only" />
+                <Term k="postOnly">{C.postOnly}</Term>
               </label>
             </div>
           </div>
@@ -179,7 +178,7 @@ export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced
 
         {session && (
           <button type="submit" className={`btn submit ${side}`} disabled={busy} data-testid="place-order">
-            {busy ? "Placing…" : side === "buy" ? "▲ Place buy order" : "▼ Place sell order"}
+            {busy ? C.placing : side === "buy" ? C.placeBuy : C.placeSell}
           </button>
         )}
 
@@ -193,9 +192,9 @@ export function OrderForm({ symbol, tickSize, bestBid, bestAsk, picked, onPlaced
           )}
           {error && <ErrorNote e={error} />}
         </div>
-        {show && session && <p className="src">account {session.accountId} · {session.practice ? "practice" : "key"}</p>}
+        {show && session && <p className="src mono">{C.techAccount(session.accountId, session.practice)}</p>}
       </form>
-      {!session && <div className="panel-b" style={{ paddingTop: 0 }}><TryTrading /></div>}
+      {!session && <div className="panel-b"><TryTrading /></div>}
     </Panel>
   );
 }

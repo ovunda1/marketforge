@@ -2,7 +2,7 @@
 // The texts live in content/rejects.json; a Python test checks it covers exactly the
 // engine's enums and the gateway's ERROR_CODES.
 
-import rejects from "../content/rejects.json";
+import { fallbackErrors as F, rejects } from "../copy";
 import { ApiError } from "./api";
 
 export interface Explained {
@@ -33,7 +33,7 @@ export function explain(err: unknown): Explained {
     return { ...entry, code: err.code, reason, fields: fields.length ? fields : undefined };
   }
   const message = err instanceof Error ? err.message : String(err);
-  return { title: "Something went wrong", message, fix: "Check your connection and try again.", code: "CLIENT" };
+  return { title: F.clientTitle, message, fix: F.clientFix, code: "CLIENT" };
 }
 
 export function explainReject(reason: string): Explained {
@@ -42,7 +42,7 @@ export function explainReject(reason: string): Explained {
 
 export function explainCancel(reason: string): Explained {
   const key = reason.toUpperCase();
-  return { ...(cancels[key] ?? { title: "Cancelled", message: `Cancelled (${reason}).`, fix: "" }), code: key };
+  return { ...(cancels[key] ?? { title: F.cancelledTitle, message: F.cancelled(reason), fix: "" }), code: key };
 }
 
 export const codes = { engine: Object.keys(engine), admin: Object.keys(admin), api: Object.keys(apiCodes),

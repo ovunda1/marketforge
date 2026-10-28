@@ -1,4 +1,4 @@
-// Your account (M11): open orders (with cancel), fills and positions, as tabs in one panel.
+// Your account (M11, M11b): open orders (with cancel), fills and positions, as tabs in one panel.
 // Refreshed after each order you place and on every execution report; reads pass
 // min_seq_no so the projection has caught up with what you just did.
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
@@ -10,20 +10,21 @@ import type { OrderOut } from "../lib/orderResult";
 import { explain, type Explained } from "../lib/rejects";
 import { isAuthError, useSession } from "../lib/session";
 import { useTech } from "../lib/tech";
+import { account as C, market } from "../copy";
 import { ErrorNote } from "./ErrorNote";
-import { Info } from "./Info";
 import { Panel } from "./Panel";
+import { Term } from "./Term";
 
 interface FillRow { symbol: string; trade_id: number; order_id: number; side: string; liquidity: string; price: number;
                     qty: number; seq_no: number }
 interface Position { symbol: string; qty: number; cash: string; mark: number | null; pnl: string | null;
                      open_buy_qty: number; open_sell_qty: number }
 
-const TABS = [["orders", "Open orders", "openOrders"], ["fills", "Fills", "fills"], ["positions", "Positions", "positions"]] as const;
-type Tab = (typeof TABS)[number][0];
+const TABS = ["orders", "fills", "positions"] as const;
+type Tab = (typeof TABS)[number];
 
-export function AccountPanel({ symbol, instruments, refresh, onOpenPrices }: {
-  symbol: string; instruments: Instrument[]; refresh: { seqNo: number | null; n: number };
+export function AccountPanel({ n, symbol, instruments, refresh, onOpenPrices }: {
+  n: string; symbol: string; instruments: Instrument[]; refresh: { seqNo: number | null; n: number };
   onOpenPrices: (prices: Set<number>) => void;
 }) {
   const { session, end } = useSession();
@@ -78,47 +79,47 @@ export function AccountPanel({ symbol, instruments, refresh, onOpenPrices }: {
   const onKey = (e: KeyboardEvent, i: number) => {
     const next = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length : -1;
     if (next >= 0) {
-      setTab(TABS[next]![0]);
+      setTab(TABS[next]!);
       tabRefs.current[next]?.focus();
     }
   };
 
   if (!session) return null;
+  const K = C.cols;
   const tablist = (
-    <div className="tabs" role="tablist" aria-label="Your account">
-      {TABS.map(([id, label], i) => (
+    <div className="tabs" role="tablist" aria-label={C.tabsLabel}>
+      {TABS.map((id, i) => (
         <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`tp-${id}`}
                 tabIndex={tab === id ? 0 : -1} ref={(el) => { tabRefs.current[i] = el; }}
                 onClick={() => setTab(id)} onKeyDown={(e) => onKey(e, i)}>
-          {label}{id === "orders" && orders.length ? ` (${orders.length})` : ""}
+          {C.tabs[id]}{id === "orders" && orders.length ? ` (${orders.length})` : ""}
         </button>
       ))}
     </div>
   );
-  const term = TABS.find((t) => t[0] === tab)![2];
   return (
-    <Panel id="account" title={<>Your account <Info term={term} label={TABS.find((t) => t[0] === tab)![1]} /></>}
-           right={tablist}>
+    <Panel id="account" n={n} title={market.sections.account} right={tablist}>
       {error && <div className="panel-b"><ErrorNote e={error} /></div>}
       <div role="tabpanel" id={`tp-${tab}`} aria-labelledby={`tab-${tab}`} className="scroll-x" data-testid={`account-${tab}`}>
-        {tab === "orders" && (orders.length === 0 ? <p className="empty">No open orders.</p> : (
+        {tab === "orders" && (orders.length === 0 ? <p className="empty">{C.noOrders}</p> : (
           <table className="data">
-            <thead><tr><th scope="col">Symbol</th><th scope="col">Side</th><th scope="col" className="num">Price</th>
-              <th scope="col" className="num">Open qty</th><th scope="col" className="num">Filled</th>
-              {show && <th scope="col" className="num">Order id</th>}<th scope="col"><span className="sr-only">Cancel</span></th></tr></thead>
+            <thead><tr><th scope="col">{K.symbol}</th><th scope="col">{K.side}</th><th scope="col" className="num">{K.price}</th>
+              <th scope="col" className="num">{K.open}</th><th scope="col" className="num">{K.filled}</th>
+              {show && <th scope="col" className="num">{K.orderId}</th>}<th scope="col"><span className="sr-only">{K.cancel}</span></th></tr></thead>
             <tbody>
               {orders.map((o) => (
                 <tr key={o.order_id}>
-                  <td className="num">{o.symbol}</td>
-                  <td><span className={`tag ${o.side}`}>{o.side === "buy" ? "▲ buy" : "▼ sell"}</span></td>
+                  <td>{o.symbol}</td>
+                  <td><span className={`side-word ${o.side}`}>{o.side === "buy" ? C.buy : C.sell}</span></td>
                   <td className="num">{formatTicks(o.price ?? 0, tick(o.symbol ?? ""))}</td>
                   <td className="num">{formatInt(o.leaves_qty ?? 0)}</td>
                   <td className="num">{formatInt(o.cum_qty ?? 0)}</td>
-                  {show && <td className="num muted">{o.order_id}</td>}
+                  {show && <td className="num muted mono">{o.order_id}</td>}
                   <td className="num">
                     <button type="button" className="btn danger small" onClick={() => cancel(o)} disabled={cancelling === o.order_id}
-                            aria-label={`Cancel ${o.side} ${formatInt(o.leaves_qty ?? 0)} ${o.symbol} at ${formatTicks(o.price ?? 0, tick(o.symbol ?? ""))}`}>
-                      {cancelling === o.order_id ? "Cancelling…" : "Cancel"}
+                            aria-label={C.cancelLabel(o.side ?? "", formatInt(o.leaves_qty ?? 0), o.symbol ?? "",
+                                                      formatTicks(o.price ?? 0, tick(o.symbol ?? "")))}>
+                      {cancelling === o.order_id ? C.cancelling : C.cancel}
                     </button>
                   </td>
                 </tr>
@@ -126,34 +127,34 @@ export function AccountPanel({ symbol, instruments, refresh, onOpenPrices }: {
             </tbody>
           </table>
         ))}
-        {tab === "fills" && (fills.length === 0 ? <p className="empty">No fills yet.</p> : (
+        {tab === "fills" && (fills.length === 0 ? <p className="empty">{C.noFills}</p> : (
           <table className="data">
-            <thead><tr><th scope="col">Symbol</th><th scope="col">Side</th><th scope="col" className="num">Price</th>
-              <th scope="col" className="num">Qty</th><th scope="col">Liquidity <Info term="liquidity" label="liquidity" /></th>
-              {show && <th scope="col" className="num">seq_no</th>}</tr></thead>
+            <thead><tr><th scope="col">{K.symbol}</th><th scope="col">{K.side}</th><th scope="col" className="num">{K.price}</th>
+              <th scope="col" className="num">{K.qty}</th><th scope="col"><Term k="liquidity">{K.liquidity}</Term></th>
+              {show && <th scope="col" className="num">{K.seqNo}</th>}</tr></thead>
             <tbody>
               {fills.map((f) => (
                 <tr key={`${f.symbol}-${f.trade_id}-${f.order_id}`}>
-                  <td className="num">{f.symbol}</td>
-                  <td><span className={`tag ${f.side}`}>{f.side === "buy" ? "▲ bought" : "▼ sold"}</span></td>
+                  <td>{f.symbol}</td>
+                  <td><span className={`side-word ${f.side}`}>{f.side === "buy" ? C.bought : C.sold}</span></td>
                   <td className="num">{formatTicks(f.price, tick(f.symbol))}</td>
                   <td className="num">{formatInt(f.qty)}</td>
-                  <td>{f.liquidity === "maker" ? "added (maker)" : "took (taker)"}</td>
-                  {show && <td className="num muted">{formatInt(f.seq_no)}</td>}
+                  <td>{f.liquidity === "maker" ? C.maker : C.taker}</td>
+                  {show && <td className="num muted mono">{formatInt(f.seq_no)}</td>}
                 </tr>
               ))}
             </tbody>
           </table>
         ))}
-        {tab === "positions" && (positions.length === 0 ? <p className="empty">No positions yet.</p> : (
+        {tab === "positions" && (positions.length === 0 ? <p className="empty">{C.noPositions}</p> : (
           <table className="data">
-            <thead><tr><th scope="col">Symbol</th><th scope="col" className="num">Shares</th>
-              <th scope="col" className="num">Last price</th><th scope="col" className="num">P&amp;L <Info term="pnl" label="P&L" /></th></tr></thead>
+            <thead><tr><th scope="col">{K.symbol}</th><th scope="col" className="num">{K.shares}</th>
+              <th scope="col" className="num">{K.last}</th><th scope="col" className="num"><Term k="pnl">{K.pnl}</Term></th></tr></thead>
             <tbody>
               {positions.map((p) => (
                 <tr key={p.symbol}>
-                  <td className="num">{p.symbol}</td>
-                  <td className="num">{formatInt(p.qty)}{p.qty < 0 ? " (short)" : ""}</td>
+                  <td>{p.symbol}</td>
+                  <td className="num">{formatInt(p.qty)}{p.qty < 0 ? C.short : ""}</td>
                   <td className="num">{p.mark !== null ? formatTicks(p.mark, tick(p.symbol)) : "–"}</td>
                   <td className="num" data-testid={`pnl-${p.symbol}`}>
                     {p.pnl !== null ? `${p.pnl.startsWith("-") ? "−" : ""}$${formatTicks(p.pnl.replace("-", ""), tick(p.symbol))}` : "–"}

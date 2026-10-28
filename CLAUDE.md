@@ -6,7 +6,7 @@ analytics layer (`research/`) via pybind11 bindings (`bindings/`, module `mfengi
 and FastAPI services (`services/`) expose it over REST/WebSocket. The same engine
 library runs both the live exchange and backtests. `SPEC.md` is the full build spec.
 
-## Current milestone: 11 (Dashboard)
+## Current milestone: 11b (Dashboard redesign)
 
 Build one milestone per session. Do not start the next milestone until the current
 one has passing tests in CI and a commit.
@@ -125,6 +125,10 @@ Overview's numbers come from results files at build time (`dashboard/facts.confi
 `make facts` writes `results/tests.json`, `make difftest-long` writes `results/difftest.json`.
 Practice accounts (demo mode, `MF_DEMO_MODE`): per-IP limit with `X-Forwarded-For` believed
 only from `MF_TRUSTED_PROXIES`; at most 2 backtests queued/running, form only.
+Design (M11b, docs/learning/m11b.md): Swiss style, white/#111, Hanken Grotesk, 12-column grid,
+no radius/shadow/cards; green = buy, red = sell or error, gold only as a line or fill, never
+text (`src/lib/contrast.test.ts`). Every user-visible sentence goes in `src/copy.ts` (a test
+walks the sources); terms are `<Term k=…>` with definitions on `/glossary`.
 
 ```sh
 make test-dashboard      # tsc + Vitest

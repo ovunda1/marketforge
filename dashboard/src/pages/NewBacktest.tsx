@@ -1,13 +1,13 @@
-// The backtest form (M11): strategy, parameters, date range, universe and costs, validated
+// The backtest form (M11, M11b): strategy, parameters, date range, universe and costs, validated
 // as you type against the data catalog (the same rules the gateway enforces), then queued.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { ErrorNote } from "../components/ErrorNote";
-import { Info } from "../components/Info";
 import { Panel } from "../components/Panel";
+import { Term } from "../components/Term";
 import { TryTrading } from "../components/TryTrading";
-import type { Term } from "../content/glossary";
+import { newBacktest as C, type Term as TermKey } from "../copy";
 import { api, ApiError } from "../lib/api";
 import { DAYS_PER_YEAR, MAX_GRID, STRATEGIES, TEST_DAYS, tradingDays, TRAIN_YEARS, validate, type Catalog,
          type FieldError, type Form } from "../lib/backtestForm";
@@ -16,11 +16,9 @@ import { explain, type Explained } from "../lib/rejects";
 import { isAuthError, useSession } from "../lib/session";
 import { DataChip, STRATEGY_LABEL } from "./Backtests";
 
-const PARAM_TERMS: Record<string, [string, Term]> = {
-  lookback: ["Lookback (trading days)", "lookback"], vol_window: ["Volatility window (days)", "volWindow"],
-  target_vol: ["Target volatility", "targetVol"], max_leverage: ["Max leverage", "maxLeverage"],
-  lookback_months: ["Lookback (months)", "lookbackMonths"], skip_months: ["Skip (months)", "skipMonths"],
-  quantile: ["Quantile traded", "quantile"],
+const PARAM_TERMS: Record<string, TermKey> = {
+  lookback: "lookback", vol_window: "volWindow", target_vol: "targetVol", max_leverage: "maxLeverage",
+  lookback_months: "lookbackMonths", skip_months: "skipMonths", quantile: "quantile",
 };
 const DEFAULTS: Record<string, Record<string, number[]>> = {
   tsmom: { lookback: [60, 120], vol_window: [20], target_vol: [0.1], max_leverage: [2.0] },
@@ -52,7 +50,7 @@ export function NewBacktest() {
   const errFor = (field: string) => [...shown, ...serverErrors].filter((e) => e.field === field || e.field.startsWith(`${field}.`));
 
   if (catalog.error) return <div className="page"><ErrorNote e={explain(catalog.error)} /></div>;
-  if (!form || !catalog.data) return <div className="page"><p className="muted">Loading the data catalog…</p></div>;
+  if (!form || !catalog.data) return <div className="page"><p className="muted">{C.loading}</p></div>;
   const ds = catalog.data.datasets.find((d) => d.id === form.dataset)!;
   const spec = STRATEGIES[form.strategy]!;
   const grid = Object.keys(spec.params).reduce((n, k) => n * (form.params[k]?.length ?? 0), 1);
@@ -90,28 +88,27 @@ export function NewBacktest() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <h1>Run a backtest</h1>
-        <p>Pick a strategy and the history to test it on. The run is a walk-forward: it learns its settings on a few
-          years, is tested on the next year it hasn't seen, and rolls forward. Only the test years are reported.{" "}
-          <Info term="walkForward" label="walk-forward" /></p>
-      </div>
-      <form onSubmit={submit} noValidate aria-label="Backtest settings">
-        <Panel id="bt-data" title="Data and strategy">
+      <header className="page-head">
+        <h1>{C.title}</h1>
+        <p>{C.intro}</p>
+        <p className="advice"><Term k="walkForward">{C.walkForward}</Term></p>
+      </header>
+      <form onSubmit={submit} noValidate aria-label={C.formLabel} className="bt-form">
+        <Panel id="bt-data" n="01" title={C.sections.data}>
           <div className="panel-b form-grid">
             <div className="field">
-              <label className="label" htmlFor="dataset">Dataset</label>
+              <label className="label" htmlFor="dataset">{C.dataset}</label>
               <select id="dataset" value={form.dataset} onChange={(e) => {
                 const d = catalog.data!.datasets.find((x) => x.id === e.target.value)!;
                 set({ dataset: d.id, start: d.start, end: d.end, symbols: d.symbols.map((s) => s.symbol).slice(0, 10) });
               }}>
-                {catalog.data.datasets.map((d) => <option key={d.id} value={d.id}>{d.label} ({d.real ? "historical" : "synthetic"})</option>)}
+                {catalog.data.datasets.map((d) => <option key={d.id} value={d.id}>{d.label} ({d.real ? C.historical : C.synthetic})</option>)}
               </select>
               <span className="hint">{ds.source}. <DataChip real={ds.real} /></span>
               <Err field="dataset" />
             </div>
             <fieldset>
-              <legend>Strategy</legend>
+              <legend>{C.strategy}</legend>
               <div className="seg">
                 {Object.entries(STRATEGIES).map(([k, s]) => (
                   <label key={k}><input type="radio" name="strategy" value={k} checked={form.strategy === k}
@@ -122,7 +119,7 @@ export function NewBacktest() {
             </fieldset>
             {Object.entries(spec.params).map(([name, allowed]) => (
               <fieldset key={name}>
-                <legend>{PARAM_TERMS[name]![0]} <Info term={PARAM_TERMS[name]![1]} label={PARAM_TERMS[name]![0]} /></legend>
+                <legend><Term k={PARAM_TERMS[name]!}>{C.params[name]}</Term></legend>
                 <div className="chips">
                   {allowed.map((v) => (
                     <label key={v}><input type="checkbox" checked={form.params[name]?.includes(v) ?? false}
@@ -134,79 +131,79 @@ export function NewBacktest() {
               </fieldset>
             ))}
             <div className="field">
-              <span className="label">Combinations tried</span>
-              <span className="num" data-testid="grid-size">{grid} of at most {MAX_GRID}</span>
-              <span className="hint">Each is tried on every training window; the best one in training is tested.</span>
+              <span className="label">{C.combinations}</span>
+              <span className="num" data-testid="grid-size">{C.combinationsValue(grid, MAX_GRID)}</span>
+              <span className="hint">{C.combinationsHint}</span>
               <Err field="params" />
             </div>
           </div>
         </Panel>
 
-        <Panel id="bt-range" title="History">
+        <Panel id="bt-range" n="02" title={C.sections.range}>
           <div className="panel-b form-grid">
             <div className="field">
-              <label className="label" htmlFor="start">From</label>
+              <label className="label" htmlFor="start">{C.from}</label>
               <input id="start" type="date" min={ds.start} max={ds.end} value={form.start}
                      aria-invalid={errFor("start").length ? true : undefined} onChange={(e) => set({ start: e.target.value })} />
               <Err field="start" />
             </div>
             <div className="field">
-              <label className="label" htmlFor="end">To</label>
+              <label className="label" htmlFor="end">{C.to}</label>
               <input id="end" type="date" min={ds.start} max={ds.end} value={form.end}
                      aria-invalid={errFor("end").length ? true : undefined} onChange={(e) => set({ end: e.target.value })} />
               <Err field="end" />
             </div>
             <div className="field">
-              <label className="label" htmlFor="train">Training years <Info term="trainYears" label="training years" /></label>
+              <label className="label" htmlFor="train"><Term k="trainYears">{C.trainYears}</Term></label>
               <select id="train" value={form.train_years} onChange={(e) => set({ train_years: Number.parseInt(e.target.value, 10) })}>
-                {TRAIN_YEARS.map((y) => <option key={y} value={y}>{y} year{y > 1 ? "s" : ""}, then 1 year of testing</option>)}
+                {TRAIN_YEARS.map((y) => <option key={y} value={y}>{C.trainOption(y)}</option>)}
               </select>
               <Err field="train_years" />
             </div>
             <div className="field">
-              <span className="label">Trading days in range</span>
-              <span className="num" data-testid="trading-days">{days} (at least {form.train_years * DAYS_PER_YEAR + TEST_DAYS} needed)</span>
-              <span className="hint">Data available {ds.start} to {ds.end}.</span>
+              <span className="label">{C.days}</span>
+              <span className="num" data-testid="trading-days">{C.daysValue(days, form.train_years * DAYS_PER_YEAR + TEST_DAYS)}</span>
+              <span className="hint">{C.available(ds.start, ds.end)}</span>
               <Err field="range" />
             </div>
           </div>
         </Panel>
 
-        <Panel id="bt-universe" title={<>Universe <Info term="universe" label="the universe" /></>}
-               right={<span className="src">{form.symbols.length} of {ds.symbols.length} · {ds.real ? "real tickers, historical data" : "fictional symbols"}</span>}>
+        <Panel id="bt-universe" n="03" title={<Term k="universe">{C.sections.universe}</Term>}
+               right={<span className="src">{C.universeNote(form.symbols.length, ds.symbols.length, ds.real)}</span>}>
           <div className="panel-b">
-            <div className="chips" role="group" aria-label="Symbols">
+            <div className="chips" role="group" aria-label={C.symbols}>
               {ds.symbols.map((s) => (
-                <label key={s.symbol} title={`${s.first} to ${s.last}`}>
+                <label key={s.symbol} title={C.symbolRange(s.first, s.last)}>
                   <input type="checkbox" checked={form.symbols.includes(s.symbol)} onChange={() => set({ symbols: toggle(form.symbols, s.symbol) })} />
                   <span>{s.symbol}</span></label>
               ))}
             </div>
-            <p style={{ marginTop: 10 }}>
-              <button type="button" className="linkish" onClick={() => set({ symbols: ds.symbols.map((s) => s.symbol) })}>Select all</button>{" · "}
-              <button type="button" className="linkish" onClick={() => set({ symbols: [] })}>Clear</button>
+            <p className="link-buttons">
+              <button type="button" className="linkish" onClick={() => set({ symbols: ds.symbols.map((s) => s.symbol) })}>{C.selectAll}</button>
+              <button type="button" className="linkish" onClick={() => set({ symbols: [] })}>{C.clear}</button>
             </p>
             {ds.survivorship && <p className="hint">{ds.survivorship}</p>}
             <Err field="symbols" />
-            <label className="check" style={{ marginTop: 12 }}>
+            <label className="check costs-check">
               <input type="checkbox" checked={form.costs} onChange={(e) => set({ costs: e.target.checked })} />
-              Include trading costs (commission, fees, spread, impact, financing) <Info term="costs" label="trading costs" />
+              <Term k="costs">{C.costs}</Term>
             </label>
           </div>
         </Panel>
 
-        <div style={{ marginTop: 16 }}>
-          {touched && errors.length > 0 && <p className="err" role="alert">Fix the {errors.length} problem{errors.length > 1 ? "s" : ""} above to run.</p>}
+        <div className="bt-submit">
+          {touched && errors.length > 0 && <p className="err" role="alert">{C.fix(errors.length)}</p>}
           {error && <ErrorNote e={error} />}
           {session && (
             <button type="submit" className="btn primary" disabled={busy} data-testid="run-backtest">
-              {busy ? "Queueing…" : `Run ${STRATEGY_LABEL[form.strategy]} on ${form.symbols.length} symbol${form.symbols.length === 1 ? "" : "s"}`}
+              {busy ? C.queueing : C.submit(STRATEGY_LABEL[form.strategy] ?? form.strategy, form.symbols.length)}
             </button>
           )}
         </div>
       </form>
-      {!session && <div style={{ maxWidth: 460 }}><p>Running a backtest needs a practice account.</p><TryTrading /></div>}
-      <p className="hint">Runs take from a few seconds to a few minutes. <Link to="/backtests">Back to the list</Link></p>
+      {!session && <div className="bt-account"><p>{C.needsAccount}</p><TryTrading /></div>}
+      <p className="advice">{C.duration} <Link to="/backtests">{C.back}</Link></p>
     </div>
   );
 }
