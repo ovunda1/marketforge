@@ -1,0 +1,23 @@
+{
+  "generated_by": "make difftest-long",
+  "reference": "reference/ (the Python reference engine)",
+  "runs": {
+    "narrow": {
+      "base_commit": "d714e7527b5ffe16bbd6843e9d9bc9fee8fb1636",
+      "commands": 1000000,
+      "dirty": true,
+      "output_lines": 2805293,
+      "result": "identical",
+      "seed": 20261020
+    },
+    "wide": {
+      "base_commit": "d714e7527b5ffe16bbd6843e9d9bc9fee8fb1636",
+      "commands": 1000000,
+      "dirty": true,
+      "output_lines": 2803535,
+      "result": "identical",
+      "seed": 20261020
+    }
+  },
+  "schema": 1
+}

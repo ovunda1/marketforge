@@ -3,10 +3,13 @@ gateway and the database seed:
 
 ```yaml
 instruments:
-  - symbol: AAPL
+  - symbol: ACME
     tick_size: "0.01"          # text, never a float
+    name: Acme Corporation     # optional display name (the dashboard)
     risk_config: risk.yaml     # optional, relative to this file (docs/risk.md)
 ```
+
+Listed symbols are fictional (M11): simulated prices must never pass for a real stock's.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ class Instrument:
     symbol: str
     tick_size: str
     risk_config: Path | None = None
+    name: str = ""
 
     def __post_init__(self) -> None:
         if not SYMBOL.match(self.symbol):
@@ -39,14 +43,15 @@ def load_instruments(path: str | Path) -> list[Instrument]:
     data = yaml.safe_load(path.read_text())
     out = []
     for item in data["instruments"]:
-        unknown = set(item) - {"symbol", "tick_size", "risk_config"}
+        unknown = set(item) - {"symbol", "tick_size", "risk_config", "name"}
         if unknown:
             raise ValueError(f"{path}: unknown keys {sorted(unknown)}")
         if not isinstance(item["tick_size"], str):
             raise ValueError(f"{path}: {item['symbol']}: tick_size must be a quoted string")
         risk = item.get("risk_config")
         out.append(Instrument(symbol=item["symbol"], tick_size=item["tick_size"],
-                              risk_config=(path.parent / risk) if risk else None))
+                              risk_config=(path.parent / risk) if risk else None,
+                              name=str(item.get("name", ""))))
     if len({i.symbol for i in out}) != len(out):
         raise ValueError(f"{path}: duplicate symbols")
     return out

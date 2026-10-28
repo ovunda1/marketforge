@@ -3,7 +3,12 @@ running stack, with a WebSocket market-data client attached. Prints one JSON lin
 REST round-trip percentiles, and the time from sending an order to receiving the
 market-data update that carries its seq_no over WebSocket (often shorter than the REST
 round trip: the matcher publishes both at once). A sanity check of the service path, not a benchmark: it runs over
-loopback, through Docker's port forwarding, on whatever else the machine is doing."""
+loopback, through Docker's port forwarding, on whatever else the machine is doing.
+
+It trades the dedicated SMOKE symbol (never the demo market) and, at the end, cancels
+every order of its two accounts that is still open, so it leaves no resting orders
+behind (M11). Its fills stay: they are journaled history.
+"""
 
 from __future__ import annotations
 
@@ -67,10 +72,38 @@ async def run(url: str, keys: tuple[str, str], n: int, symbol: str, concurrency:
         elapsed = time.perf_counter() - started
         await asyncio.sleep(0.5)
         watcher.cancel()
+        last_seq = max(sent_at, default=0)
+        cleanup = await clean_up(client, keys, symbol, last_seq)
     lags = [seen[s] - t for s, t in sent_at.items() if s in seen]
     return {"orders": n, "ok": len(round_trips), "concurrency": concurrency, "orders_per_s": round(n / elapsed, 1),
             "rest_round_trip": summary(round_trips), "send_to_md_update": summary(lags) if lags else None,
-            "machine": {"system": platform.system(), "machine": platform.machine()}}
+            "cleanup": cleanup, "machine": {"system": platform.system(), "machine": platform.machine()}}
+
+
+async def clean_up(client: Any, keys: tuple[str, str], symbol: str, seq_no: int) -> dict[str, int]:
+    """Cancels every order of both accounts still open on `symbol` (read once the
+    projection has caught up with the run), until none is left."""
+    cancelled = 0
+    for key in keys:
+        headers = {"X-API-Key": key}
+        for _ in range(20):
+            r = await client.get("/orders", params={"status": "open", "symbol": symbol, "min_seq_no": seq_no,
+                                                    "limit": 500}, headers=headers)
+            r.raise_for_status()
+            open_orders = r.json()["orders"]
+            if not open_orders:
+                break
+            for o in open_orders:
+                d = await client.delete(f"/orders/{o['order_id']}", headers=headers)
+                if d.status_code == 200:
+                    cancelled += 1
+                    seq_no = max(seq_no, d.json().get("seq_no") or 0)
+    left = 0
+    for key in keys:
+        r = await client.get("/orders", params={"status": "open", "symbol": symbol, "min_seq_no": seq_no},
+                             headers={"X-API-Key": key})
+        left += len(r.json()["orders"])
+    return {"cancelled": cancelled, "open_after": left}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -78,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--url", default="http://127.0.0.1:8000")
     parser.add_argument("--key", required=True)
     parser.add_argument("--key2", required=True)
-    parser.add_argument("--symbol", default="AAPL")
+    parser.add_argument("--symbol", default="SMOKE")
     parser.add_argument("--n", type=int, default=2000)
     parser.add_argument("--concurrency", type=int, default=32)
     args = parser.parse_args(argv)

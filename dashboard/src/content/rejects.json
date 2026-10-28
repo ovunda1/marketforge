@@ -1,0 +1,261 @@
+{
+  "_note": "Plain-language messages (M11). engine = mfengine.RejectReason, admin = mfengine.AdminRejectReason, cancel = mfengine.CancelReason, api = services.api.app.ERROR_CODES. tests/services/test_dashboard_content.py checks every code is here and nothing else.",
+  "engine": {
+    "INVALID_PRICE": {
+      "title": "That price can't be used",
+      "message": "A limit order needs a price above zero, and a market order must not have one.",
+      "fix": "Enter a positive price, or switch to a market order to trade at the best available prices."
+    },
+    "INVALID_QTY": {
+      "title": "That quantity can't be used",
+      "message": "The quantity must be a whole number of at least 1.",
+      "fix": "Enter how many shares you want, for example 10."
+    },
+    "INVALID_ORDER_TYPE": {
+      "title": "Those options don't go together",
+      "message": "A market order must be immediate-or-cancel, and post-only works only on a limit order that can rest in the book.",
+      "fix": "Use a limit order with Good till cancelled or Day for post-only, or drop post-only."
+    },
+    "DUPLICATE_ORDER_ID": {
+      "title": "This order was already sent",
+      "message": "The exchange has already accepted an order with this id today.",
+      "fix": "Place the order again: the dashboard gives each new order a fresh id."
+    },
+    "UNKNOWN_ORDER": {
+      "title": "That order is no longer open",
+      "message": "It has already been filled or cancelled, so there is nothing left to change.",
+      "fix": "Refresh your open orders; it may have traded a moment ago."
+    },
+    "NO_LIQUIDITY": {
+      "title": "Nobody is on the other side",
+      "message": "A market order needs at least one resting order to trade against, and there are none.",
+      "fix": "Use a limit order at the price you want; it will wait in the book."
+    },
+    "FOK_NOT_FILLABLE": {
+      "title": "It couldn't fill completely, so nothing traded",
+      "message": "Fill-or-kill trades the whole quantity at once or not at all, and there isn't enough at your price.",
+      "fix": "Lower the quantity, improve the price, or use Immediate or cancel to take what is there."
+    },
+    "POST_ONLY_WOULD_CROSS": {
+      "title": "It would have traded immediately",
+      "message": "Post-only orders only add to the book; at this price it would have matched a resting order.",
+      "fix": "Move the price away from the other side (lower for a buy, higher for a sell), or turn post-only off."
+    },
+    "REPLACE_QTY_TOO_LOW": {
+      "title": "The new quantity is too small",
+      "message": "When you change an order, the new quantity counts what has already filled and must be more than that.",
+      "fix": "Enter a total quantity above the filled amount, or cancel the order instead."
+    },
+    "MARKET_CLOSED": {
+      "title": "The market isn't open",
+      "message": "This symbol is not in continuous trading right now (pre-open, halted or closed).",
+      "fix": "Try again when the session is open; the status strip shows the market state."
+    },
+    "KILL_SWITCH": {
+      "title": "Trading is switched off",
+      "message": "An exchange operator has engaged a kill switch for this account or for everyone.",
+      "fix": "Nothing to change on your side: trading resumes when the switch is released."
+    },
+    "RATE_LIMIT": {
+      "title": "Too many orders at once",
+      "message": "This account sent orders faster than its rate limit allows.",
+      "fix": "Wait a second and try again."
+    },
+    "MAX_QTY": {
+      "title": "That quantity is above the limit",
+      "message": "Each order on this symbol is limited to a maximum number of shares.",
+      "fix": "Split it into smaller orders."
+    },
+    "PRICE_BAND": {
+      "title": "That price is too far from the market",
+      "message": "The exchange refuses prices outside a band around the reference price, to catch typos.",
+      "fix": "Use a price closer to the current market."
+    },
+    "MAX_NOTIONAL": {
+      "title": "The order is too large in value",
+      "message": "Price times quantity is above this account's per-order limit.",
+      "fix": "Lower the quantity or the price."
+    },
+    "MAX_OPEN_ORDERS": {
+      "title": "Too many open orders",
+      "message": "This account already has as many resting orders as it is allowed.",
+      "fix": "Cancel some open orders first."
+    },
+    "POSITION_LIMIT": {
+      "title": "It could take your position past its limit",
+      "message": "Counting your open orders, this order could leave you holding more shares (long or short) than allowed.",
+      "fix": "Lower the quantity or cancel open orders on the same side."
+    },
+    "INSUFFICIENT_CREDIT": {
+      "title": "Not enough credit",
+      "message": "Your open orders plus this one would exceed the account's credit limit.",
+      "fix": "Cancel open orders or place a smaller order."
+    }
+  },
+  "admin": {
+    "INVALID_TRANSITION": {
+      "title": "That session change isn't allowed",
+      "message": "The market can't move from its current state to the requested one.",
+      "fix": "Check the current session state and choose a valid next state."
+    },
+    "INVALID_LIMITS": {
+      "title": "Those limits are out of range",
+      "message": "One of the risk limits is outside its allowed range.",
+      "fix": "See docs/risk.md for the ranges and try again."
+    },
+    "INVALID_KILL_SWITCH": {
+      "title": "That kill-switch change isn't allowed",
+      "message": "The switch is already in that state, or the request names no valid target.",
+      "fix": "Check the current state of the switch."
+    }
+  },
+  "cancel": {
+    "USER": {
+      "title": "Cancelled",
+      "message": "You cancelled the order.",
+      "fix": ""
+    },
+    "UNFILLED": {
+      "title": "The rest was cancelled",
+      "message": "Immediate-or-cancel and market orders never wait: whatever didn't fill straight away was cancelled.",
+      "fix": "Use Good till cancelled to leave the rest in the book."
+    },
+    "SELF_TRADE": {
+      "title": "Stopped from trading with yourself",
+      "message": "The order would have matched one of your own resting orders, so the exchange cancelled it.",
+      "fix": "Cancel your own order on the other side first."
+    },
+    "EXPIRED": {
+      "title": "Expired at the close",
+      "message": "A Day order is cancelled when the session closes.",
+      "fix": "Use Good till cancelled to keep it across sessions."
+    },
+    "KILL_SWITCH": {
+      "title": "Cancelled by the kill switch",
+      "message": "An operator switched trading off and cancelled open orders.",
+      "fix": ""
+    }
+  },
+  "api": {
+    "UNAUTHORIZED": {
+      "title": "You need a practice account",
+      "message": "Trading needs an API key, and there isn't a valid one in this tab.",
+      "fix": "Click Try trading to get a practice account, or paste an API key."
+    },
+    "FORBIDDEN": {
+      "title": "Not allowed for this account",
+      "message": "This account isn't allowed to do that (admin commands, or a raw backtest config from a practice account).",
+      "fix": "Use the backtest form, or an account with the right role."
+    },
+    "NOT_FOUND": {
+      "title": "Not found",
+      "message": "That item doesn't exist, or belongs to another account.",
+      "fix": "Check the link, or go back to the list."
+    },
+    "METHOD_NOT_ALLOWED": {
+      "title": "Not supported",
+      "message": "The server doesn't support that request.",
+      "fix": "Reload the page; if it keeps happening, it is a bug."
+    },
+    "HTTP_ERROR": {
+      "title": "Request failed",
+      "message": "The server refused the request.",
+      "fix": "Reload the page and try again."
+    },
+    "BAD_REQUEST": {
+      "title": "Request not understood",
+      "message": "The server couldn't read the request.",
+      "fix": "Reload the page and try again."
+    },
+    "VALIDATION_ERROR": {
+      "title": "Something in the form needs fixing",
+      "message": "One or more fields aren't valid.",
+      "fix": "Check the highlighted fields."
+    },
+    "UNKNOWN_SYMBOL": {
+      "title": "Unknown symbol",
+      "message": "This exchange doesn't list that symbol.",
+      "fix": "Choose one of the listed symbols."
+    },
+    "ORDER_REJECTED": {
+      "title": "The exchange rejected the order",
+      "message": "The order didn't pass the exchange's checks.",
+      "fix": "See the reason above."
+    },
+    "ADMIN_REJECTED": {
+      "title": "The exchange rejected the change",
+      "message": "The admin command didn't pass the exchange's checks.",
+      "fix": "See the reason above."
+    },
+    "IDEMPOTENCY_CONFLICT": {
+      "title": "That request id was used for something else",
+      "message": "A retried request must be identical to the original.",
+      "fix": "Place the order again as a new order."
+    },
+    "RATE_LIMITED": {
+      "title": "Slow down a little",
+      "message": "Too many requests from this account in one second.",
+      "fix": "Wait a moment and try again."
+    },
+    "PRACTICE_LIMIT": {
+      "title": "Too many practice accounts",
+      "message": "Only a few practice accounts can be created from one address each hour.",
+      "fix": "Use the practice account you already have, or try again later."
+    },
+    "BACKTEST_LIMIT": {
+      "title": "You have backtests running",
+      "message": "A practice account can have only a couple of backtests queued or running at once.",
+      "fix": "Wait for one to finish (its page shows progress), then start another."
+    },
+    "SYMBOL_HALTED": {
+      "title": "Trading in this symbol is halted",
+      "message": "The exchange stopped this symbol after an internal error.",
+      "fix": "Try another symbol; an operator has to restart this one."
+    },
+    "ENGINE_FAILED": {
+      "title": "The exchange hit an internal error",
+      "message": "This symbol's engine failed and was halted to protect its data.",
+      "fix": "Try another symbol."
+    },
+    "EXPIRED": {
+      "title": "The request took too long",
+      "message": "It reached the exchange after its deadline, so it was not processed.",
+      "fix": "Try again."
+    },
+    "MATCHER_TIMEOUT": {
+      "title": "No answer in time",
+      "message": "The exchange didn't reply in time, so it's unknown whether the order went through.",
+      "fix": "Check your open orders before trying again."
+    },
+    "PROJECTION_LAGGING": {
+      "title": "Your history is catching up",
+      "message": "The database behind your order history is a moment behind the exchange.",
+      "fix": "Wait a second and refresh."
+    },
+    "BOOK_UNAVAILABLE": {
+      "title": "No market data yet",
+      "message": "The exchange hasn't published this symbol's book yet.",
+      "fix": "Wait a few seconds; the page reconnects by itself."
+    },
+    "CATALOG_UNAVAILABLE": {
+      "title": "Backtest data isn't ready",
+      "message": "The backtest worker hasn't listed its datasets yet.",
+      "fix": "Wait a few seconds and reload."
+    },
+    "NOT_PUBLISHABLE": {
+      "title": "This result can't be shown",
+      "message": "It contains per-symbol data that the data provider's terms don't allow us to publish.",
+      "fix": "Open the tearsheet instead, or contact the operator."
+    },
+    "UNSAFE_INTEGER": {
+      "title": "A number was too large to show exactly",
+      "message": "The server refused to send a value that a browser would round.",
+      "fix": "This is a bug; please report it."
+    },
+    "ERROR": {
+      "title": "Something went wrong",
+      "message": "The server reported an unexpected error.",
+      "fix": "Try again; if it persists, check the technical details."
+    }
+  }
+}

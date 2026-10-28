@@ -24,7 +24,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from sqlalchemy import func, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from services.api.deps import Account, Deps, MatcherTimeout
@@ -94,9 +94,14 @@ class PgStore:
 
     async def account_by_prefix(self, prefix: str) -> Account | None:
         async with self.engine.connect() as conn:
-            row = (await conn.execute(select(accounts.c.id, accounts.c.role, accounts.c.api_key_hash)
+            row = (await conn.execute(select(accounts.c.id, accounts.c.role, accounts.c.api_key_hash,
+                                             accounts.c.practice)
                                       .where(accounts.c.api_key_prefix == prefix))).first()
-        return Account(int(row.id), row.role, row.api_key_hash) if row else None
+        return Account(int(row.id), row.role, row.api_key_hash, bool(row.practice)) if row else None
+
+    async def create_account(self, row: dict[str, Any]) -> int:
+        async with self.engine.begin() as conn:
+            return int((await conn.execute(insert(accounts).values(**row).returning(accounts.c.id))).scalar_one())
 
     async def wait_for(self, symbol: str, seq_no: int, timeout_s: float) -> bool:
         deadline = time.monotonic() + timeout_s
@@ -120,6 +125,25 @@ class PgStore:
                                      .order_by(fills.c.trade_id))).mappings()
             return {**dict(row), "type": row["order_type"], "seq_no": row["updated_seq"],
                     "fills": [dict(f) for f in fs]}
+
+    async def list_orders(self, account_id: int, open_only: bool, symbol: str | None,
+                          limit: int) -> list[dict[str, Any]]:
+        q = select(orders).where(orders.c.account_id == account_id)
+        if open_only:
+            q = q.where(orders.c.status.in_(("open", "partially_filled")))
+        if symbol is not None:
+            q = q.where(orders.c.symbol == symbol)
+        async with self.engine.connect() as conn:
+            rows = await conn.execute(q.order_by(orders.c.order_id.desc()).limit(limit))
+            return [{**dict(r), "type": r["order_type"], "seq_no": r["updated_seq"]} for r in rows.mappings()]
+
+    async def fills(self, account_id: int, symbol: str | None, limit: int) -> list[dict[str, Any]]:
+        q = select(fills).where(fills.c.account_id == account_id)
+        if symbol is not None:
+            q = q.where(fills.c.symbol == symbol)
+        async with self.engine.connect() as conn:
+            rows = await conn.execute(q.order_by(fills.c.seq_no.desc(), fills.c.trade_id.desc()).limit(limit))
+            return [dict(r) for r in rows.mappings()]
 
     async def trades(self, symbol: str, limit: int) -> list[dict[str, Any]]:
         async with self.engine.connect() as conn:
@@ -149,8 +173,15 @@ class PgStore:
                 p.setdefault("open_notional", 0)
         return [pos[s] for s in sorted(pos)]
 
-    async def create_backtest(self, run_id: str, account_id: int, config: dict[str, Any]) -> None:
-        await backtests.create(self.engine, run_id, account_id, config)
+    async def create_backtest(self, run_id: str, account_id: int, config: dict[str, Any],
+                              cap: int | None = None) -> bool:
+        return await backtests.create(self.engine, run_id, account_id, config, cap)
+
+    async def list_backtests(self, limit: int) -> list[dict[str, Any]]:
+        return await backtests.list_runs(self.engine, limit)
+
+    async def backtest_counts(self) -> dict[str, int]:
+        return await backtests.counts(self.engine)
 
     async def get_backtest(self, run_id: str) -> dict[str, Any] | None:
         return await backtests.get(self.engine, run_id)
@@ -166,6 +197,20 @@ class RedisBookCache:
     async def get_book(self, symbol: str) -> dict[str, Any] | None:
         raw = await self.redis.get(keys.book(symbol))
         return json.loads(raw) if raw else None
+
+
+class RedisCounter:
+    """INCR with an expiry set on the first hit (M11: practice accounts per client IP)."""
+
+    def __init__(self, redis: Redis) -> None:
+        self.redis = redis
+
+    async def incr(self, key: str, ttl_s: int) -> int:
+        pipe = self.redis.pipeline(transaction=True)
+        pipe.incr(key)
+        pipe.expire(key, ttl_s, nx=True)
+        count, _ = await pipe.execute()
+        return int(count)
 
 
 class RedisRateLimiter:
@@ -273,6 +318,10 @@ def build_deps(settings: Settings) -> Deps:
             pass
         return out
 
+    async def catalog() -> dict[str, Any] | None:
+        raw = await redis.get(keys.CATALOG)
+        return json.loads(raw) if raw else None
+
     async def start() -> None:
         await matcher.start()
         await subs.start()
@@ -287,4 +336,5 @@ def build_deps(settings: Settings) -> Deps:
 
     return Deps(matcher=matcher, store=PgStore(engine), cache=RedisBookCache(redis),
                 limiter=RedisRateLimiter(redis, settings.rate_limit_per_s), hub=hub, queue=queue, health=health,
-                start=start, stop=stop, extra={"worker_id": matcher.worker_id})
+                counter=RedisCounter(redis), catalog=catalog, start=start, stop=stop,
+                extra={"worker_id": matcher.worker_id})

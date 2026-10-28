@@ -1,0 +1,37 @@
+{
+  "base_commit": "d0364bc53b285461144f8d7d98ce55a4e60a857f",
+  "date": "2026-10-23",
+  "dirty": true,
+  "generated_by": "make facts",
+  "schema": 1,
+  "suites": {
+    "C++ (GoogleTest)": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 286,
+      "skipped": 1,
+      "tests": 287
+    },
+    "Dashboard (Vitest)": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 143,
+      "skipped": 0,
+      "tests": 143
+    },
+    "Python (pytest)": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 857,
+      "skipped": 23,
+      "tests": 880
+    }
+  },
+  "total": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 1286,
+    "skipped": 24,
+    "tests": 1310
+  }
+}
