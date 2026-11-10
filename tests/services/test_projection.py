@@ -141,3 +141,16 @@ def test_projected_records_carry_the_client_order_id_from_the_intake_log(tmp_pat
     source.start(0)
     [rec] = source.poll(10)
     assert (rec.intake.key, rec.intake.account_id, rec.intake.order_id) == ("mine", 5, 1)
+
+
+def test_the_source_follows_the_intake_log_across_rotations_while_the_matcher_runs(tmp_path: Path) -> None:
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=5)
+    source = SymbolSource(tmp_path, "AAA")
+    source.start(0)
+    seen = []
+    for i in range(23):  # the source reads the active log, then the matcher seals it under it
+        run(m, [new(1, "AAA", "buy", 80 + i, 1, f"k{i}")])
+        seen += [(r.seq_no, r.intake.key) for r in source.poll(100)]
+    m.close()
+    seen += [(r.seq_no, r.intake.key) for r in source.poll(100)]
+    assert seen == [(i + 1, f"k{i}") for i in range(23)]

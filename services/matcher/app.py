@@ -106,7 +106,8 @@ async def serve(settings: Settings) -> None:
     assert settings.instruments_file is not None
     instruments = load_instruments(settings.instruments_file)
     matcher = Matcher.open(settings.data_dir, instruments, clock=time.time_ns, snapshot_every=settings.snapshot_every,
-                           fsync=settings.fsync, depth=settings.depth)
+                           fsync=settings.fsync, depth=settings.depth,
+                           key_window_ns=settings.key_window_s * 10**9)
     for symbol, info in matcher.recovery.items():
         log.info("%s: seq_no %d, snapshot %d, replayed %d, trimmed %d bytes, %d orphan intake entries", symbol,
                  matcher.last_seq_no(symbol), info.snapshot_seq_no, info.replayed, info.trimmed_bytes, info.orphans)

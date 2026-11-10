@@ -96,7 +96,10 @@ commit: intake log (`<SYM>/intake.jsonl`: request id, client_order_id, order id)
 and fsynced BEFORE the first journal write, then journal + engine, journal fsync, and only
 then replies and market data. Idempotency (client_order_id, Idempotency-Key) is decided in
 the matcher. Restart: `JournalWriter::resume` (trims a torn tail), drop orphan intake
-entries, newest snapshot + journal tail, new epoch. Postgres is a projection: the
+entries, newest snapshot + journal tail, new epoch. Matcher state is bounded: each snapshot
+seals `intake.jsonl` into `<SYM>/intake/seg-<seq>-<ts>.jsonl`; the registry is live orders
+only (cancel of a dead order = NOT_FOUND); keys expire after `MF_KEY_WINDOW_S` (24 h) of
+journal time, and restart reads only the active log + segments in that window. Postgres is a projection: the
 projector replays the journals, one transaction per batch with a per-symbol cursor
 (`python -m services.projector verify` compares with a fresh replay). Market data:
 snapshot + `md_seq` deltas per epoch; slow WebSocket clients are resnapshotted or closed

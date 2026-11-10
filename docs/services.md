@@ -36,8 +36,17 @@ page has an Authorize button; public routes carry no security requirement.
 | `demo-bot` | `python -m services.demo` | its two accounts' keys (volume `bot`) | quotes ACME, GLOBEX, INITECH through the public REST API (`services/demo/bot.py`); compose profile `demo`: started by `make up` and `make e2e`, not by `make test-services`, whose projection checks need a quiet exchange |
 
 Files of the matcher (volume `data`, `MF_DATA_DIR`), per symbol:
-`<SYM>/journal.mfj` (docs/journal-format.md), `<SYM>/intake.jsonl`,
-`<SYM>/snapshots/snap-<seq_no>.mfsnap` (newest three kept).
+`<SYM>/journal.mfj` (docs/journal-format.md), `<SYM>/intake.jsonl` (entries since the
+newest snapshot), `<SYM>/intake/seg-<last seq_no>-<last timestamp>.jsonl` (sealed at each
+snapshot, kept for the projector), `<SYM>/snapshots/snap-<seq_no>.mfsnap` (newest three
+kept).
+
+Matcher state is bounded. The order registry holds live orders only and is rebuilt from
+the engine on restart, so a cancel or replace of an order that has left the book is
+`NOT_FOUND`. Idempotency keys are remembered for `MF_KEY_WINDOW_S` of journal time (at
+least; expiry is per sealed segment). Restart parses the active intake log and the
+segments inside that window, so it takes time in proportion to a day of traffic, not to
+the whole history.
 
 ## Configuration
 
@@ -53,7 +62,8 @@ INITECH, and SMOKE for `make gateway-smoke`); a test checks the list against rea
 | `MF_REDIS_URL` | `redis://localhost:6379/0` | all |
 | `MF_REQUEST_TIMEOUT_S` | `2.0` | api: wait for the matcher; also the request deadline |
 | `MF_FSYNC` | `1` | matcher: group commit (0 only for experiments) |
-| `MF_SNAPSHOT_EVERY` | `10000` | matcher: commands per symbol between snapshots |
+| `MF_SNAPSHOT_EVERY` | `10000` | matcher: commands per symbol between snapshots (each also seals the intake log into a segment) |
+| `MF_KEY_WINDOW_S` | `86400` | matcher: how long `client_order_id`s and `Idempotency-Key`s are remembered, in journal time |
 | `MF_DEPTH` | `50` | matcher: levels per side in market data |
 | `MF_WS_QUEUE`, `MF_WS_MAX_OVERFLOWS`, `MF_WS_OVERFLOW_WINDOW_S`, `MF_WS_SEND_TIMEOUT_S` | `1000`, `3`, `30`, `5` | api: slow-consumer policy |
 | `MF_RATE_LIMIT_PER_S` | `2000` | api: requests per account per second |
@@ -87,7 +97,7 @@ closes with 1011) rather than sent.
 | --- | --- | --- |
 | POST | `/orders` | 201 with the order's state after the command (status, fills, `seq_no`); 422 `ORDER_REJECTED` with the engine's `reason`; 200 + `Idempotent-Replayed: true` for a retried `client_order_id` |
 | PATCH | `/orders/{id}` | cancel-replace (`price`, total `qty`); optional `Idempotency-Key` header |
-| DELETE | `/orders/{id}` | cancel; 409 `ORDER_REJECTED` reason `UNKNOWN_ORDER` if it is no longer open |
+| DELETE | `/orders/{id}` | cancel; 404 `NOT_FOUND` if it is no longer open (the matcher only tracks live orders) |
 | GET | `/orders/{id}?min_seq_no=` | from the projection; `min_seq_no` waits for it (read-your-writes) |
 | GET | `/orders?status=open\|all&symbol=&limit=&min_seq_no=` | the key's orders, newest first (M11) |
 | GET | `/fills?symbol=&limit=&min_seq_no=` | the key's fills, newest first (M11) |

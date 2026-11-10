@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from services.matcher.intake import IntakeEntry, IntakeError, IntakeLog
+from services.matcher.intake import IntakeEntry, IntakeError, IntakeLog, drop_segments_after, segments
 
 
 def entry(seq: int, **kw) -> IntakeEntry:
@@ -72,3 +72,34 @@ def test_entries_must_be_numbered_without_gaps(tmp_path: Path) -> None:
     log.close()
     with pytest.raises(IntakeError, match="seq_no"):
         IntakeLog.load(path)
+
+
+# --- Segments (after M11b) -------------------------------------------------------------------------
+
+def test_rotate_seals_the_log_as_a_segment_and_continues_numbering(tmp_path: Path) -> None:
+    log = IntakeLog.open(tmp_path / "intake.jsonl")
+    log.append([entry(1), entry(2)])
+    seg = log.rotate(2, 5000)
+    assert (seg.path.name, seg.first_seq, seg.last_seq, seg.last_ts) == ("seg-000000000002-5000.jsonl", 1, 2, 5000)
+    assert (tmp_path / "intake.jsonl").stat().st_size == 0 and log.first == 3
+    log.append([entry(3)])
+    log.rotate(3, 6000)
+    log.append([entry(4)])
+    log.close()
+    assert [(s.first_seq, s.last_seq) for s in segments(tmp_path)] == [(1, 2), (3, 3)]
+    assert [e.seq_no for s in segments(tmp_path) for e in s.load()] == [1, 2, 3]
+    assert IntakeLog.load(tmp_path / "intake.jsonl", 4) == [entry(4)]
+    with pytest.raises(IntakeError, match="expected 1"):
+        IntakeLog.load(tmp_path / "intake.jsonl")  # the active log no longer starts at 1
+
+
+def test_drop_segments_after_cuts_a_straddling_segment_and_removes_later_ones(tmp_path: Path) -> None:
+    log = IntakeLog.open(tmp_path / "intake.jsonl")
+    for first, last in ((1, 3), (4, 6), (7, 8)):
+        log.append([entry(i) for i in range(first, last + 1)])
+        log.rotate(last, 1000 * last)
+    log.close()
+    assert drop_segments_after(tmp_path, 4) == 4
+    assert [(s.first_seq, s.last_seq, s.last_ts) for s in segments(tmp_path)] == [(1, 3, 3000), (4, 4, 6000)]
+    assert [e.seq_no for s in segments(tmp_path) for e in s.load()] == [1, 2, 3, 4]
+    assert drop_segments_after(tmp_path, 4) == 0

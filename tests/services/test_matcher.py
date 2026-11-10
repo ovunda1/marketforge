@@ -13,7 +13,7 @@ from svc_helpers import (FakeClock, admin, book, cancel, intake_path, journal_ev
                          journal_path, journaled_keys, new, open_matcher, power_loss, random_flow, replace, run)
 from services.common.instruments import Instrument
 from services.matcher.core import MatcherLocked
-from services.matcher.intake import IntakeLog
+from services.matcher.intake import IntakeLog, segments
 
 
 def test_replies_carry_exactly_the_events_a_journal_replay_produces(tmp_path: Path) -> None:
@@ -22,7 +22,9 @@ def test_replies_carry_exactly_the_events_a_journal_replay_produces(tmp_path: Pa
     replies = run(m, flow, batch=13)
     m.close()
 
-    assert all(r.status in ("ok", "rejected") for r in replies), {r.code for r in replies}
+    # A cancel or replace of an order that already left the book is NOT_FOUND (bounded registry).
+    assert all(r.status in ("ok", "rejected") or (r.code == "NOT_FOUND" and req.op in ("cancel", "replace"))
+               for req, r in zip(flow, replies)), {r.code for r in replies}
     for symbol in ("AAA", "BBB"):
         replayed = journal_events(journal_path(tmp_path, symbol))
         sent = sorted((r.seq_no, r.events) for r in replies if r.symbol == symbol)
@@ -67,8 +69,8 @@ def test_an_engine_reject_is_journaled_and_reported_with_its_reason(tmp_path: Pa
     m = open_matcher(tmp_path, FakeClock())
     [r] = run(m, [new(1, "AAA", "buy", 100, 0)])
     assert (r.status, r.reason, r.seq_no, r.order_id) == ("rejected", "INVALID_QTY", 1, 1)
-    [c] = run(m, [cancel(1, 1)])  # known to the matcher, not open in the book
-    assert (c.status, c.reason) == ("rejected", "UNKNOWN_ORDER")
+    [c] = run(m, [cancel(1, 1)])  # never rested: the matcher forgot it with the reject
+    assert (c.status, c.code) == ("error", "NOT_FOUND")
 
 
 # --- Idempotency ---------------------------------------------------------------------------------
@@ -287,6 +289,10 @@ def test_a_snapshot_beyond_the_journal_is_ignored(tmp_path: Path) -> None:
     m = open_matcher(tmp_path, FakeClock())
     assert m.last_seq_no("AAA") == 15 and m.recovery["AAA"].snapshot_seq_no <= 15
     assert engine_state(m.engine("AAA")) == engine_state(full_replay(journal))
+    # Sealed intake segments the journal lost were cut back to it as well.
+    assert segments(tmp_path / "AAA")[-1].last_seq <= 15
+    [r] = run(m, [new(1, "AAA", "buy", 100, 5)])
+    assert r.seq_no == 16
 
 
 def test_order_ids_and_keys_survive_a_restart(tmp_path: Path) -> None:
@@ -299,6 +305,163 @@ def test_order_ids_and_keys_survive_a_restart(tmp_path: Path) -> None:
     assert (again.replayed, again.order_id) == (True, 1)
     assert fresh.order_id == 3
     assert (other.symbol, other.status) == ("BBB", "ok")
+
+
+# --- Bounded state: intake segments, live registry, key window -----------------------------------
+
+HOUR = 3600 * 10**9
+
+
+def all_intake(data_dir: Path, symbol: str) -> list[int]:
+    sealed = segments(data_dir / symbol)
+    first = sealed[-1].last_seq + 1 if sealed else 1
+    return [e.seq_no for seg in sealed for e in seg.load()] + [
+        e.seq_no for e in IntakeLog.load(intake_path(data_dir, symbol), first)]
+
+
+def test_each_snapshot_seals_the_intake_log_into_a_segment(tmp_path: Path) -> None:
+    clock = FakeClock()
+    m = open_matcher(tmp_path, clock, snapshot_every=5)
+    run(m, [new(1, "AAA", "buy", 90 + i, 1) for i in range(12)], batch=1)
+    sealed = segments(tmp_path / "AAA")
+    assert [(s.first_seq, s.last_seq) for s in sealed] == [(1, 5), (6, 10)]
+    assert all(s.last_ts == clock.now for s in sealed)
+    assert [e.seq_no for e in IntakeLog.load(intake_path(tmp_path, "AAA"), 11)] == [11, 12]
+    m.close()  # the closing snapshot seals the rest
+    assert all_intake(tmp_path, "AAA") == list(range(1, 13))
+    assert intake_path(tmp_path, "AAA").stat().st_size == 0
+
+
+def test_restart_reads_only_the_active_log_and_the_segments_inside_the_key_window(tmp_path: Path) -> None:
+    clock = FakeClock()
+    m = open_matcher(tmp_path, clock, snapshot_every=2, key_window_ns=HOUR)
+    run(m, [new(1, "AAA", "buy", 90, 1, "old"), new(1, "AAA", "buy", 91, 1, "old2")], batch=1)
+    clock.advance(2 * HOUR)
+    run(m, [new(1, "AAA", "buy", 92, 1, "recent"), new(1, "AAA", "buy", 93, 1)], batch=1)
+    m.close()
+    old = segments(tmp_path / "AAA")[0]
+    assert old.last_seq == 2
+    old.path.write_bytes(b"not json\n")  # proof that restart never opens it
+
+    m = open_matcher(tmp_path, clock, snapshot_every=2, key_window_ns=HOUR)
+    recent, expired = run(m, [new(1, "AAA", "buy", 92, 1, "recent"), new(1, "AAA", "buy", 90, 1, "old")], batch=1)
+    assert (recent.replayed, recent.order_id) == (True, 3)
+    assert (expired.replayed, expired.order_id) == (False, 5)  # out of the window: a new order
+    assert m.recovery["AAA"].orphans == 0
+
+
+def test_keys_expire_while_running_exactly_as_after_a_restart(tmp_path: Path) -> None:
+    clock = FakeClock()
+    m = open_matcher(tmp_path, clock, snapshot_every=2, key_window_ns=HOUR)
+    run(m, [new(1, "AAA", "buy", 90, 1, "k"), new(1, "AAA", "buy", 91, 1)], batch=1)  # sealed at t0
+    [again] = run(m, [new(1, "AAA", "buy", 90, 1, "k")])
+    assert again.replayed
+    clock.advance(2 * HOUR)
+    run(m, [new(1, "AAA", "buy", 92, 1), new(1, "AAA", "buy", 93, 1)], batch=1)  # this snapshot expires t0
+    [late] = run(m, [new(1, "AAA", "buy", 90, 1, "k")])
+    assert (late.replayed, late.order_id) == (False, 5)
+    [retry] = run(m, [new(1, "AAA", "buy", 90, 1, "k")])  # the new use of the key is remembered
+    assert (retry.replayed, retry.order_id) == (True, 5)
+
+
+def test_the_registry_holds_live_orders_only_live_and_after_a_restart(tmp_path: Path) -> None:
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=50)
+    run(m, random_flow(7, 600, symbols=["AAA", "BBB"]), batch=7)
+
+    def live(m) -> dict[int, tuple[str, int]]:
+        out = {}
+        for symbol in ("AAA", "BBB"):
+            e = m.engine(symbol)
+            for side in (mf.Side.BUY, mf.Side.SELL):
+                for price, _, _ in e.depth(side):
+                    out |= {oid: (symbol, e.order(oid).account_id) for oid in e.level_orders(side, price)}
+        return out
+
+    assert m._orders == live(m) and m._orders
+    m.close()
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=50)
+    assert m._orders == live(m)
+    oid, (symbol, account) = next(iter(m._orders.items()))
+    [c] = run(m, [cancel(account, oid)])
+    assert (c.status, c.symbol) == ("ok", symbol)
+    [gone] = run(m, [cancel(account, oid)])
+    assert (gone.status, gone.code) == ("error", "NOT_FOUND")
+
+
+def test_a_filled_order_has_left_the_registry(tmp_path: Path) -> None:
+    m = open_matcher(tmp_path, FakeClock())
+    buy, _ = run(m, [new(1, "AAA", "buy", 100, 5), new(2, "AAA", "sell", 100, 5)])
+    [c] = run(m, [cancel(1, buy.order_id)])
+    assert (c.status, c.code) == ("error", "NOT_FOUND")
+
+
+def test_order_ids_continue_after_an_idle_spell_longer_than_the_key_window(tmp_path: Path) -> None:
+    clock = FakeClock()
+    m = open_matcher(tmp_path, clock, snapshot_every=3, key_window_ns=HOUR)
+    run(m, [new(1, "AAA", "buy", 100, 5), new(2, "AAA", "sell", 100, 5), new(1, "BBB", "buy", 100, 5),
+            new(2, "BBB", "sell", 100, 5)], batch=1)  # every order filled: nothing live
+    m.close()
+    clock.advance(10 * HOUR)
+    m = open_matcher(tmp_path, clock, snapshot_every=3, key_window_ns=HOUR)
+    assert m._orders == {}
+    [r] = run(m, [new(1, "AAA", "buy", 100, 5)])
+    assert r.order_id == 5
+
+
+def test_orphans_after_a_rotation_are_dropped(tmp_path: Path) -> None:
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=2)
+    run(m, [new(1, "AAA", "buy", 100, 5), new(1, "AAA", "buy", 99, 5), new(1, "AAA", "buy", 98, 5)], batch=1)
+    m.fault_hook = crash_at("intake.sync", nth=1)
+    with pytest.raises(Crash):
+        m.process_batch([new(1, "AAA", "buy", 97, 5, "x")])
+    m.abandon()
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=2)
+    assert m.recovery["AAA"].orphans == 1
+    assert all_intake(tmp_path, "AAA") == [1, 2, 3]
+    [r] = m.process_batch([new(1, "AAA", "buy", 97, 5, "x")]).replies
+    assert (r.replayed, r.order_id, r.seq_no) == (False, 4, 4)
+
+
+def test_a_data_directory_from_before_segments_opens_and_starts_rotating(tmp_path: Path) -> None:
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=10**6)
+    run(m, [new(1, "AAA", "buy", 100, 5, "k"), new(1, "AAA", "buy", 99, 5)])
+    m.abandon()  # one intake.jsonl from seq_no 1, no segments: the M10 layout
+    assert segments(tmp_path / "AAA") == []
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=2)
+    [again, fresh] = run(m, [new(1, "AAA", "buy", 100, 5, "k"), new(1, "AAA", "buy", 98, 5)], batch=1)
+    assert again.replayed and fresh.seq_no == 3
+    run(m, [new(1, "AAA", "buy", 97, 5)])
+    assert [s.last_seq for s in segments(tmp_path / "AAA")] == [4]
+
+
+def test_a_long_log_from_before_segments_is_split_once_by_journal_time(tmp_path: Path) -> None:
+    clock = FakeClock()
+    m = open_matcher(tmp_path, clock, snapshot_every=10**6)
+    for i in range(25):
+        run(m, [new(1, "AAA", "buy", 50 + i, 1, f"k{i}")])
+        clock.advance(HOUR)
+    m.abandon()
+    m = open_matcher(tmp_path, clock, snapshot_every=10, key_window_ns=8 * HOUR)
+    sealed = segments(tmp_path / "AAA")
+    assert [(s.first_seq, s.last_seq) for s in sealed] == [(1, 10), (11, 20)]
+    assert [s.last_ts for s in sealed] == [clock.now - 16 * HOUR, clock.now - 6 * HOUR]  # record 10, record 20
+    assert all_intake(tmp_path, "AAA") == list(range(1, 26))
+    old, recent = run(m, [new(1, "AAA", "buy", 50, 1, "k0"), new(1, "AAA", "buy", 70, 1, "k20")], batch=1)
+    assert (old.replayed, recent.replayed) == (False, True)  # k0's segment is out of the window
+
+
+def test_a_split_interrupted_by_a_crash_is_finished_on_the_next_open(tmp_path: Path) -> None:
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=10**6)
+    run(m, [new(1, "AAA", "buy", 50 + i, 1, f"k{i}") for i in range(6)], batch=1)
+    m.abandon()
+    full = intake_path(tmp_path, "AAA").read_bytes()
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=2)  # splits into 1-2, 3-4, 5-6
+    m.abandon()
+    intake_path(tmp_path, "AAA").write_bytes(full)  # as if the crash came before the active log was rewritten
+    m = open_matcher(tmp_path, FakeClock(), snapshot_every=2)
+    assert all_intake(tmp_path, "AAA") == [1, 2, 3, 4, 5, 6]
+    [again] = run(m, [new(1, "AAA", "buy", 55, 1, "k5")])
+    assert again.replayed
 
 
 # --- Single writer, failure, admin ---------------------------------------------------------------

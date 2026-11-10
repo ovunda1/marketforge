@@ -49,7 +49,7 @@ def test_an_order_lifecycle(alice: Account, bob: Account) -> None:
         done = c.delete(f"/orders/{oid}", headers=alice.headers)
         assert done.status_code == 200 and done.json()["status"] == "cancelled", done.text
         again = c.delete(f"/orders/{oid}", headers=alice.headers)
-        assert again.status_code == 409 and again.json()["error"]["reason"] == "UNKNOWN_ORDER"
+        assert again.status_code == 404 and again.json()["error"]["code"] == "NOT_FOUND"  # left the book
 
 
 def test_risk_rejects_and_admin_controls_over_http(admin: Account, alice: Account) -> None:
