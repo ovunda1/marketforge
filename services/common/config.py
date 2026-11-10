@@ -38,6 +38,7 @@ class Settings:
     ws_send_timeout_s: float = 5.0
     rate_limit_per_s: int = 2000  # gateway requests per account per second
     snapshot_every: int = 10_000  # matcher snapshots, per symbol, in commands
+    key_window_s: int = 86_400  # idempotency keys are remembered this long (journal time)
     fsync: bool = True  # group commit: intake and journal fsynced before any reply
     depth: int = 50  # levels per side in published market data
     backtest_timeout_s: int = 1800
@@ -85,6 +86,7 @@ class Settings:
             ws_send_timeout_s=float(_env("MF_WS_SEND_TIMEOUT_S", str(cls.ws_send_timeout_s))),
             rate_limit_per_s=int(_env("MF_RATE_LIMIT_PER_S", str(cls.rate_limit_per_s))),
             snapshot_every=int(_env("MF_SNAPSHOT_EVERY", str(cls.snapshot_every))),
+            key_window_s=int(_env("MF_KEY_WINDOW_S", str(cls.key_window_s))),
             fsync=_env("MF_FSYNC", "1") != "0",
             depth=int(_env("MF_DEPTH", str(cls.depth))),
             backtest_timeout_s=int(_env("MF_BACKTEST_TIMEOUT_S", str(cls.backtest_timeout_s))),

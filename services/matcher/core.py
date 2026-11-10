@@ -18,14 +18,22 @@ instead of creating a second order. docs/learning/m10.md, "Durability".
 
 Restart (`Matcher.open`): per symbol, `JournalWriter.resume` (trims a torn final record),
 drop intake entries beyond the journal (orphans of a crash between phases 1 and 2), load
-the newest usable snapshot and replay the journal tail. Idempotency keys and the order
-registry are rebuilt from the intake logs.
+the newest usable snapshot and replay the journal tail.
+
+Bounded state (after M11b): the order registry holds live orders only (an order leaves it
+when the engine no longer has it, so a cancel of a filled order is NOT_FOUND) and is
+rebuilt on restart from the engine itself. Idempotency keys live for a window of journal
+time (`key_window_ns`, 24 h by default): each snapshot seals the active intake log into a
+segment, a segment's keys expire once its last timestamp falls out of the window, and
+restart reads only the active log and the segments inside the window. So startup time
+and memory follow the last day of traffic, not the whole history.
 """
 
 from __future__ import annotations
 
 import fcntl
 import os
+from collections import deque
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -36,10 +44,13 @@ import mfengine as mf
 from services.common.events import command_from_request, event_to_dict
 from services.common.instruments import Instrument
 from services.common.protocol import ADMIN_OPS, OPS, Reply, Request
-from services.matcher.intake import IntakeEntry, IntakeLog
+from services.matcher.intake import (IntakeEntry, IntakeLog, Segment, drop_segments_after, segments,
+                                     split_into_segments, trim_sealed_prefix)
 from services.matcher.marketdata import BookFeed
 
 KEEP_SNAPSHOTS = 3
+KEY_WINDOW_NS = 24 * 3600 * 10**9
+_KeyId = tuple[int, str, str]  # (account, "new"|"mod", key)
 
 
 class MatcherLocked(RuntimeError):
@@ -82,7 +93,7 @@ class _Plan:
     command: Any
     entry: IntakeEntry
     request: Request
-    keys: list[tuple[int, str, str]]  # registered by this plan (undone if it is not journaled)
+    keys: list[_KeyId]  # registered by this plan (undone if it is not journaled)
 
 
 class _Book:
@@ -104,6 +115,8 @@ class _Book:
         self.last_ts: int | None = None
         self.journal_durable = 0
         self.since_snapshot = 0
+        self.active_keys: list[tuple[_KeyId, int]] = []  # (key, seq_no) of entries in the active intake log
+        self.sealed_keys: deque[tuple[int, list[tuple[_KeyId, int]]]] = deque()  # (segment last_ts, keys), oldest first
 
     def timestamp(self, now: int) -> int:
         ts = now if self.last_ts is None else max(now, self.last_ts)
@@ -112,14 +125,16 @@ class _Book:
 
 
 class Matcher:
-    def __init__(self, data_dir: Path, clock: Callable[[], int], snapshot_every: int, fsync: bool) -> None:
+    def __init__(self, data_dir: Path, clock: Callable[[], int], snapshot_every: int, fsync: bool,
+                 key_window_ns: int = KEY_WINDOW_NS) -> None:
         self.data_dir = data_dir
         self._clock = clock
         self._snapshot_every = snapshot_every
         self._fsync = fsync
+        self._key_window = key_window_ns
         self._books: dict[str, _Book] = {}
-        self._orders: dict[int, tuple[str, int]] = {}  # order_id -> (symbol, account)
-        self._keys: dict[tuple[int, str, str], _Key] = {}  # (account, "new"|"mod", key)
+        self._orders: dict[int, tuple[str, int]] = {}  # live order_id -> (symbol, account)
+        self._keys: dict[_KeyId, _Key] = {}
         self._next_order_id = 1
         self._lock_fd = -1
         self._epoch = 0
@@ -133,10 +148,11 @@ class Matcher:
 
     @classmethod
     def open(cls, data_dir: str | Path, instruments: Sequence[Instrument], *, clock: Callable[[], int],
-             snapshot_every: int = 10_000, fsync: bool = True, depth: int = 50) -> Matcher:
+             snapshot_every: int = 10_000, fsync: bool = True, depth: int = 50,
+             key_window_ns: int = KEY_WINDOW_NS) -> Matcher:
         data_dir = Path(data_dir)
         data_dir.mkdir(parents=True, exist_ok=True)
-        m = cls(data_dir, clock, snapshot_every, fsync)
+        m = cls(data_dir, clock, snapshot_every, fsync, key_window_ns)
         m._lock()
         try:
             for instrument in instruments:
@@ -172,17 +188,28 @@ class Matcher:
         last = book.writer.last_seq_no
         book.journal_durable = book.writer.bytes_written
 
-        book.intake = IntakeLog.open(book.dir / "intake.jsonl")
+        active = book.dir / "intake.jsonl"
+        sealed = segments(book.dir)
+        trim_sealed_prefix(active, sealed[-1].last_seq + 1 if sealed else 1, fsync=self._fsync)
+        if not sealed and last > self._snapshot_every:
+            self._split_legacy(book, last)
+            sealed = segments(book.dir)
+        book.intake = IntakeLog.open(active, first=sealed[-1].last_seq + 1 if sealed else 1)
         entries = book.intake.entries
-        if len(entries) > last:
-            info.orphans = len(entries) - last
+        end = book.intake.first - 1 + len(entries)
+        if end > last:
+            info.orphans = end - max(last, book.intake.first - 1)
             book.intake.truncate_after(last)
-            entries = entries[:last]
-        if len(entries) < last:
-            raise IntakeMismatch(f"{book.symbol}: journal has {last} records, intake log {len(entries)}")
+            entries = [e for e in entries if e.seq_no <= last]
+        if sealed and sealed[-1].last_seq > last:  # only without fsync: the journal lost synced-looking records
+            info.orphans += drop_segments_after(book.dir, last, fsync=self._fsync)
+            sealed = segments(book.dir)
+            book.intake.first = last + 1  # truncate_after(last) above emptied it
+            entries = []
+        if (sealed[-1].last_seq if sealed else 0) + len(entries) < last:
+            raise IntakeMismatch(f"{book.symbol}: journal has {last} records, intake log ends at "
+                                 f"{(sealed[-1].last_seq if sealed else 0) + len(entries)}")
         book.intake.durable_size = book.intake.size
-        for e in entries:
-            self._register(book.symbol, e)
 
         reader = self._restore(book, last, info)
         if book.halted is None:
@@ -194,10 +221,27 @@ class Matcher:
                 book.halted = f"engine failed during recovery: {e}"
         book.next_seq = last + 1
         book.last_ts = book.engine.last_timestamp if not book.halted else None
+        self._load_registry(book)
+        self._load_keys(book, sealed, entries)
 
         if last == 0 and book.instrument.risk_config is not None:
             self._journal_config(book)
         return info
+
+    def _split_legacy(self, book: _Book, last: int) -> None:
+        """A data directory from before segments has one intake log from seq_no 1. Split it
+        once into segments of `snapshot_every` entries, each named with its last record's
+        journal timestamp, so the key window applies to it like to any other."""
+        bounds = set(range(self._snapshot_every, last + 1, self._snapshot_every))
+        if not bounds:
+            return
+        ends = []
+        for rec in mf.JournalReader(book.journal_path):
+            if rec.seq_no in bounds:
+                ends.append((rec.seq_no, rec.timestamp))
+                if len(ends) == len(bounds):
+                    break
+        split_into_segments(book.dir, ends, fsync=self._fsync)
 
     def _restore(self, book: _Book, last: int, info: Recovery) -> Any:
         """The newest snapshot that loads and is not beyond the journal, and a reader
@@ -218,14 +262,64 @@ class Matcher:
             return reader
         return mf.JournalReader(book.journal_path)
 
-    def _register(self, symbol: str, e: IntakeEntry) -> None:
-        if e.op == "new" and e.order_id is not None:
-            self._orders[e.order_id] = (symbol, e.account_id)
-            self._next_order_id = max(self._next_order_id, e.order_id + 1)
-            if e.key is not None:
-                self._keys[(e.account_id, "new", e.key)] = _Key(symbol, e.order_id, e.seq_no, e.payload_hash)
-        elif e.op in ("cancel", "replace") and e.key is not None:
-            self._keys[(e.account_id, "mod", e.key)] = _Key(symbol, e.order_id, e.seq_no, e.payload_hash)
+    def _load_registry(self, book: _Book) -> None:
+        """The live orders, from the engine (which knows every resting order's owner)."""
+        if book.halted:
+            return
+        for side in (mf.Side.BUY, mf.Side.SELL):
+            for price, _, _ in book.engine.depth(side):
+                for oid in book.engine.level_orders(side, price):
+                    view = book.engine.order(oid)
+                    assert view is not None
+                    self._orders[oid] = (book.symbol, view.account_id)
+                    self._next_order_id = max(self._next_order_id, oid + 1)
+
+    def _load_keys(self, book: _Book, sealed: list[Segment], active: list[IntakeEntry]) -> None:
+        """Keys from the active log and the segments inside the window, newest first; older
+        segments are opened only while no order id has been seen yet (to continue the
+        global order ids after a long idle spell)."""
+        now = book.last_ts if book.last_ts is not None else (sealed[-1].last_ts if sealed else None)
+        cutoff = None if now is None else now - self._key_window
+        found_id = self._scan_ids(active)
+        book.active_keys = [(k, e.seq_no) for e in active if (k := self._register_key(book.symbol, e)) is not None]
+        window: list[tuple[int, list[tuple[_KeyId, int]]]] = []
+        for seg in reversed(sealed):
+            inside = cutoff is None or seg.last_ts >= cutoff
+            if not inside and found_id:
+                break
+            seg_entries = seg.load()
+            found_id = self._scan_ids(seg_entries) or found_id
+            if inside:
+                window.append((seg.last_ts, [(k, e.seq_no) for e in seg_entries
+                                             if (k := self._register_key(book.symbol, e, replace=False))]))
+        book.sealed_keys = deque(reversed(window))
+
+    def _scan_ids(self, entries: list[IntakeEntry]) -> bool:
+        ids = [e.order_id for e in entries if e.op == "new" and e.order_id is not None]
+        if ids:
+            self._next_order_id = max(self._next_order_id, max(ids) + 1)
+        return bool(ids)
+
+    def _register_key(self, symbol: str, e: IntakeEntry, replace: bool = True) -> _KeyId | None:
+        """Registers an entry's idempotency key. `replace=False` keeps a newer entry's key
+        (segments are read newest first)."""
+        if e.key is None or e.op not in ("new", "cancel", "replace"):
+            return None
+        key = (e.account_id, "new" if e.op == "new" else "mod", e.key)
+        if replace or key not in self._keys:
+            self._keys[key] = _Key(symbol, e.order_id, e.seq_no, e.payload_hash)
+        return key
+
+    def _expire_keys(self, book: _Book) -> None:
+        if book.last_ts is None:
+            return
+        cutoff = book.last_ts - self._key_window
+        while book.sealed_keys and book.sealed_keys[0][0] < cutoff:
+            _, keys = book.sealed_keys.popleft()
+            for key, seq in keys:
+                known = self._keys.get(key)
+                if known is not None and (known.symbol, known.seq_no) == (book.symbol, seq):
+                    del self._keys[key]  # still this entry's key, not a newer use of an expired one
 
     def _journal_config(self, book: _Book) -> None:
         assert book.intake is not None and book.instrument.risk_config is not None
@@ -334,11 +428,15 @@ class Matcher:
             key = (req.account_id, "new", req.key) if req.key is not None else None
             order_id = self._next_order_id
         else:
+            key = (req.account_id, "mod", req.key) if req.key is not None else None
+            # A retry first: the order it cancelled or filled has left the registry.
+            replay = self._dedupe(req, key)
+            if replay is not None:
+                return replay
             known = self._orders.get(req.order_id) if req.order_id is not None else None
             if known is None or known[1] != req.account_id:
                 return self._error(req, "NOT_FOUND", f"no order {req.order_id} for this account")
             symbol = known[0]
-            key = (req.account_id, "mod", req.key) if req.key is not None else None
             order_id = req.order_id  # type: ignore[assignment]
         book = self._books[symbol]
         if book.halted:
@@ -399,6 +497,7 @@ class Matcher:
         results: dict[int, list[tuple[str, int, list[dict[str, Any]], Reply | None]]] = {}
         trades: dict[str, list[dict[str, Any]]] = {s: [] for s in touched}
         executions: list[tuple[int, dict[str, Any]]] = []
+        touched_orders: dict[str, set[int]] = {s: set() for s in touched}  # may have left the book
         for p in plans:
             book = self._books[p.symbol]
             if book.halted:  # failed earlier in this batch: not journaled, its intake entry is an orphan
@@ -414,6 +513,9 @@ class Matcher:
             ts = book.timestamp(now)
             book.writer.append(mf.JournalRecord(timestamp=ts, command=command))
             self._mark(f"journal.append:{p.symbol}:{p.entry.seq_no}")
+            book.active_keys.extend((key, p.entry.seq_no) for key in p.keys)
+            if p.entry.order_id is not None:
+                touched_orders[p.symbol].add(p.entry.order_id)
             try:
                 events = [event_to_dict(e) for e in book.engine.process(command, ts)]
             except mf.MarketForgeError as e:
@@ -426,6 +528,8 @@ class Matcher:
             for ev in events:
                 if ev["type"] == "trade":
                     trades[p.symbol].append(ev)
+                elif "order_id" in ev:
+                    touched_orders[p.symbol].add(ev["order_id"])
                 account = self._account_of(ev, p.request)
                 if account is not None:
                     executions.append((account, {"type": "execution", "symbol": p.symbol, "seq_no": ev["seq_no"],
@@ -452,6 +556,9 @@ class Matcher:
             if update is not None:
                 out.market_data.append(update)
                 out.books[s] = book.feed.snapshot()
+            for oid in touched_orders[s]:
+                if book.engine.order(oid) is None:  # filled, cancelled, rejected or expired
+                    self._orders.pop(oid, None)
             if book.since_snapshot >= self._snapshot_every:
                 self._write_snapshot(book)
         return out
@@ -488,6 +595,14 @@ class Matcher:
         book.since_snapshot = 0
         for old in sorted((book.dir / "snapshots").glob("snap-*.mfsnap"))[:-KEEP_SNAPSHOTS]:
             old.unlink()
+        # Seal the intake entries the snapshot covers; restart no longer needs to parse them.
+        assert book.intake is not None
+        ts = book.engine.last_timestamp
+        if ts is not None and book.next_seq - 1 == seq >= book.intake.first:
+            book.intake.rotate(seq, ts, fsync=self._fsync)
+            book.sealed_keys.append((ts, book.active_keys))
+            book.active_keys = []
+            self._expire_keys(book)
 
     def snapshot_all(self) -> None:
         for book in self._books.values():

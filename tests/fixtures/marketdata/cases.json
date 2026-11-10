@@ -363,7 +363,7 @@
        "bid_qty": 1
       },
       "md_seq": 4,
-      "seq_no": 24,
+      "seq_no": 23,
       "symbol": "AAA",
       "trades": [
        {
@@ -447,21 +447,21 @@
        "bid_qty": 1
       },
       "md_seq": 5,
-      "seq_no": 30,
+      "seq_no": 28,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10000,
         "qty": 1,
-        "seq_no": 29,
+        "seq_no": 28,
         "trade_id": 9
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 6,
-        "seq_no": 29,
+        "seq_no": 28,
         "trade_id": 10
        }
       ],
@@ -538,7 +538,7 @@
        "bid_qty": 1
       },
       "md_seq": 6,
-      "seq_no": 36,
+      "seq_no": 32,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -609,21 +609,21 @@
        "bid_qty": 4
       },
       "md_seq": 7,
-      "seq_no": 42,
+      "seq_no": 37,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 1,
-        "seq_no": 39,
+        "seq_no": 35,
         "trade_id": 11
        },
        {
         "aggressor_side": "sell",
         "price": 9997,
         "qty": 12,
-        "seq_no": 39,
+        "seq_no": 35,
         "trade_id": 12
        }
       ],
@@ -705,7 +705,7 @@
        "bid_qty": 16
       },
       "md_seq": 8,
-      "seq_no": 48,
+      "seq_no": 40,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -786,7 +786,7 @@
        "bid_qty": 9
       },
       "md_seq": 9,
-      "seq_no": 54,
+      "seq_no": 45,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -866,7 +866,7 @@
        "bid_qty": 18
       },
       "md_seq": 10,
-      "seq_no": 60,
+      "seq_no": 49,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -946,35 +946,35 @@
        "bid_qty": 7
       },
       "md_seq": 11,
-      "seq_no": 66,
+      "seq_no": 55,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 9,
-        "seq_no": 61,
+        "seq_no": 50,
         "trade_id": 13
        },
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 7,
-        "seq_no": 61,
+        "seq_no": 50,
         "trade_id": 14
        },
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 2,
-        "seq_no": 62,
+        "seq_no": 51,
         "trade_id": 15
        },
        {
         "aggressor_side": "sell",
         "price": 10002,
         "qty": 4,
-        "seq_no": 62,
+        "seq_no": 51,
         "trade_id": 16
        }
       ],
@@ -1045,14 +1045,14 @@
        "bid_qty": 5
       },
       "md_seq": 12,
-      "seq_no": 72,
+      "seq_no": 59,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10005,
         "qty": 7,
-        "seq_no": 72,
+        "seq_no": 59,
         "trade_id": 17
        }
       ],
@@ -1149,28 +1149,28 @@
        "bid_qty": 3
       },
       "md_seq": 13,
-      "seq_no": 78,
+      "seq_no": 65,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10005,
         "qty": 5,
-        "seq_no": 76,
+        "seq_no": 63,
         "trade_id": 18
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 6,
-        "seq_no": 78,
+        "seq_no": 65,
         "trade_id": 19
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 13,
-        "seq_no": 78,
+        "seq_no": 65,
         "trade_id": 20
        }
       ],
@@ -1262,7 +1262,7 @@
        "bid_qty": 3
       },
       "md_seq": 14,
-      "seq_no": 84,
+      "seq_no": 70,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1353,7 +1353,7 @@
        "bid_qty": 15
       },
       "md_seq": 15,
-      "seq_no": 90,
+      "seq_no": 75,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1433,7 +1433,7 @@
        "bid_qty": 15
       },
       "md_seq": 16,
-      "seq_no": 96,
+      "seq_no": 80,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1523,7 +1523,7 @@
        "bid_qty": 4
       },
       "md_seq": 17,
-      "seq_no": 102,
+      "seq_no": 84,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1619,7 +1619,7 @@
        "bid_qty": 32
       },
       "md_seq": 18,
-      "seq_no": 108,
+      "seq_no": 89,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1724,7 +1724,7 @@
        "bid_qty": 8
       },
       "md_seq": 19,
-      "seq_no": 114,
+      "seq_no": 93,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1820,7 +1820,7 @@
        "bid_qty": 8
       },
       "md_seq": 20,
-      "seq_no": 120,
+      "seq_no": 97,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -1905,7 +1905,7 @@
        "bid_qty": 19
       },
       "md_seq": 21,
-      "seq_no": 126,
+      "seq_no": 100,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -2006,28 +2006,28 @@
        "bid_qty": 1
       },
       "md_seq": 22,
-      "seq_no": 132,
+      "seq_no": 105,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 7,
-        "seq_no": 129,
+        "seq_no": 103,
         "trade_id": 21
        },
        {
         "aggressor_side": "sell",
         "price": 10001,
         "qty": 8,
-        "seq_no": 132,
+        "seq_no": 105,
         "trade_id": 22
        },
        {
         "aggressor_side": "sell",
         "price": 10001,
         "qty": 10,
-        "seq_no": 132,
+        "seq_no": 105,
         "trade_id": 23
        }
       ],
@@ -2124,14 +2124,14 @@
        "bid_qty": 1
       },
       "md_seq": 23,
-      "seq_no": 138,
+      "seq_no": 109,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 11,
-        "seq_no": 136,
+        "seq_no": 108,
         "trade_id": 24
        }
       ],
@@ -2258,42 +2258,42 @@
        "bid_qty": 24
       },
       "md_seq": 24,
-      "seq_no": 144,
+      "seq_no": 114,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10001,
         "qty": 1,
-        "seq_no": 142,
+        "seq_no": 112,
         "trade_id": 25
        },
        {
         "aggressor_side": "sell",
         "price": 10000,
         "qty": 4,
-        "seq_no": 142,
+        "seq_no": 112,
         "trade_id": 26
        },
        {
         "aggressor_side": "sell",
         "price": 10000,
         "qty": 4,
-        "seq_no": 142,
+        "seq_no": 112,
         "trade_id": 27
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 5,
-        "seq_no": 144,
+        "seq_no": 114,
         "trade_id": 28
        },
        {
         "aggressor_side": "buy",
         "price": 10003,
         "qty": 11,
-        "seq_no": 144,
+        "seq_no": 114,
         "trade_id": 29
        }
       ],
@@ -2394,42 +2394,42 @@
        "bid_qty": 9
       },
       "md_seq": 25,
-      "seq_no": 150,
+      "seq_no": 118,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 12,
-        "seq_no": 147,
+        "seq_no": 115,
         "trade_id": 30
        },
        {
         "aggressor_side": "sell",
         "price": 9997,
         "qty": 5,
-        "seq_no": 147,
+        "seq_no": 115,
         "trade_id": 31
        },
        {
         "aggressor_side": "sell",
         "price": 9996,
         "qty": 9,
-        "seq_no": 150,
+        "seq_no": 118,
         "trade_id": 32
        },
        {
         "aggressor_side": "sell",
         "price": 9996,
         "qty": 3,
-        "seq_no": 150,
+        "seq_no": 118,
         "trade_id": 33
        },
        {
         "aggressor_side": "sell",
         "price": 9995,
         "qty": 6,
-        "seq_no": 150,
+        "seq_no": 118,
         "trade_id": 34
        }
       ],
@@ -2515,7 +2515,7 @@
        "bid_qty": 9
       },
       "md_seq": 26,
-      "seq_no": 162,
+      "seq_no": 121,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -2611,21 +2611,21 @@
        "bid_qty": 9
       },
       "md_seq": 27,
-      "seq_no": 168,
+      "seq_no": 125,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 7,
-        "seq_no": 168,
+        "seq_no": 125,
         "trade_id": 35
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 7,
-        "seq_no": 168,
+        "seq_no": 125,
         "trade_id": 36
        }
       ],
@@ -2717,14 +2717,14 @@
        "bid_qty": 9
       },
       "md_seq": 28,
-      "seq_no": 174,
+      "seq_no": 131,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9995,
         "qty": 3,
-        "seq_no": 170,
+        "seq_no": 127,
         "trade_id": 37
        }
       ],
@@ -2815,14 +2815,14 @@
        "bid_qty": 9
       },
       "md_seq": 29,
-      "seq_no": 180,
+      "seq_no": 136,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9998,
         "qty": 1,
-        "seq_no": 179,
+        "seq_no": 135,
         "trade_id": 38
        }
       ],
@@ -2924,14 +2924,14 @@
        "bid_qty": 9
       },
       "md_seq": 30,
-      "seq_no": 186,
+      "seq_no": 140,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9998,
         "qty": 1,
-        "seq_no": 181,
+        "seq_no": 137,
         "trade_id": 39
        }
       ],
@@ -3028,7 +3028,7 @@
        "bid_qty": 9
       },
       "md_seq": 31,
-      "seq_no": 192,
+      "seq_no": 145,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -3119,28 +3119,28 @@
        "bid_qty": 25
       },
       "md_seq": 32,
-      "seq_no": 198,
+      "seq_no": 149,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 9,
-        "seq_no": 197,
+        "seq_no": 148,
         "trade_id": 40
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 2,
-        "seq_no": 197,
+        "seq_no": 148,
         "trade_id": 41
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 8,
-        "seq_no": 198,
+        "seq_no": 149,
         "trade_id": 42
        }
       ],
@@ -3221,7 +3221,7 @@
        "bid_qty": 25
       },
       "md_seq": 33,
-      "seq_no": 204,
+      "seq_no": 154,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -3307,21 +3307,21 @@
        "bid_qty": 5
       },
       "md_seq": 34,
-      "seq_no": 210,
+      "seq_no": 158,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9996,
         "qty": 9,
-        "seq_no": 208,
+        "seq_no": 156,
         "trade_id": 43
        },
        {
         "aggressor_side": "sell",
         "price": 9996,
         "qty": 11,
-        "seq_no": 208,
+        "seq_no": 156,
         "trade_id": 44
        }
       ],
@@ -3413,7 +3413,7 @@
        "bid_qty": 5
       },
       "md_seq": 35,
-      "seq_no": 216,
+      "seq_no": 164,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -3514,14 +3514,14 @@
        "bid_qty": 14
       },
       "md_seq": 36,
-      "seq_no": 222,
+      "seq_no": 169,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10000,
         "qty": 3,
-        "seq_no": 222,
+        "seq_no": 169,
         "trade_id": 45
        }
       ],
@@ -3618,14 +3618,14 @@
        "bid_qty": 14
       },
       "md_seq": 37,
-      "seq_no": 228,
+      "seq_no": 174,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9995,
         "qty": 1,
-        "seq_no": 227,
+        "seq_no": 174,
         "trade_id": 46
        }
       ],
@@ -3712,14 +3712,14 @@
        "bid_qty": 20
       },
       "md_seq": 38,
-      "seq_no": 234,
+      "seq_no": 179,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 7,
-        "seq_no": 232,
+        "seq_no": 177,
         "trade_id": 47
        }
       ],
@@ -3846,28 +3846,28 @@
        "bid_qty": 20
       },
       "md_seq": 39,
-      "seq_no": 240,
+      "seq_no": 184,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 8,
-        "seq_no": 237,
+        "seq_no": 182,
         "trade_id": 48
        },
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 5,
-        "seq_no": 237,
+        "seq_no": 182,
         "trade_id": 49
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 1,
-        "seq_no": 237,
+        "seq_no": 182,
         "trade_id": 50
        }
       ],
@@ -3953,7 +3953,7 @@
        "bid_qty": 20
       },
       "md_seq": 40,
-      "seq_no": 246,
+      "seq_no": 188,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -4054,35 +4054,35 @@
        "bid_qty": 18
       },
       "md_seq": 41,
-      "seq_no": 252,
+      "seq_no": 194,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 9,
-        "seq_no": 249,
+        "seq_no": 191,
         "trade_id": 51
        },
        {
         "aggressor_side": "sell",
         "price": 10000,
         "qty": 12,
-        "seq_no": 250,
+        "seq_no": 192,
         "trade_id": 52
        },
        {
         "aggressor_side": "sell",
         "price": 10000,
         "qty": 8,
-        "seq_no": 252,
+        "seq_no": 194,
         "trade_id": 53
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 2,
-        "seq_no": 252,
+        "seq_no": 194,
         "trade_id": 54
        }
       ],
@@ -4174,14 +4174,14 @@
        "bid_qty": 40
       },
       "md_seq": 42,
-      "seq_no": 258,
+      "seq_no": 199,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 1,
-        "seq_no": 256,
+        "seq_no": 198,
         "trade_id": 55
        }
       ],
@@ -4268,14 +4268,14 @@
        "bid_qty": 23
       },
       "md_seq": 43,
-      "seq_no": 264,
+      "seq_no": 203,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 4,
-        "seq_no": 263,
+        "seq_no": 202,
         "trade_id": 56
        }
       ],
@@ -4361,21 +4361,21 @@
        "bid_qty": 41
       },
       "md_seq": 44,
-      "seq_no": 270,
+      "seq_no": 209,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 13,
-        "seq_no": 267,
+        "seq_no": 206,
         "trade_id": 57
        },
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 2,
-        "seq_no": 270,
+        "seq_no": 209,
         "trade_id": 58
        }
       ],
@@ -4467,14 +4467,14 @@
        "bid_qty": 30
       },
       "md_seq": 45,
-      "seq_no": 276,
+      "seq_no": 214,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 12,
-        "seq_no": 276,
+        "seq_no": 214,
         "trade_id": 59
        }
       ],
@@ -4581,14 +4581,14 @@
        "bid_qty": 2
       },
       "md_seq": 46,
-      "seq_no": 282,
+      "seq_no": 219,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 3,
-        "seq_no": 281,
+        "seq_no": 219,
         "trade_id": 60
        }
       ],
@@ -4674,7 +4674,7 @@
        "bid_qty": 2
       },
       "md_seq": 47,
-      "seq_no": 288,
+      "seq_no": 220,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -4765,21 +4765,21 @@
        "bid_qty": 16
       },
       "md_seq": 48,
-      "seq_no": 294,
+      "seq_no": 225,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 10,
-        "seq_no": 294,
+        "seq_no": 225,
         "trade_id": 61
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 7,
-        "seq_no": 294,
+        "seq_no": 225,
         "trade_id": 62
        }
       ],
@@ -4891,7 +4891,7 @@
        "bid_qty": 14
       },
       "md_seq": 49,
-      "seq_no": 300,
+      "seq_no": 230,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -4976,14 +4976,14 @@
        "bid_qty": 14
       },
       "md_seq": 50,
-      "seq_no": 306,
+      "seq_no": 233,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 12,
-        "seq_no": 305,
+        "seq_no": 233,
         "trade_id": 63
        }
       ],
@@ -5080,28 +5080,28 @@
        "bid_qty": 13
       },
       "md_seq": 51,
-      "seq_no": 312,
+      "seq_no": 238,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 14,
-        "seq_no": 309,
+        "seq_no": 236,
         "trade_id": 64
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 4,
-        "seq_no": 309,
+        "seq_no": 236,
         "trade_id": 65
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 3,
-        "seq_no": 311,
+        "seq_no": 237,
         "trade_id": 66
        }
       ],
@@ -5197,21 +5197,21 @@
        "bid_qty": 13
       },
       "md_seq": 52,
-      "seq_no": 318,
+      "seq_no": 243,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 1,
-        "seq_no": 313,
+        "seq_no": 239,
         "trade_id": 67
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 12,
-        "seq_no": 313,
+        "seq_no": 239,
         "trade_id": 68
        }
       ],
@@ -5323,42 +5323,42 @@
        "bid_qty": 17
       },
       "md_seq": 53,
-      "seq_no": 324,
+      "seq_no": 247,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 2,
-        "seq_no": 319,
+        "seq_no": 244,
         "trade_id": 69
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 7,
-        "seq_no": 319,
+        "seq_no": 244,
         "trade_id": 70
        },
        {
         "aggressor_side": "buy",
         "price": 10004,
         "qty": 3,
-        "seq_no": 319,
+        "seq_no": 244,
         "trade_id": 71
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 7,
-        "seq_no": 322,
+        "seq_no": 246,
         "trade_id": 72
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 5,
-        "seq_no": 323,
+        "seq_no": 247,
         "trade_id": 73
        }
       ],
@@ -5449,7 +5449,7 @@
        "bid_qty": 12
       },
       "md_seq": 54,
-      "seq_no": 330,
+      "seq_no": 252,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -5560,56 +5560,56 @@
        "bid_qty": 27
       },
       "md_seq": 55,
-      "seq_no": 336,
+      "seq_no": 257,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10004,
         "qty": 13,
-        "seq_no": 331,
+        "seq_no": 253,
         "trade_id": 74
        },
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 7,
-        "seq_no": 331,
+        "seq_no": 253,
         "trade_id": 75
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 14,
-        "seq_no": 333,
+        "seq_no": 255,
         "trade_id": 76
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 2,
-        "seq_no": 334,
+        "seq_no": 256,
         "trade_id": 77
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 4,
-        "seq_no": 334,
+        "seq_no": 256,
         "trade_id": 78
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 5,
-        "seq_no": 334,
+        "seq_no": 256,
         "trade_id": 79
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 4,
-        "seq_no": 334,
+        "seq_no": 256,
         "trade_id": 80
        }
       ],
@@ -5700,7 +5700,7 @@
        "bid_qty": 16
       },
       "md_seq": 56,
-      "seq_no": 342,
+      "seq_no": 262,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -5785,7 +5785,7 @@
        "bid_qty": 16
       },
       "md_seq": 57,
-      "seq_no": 348,
+      "seq_no": 266,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -5881,42 +5881,42 @@
        "bid_qty": 25
       },
       "md_seq": 58,
-      "seq_no": 354,
+      "seq_no": 270,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10000,
         "qty": 9,
-        "seq_no": 352,
+        "seq_no": 268,
         "trade_id": 81
        },
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 3,
-        "seq_no": 352,
+        "seq_no": 268,
         "trade_id": 82
        },
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 3,
-        "seq_no": 352,
+        "seq_no": 268,
         "trade_id": 83
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 16,
-        "seq_no": 353,
+        "seq_no": 269,
         "trade_id": 84
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 2,
-        "seq_no": 354,
+        "seq_no": 270,
         "trade_id": 85
        }
       ],
@@ -6007,7 +6007,7 @@
        "bid_qty": 7
       },
       "md_seq": 59,
-      "seq_no": 360,
+      "seq_no": 273,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -6097,7 +6097,7 @@
        "bid_qty": 7
       },
       "md_seq": 60,
-      "seq_no": 366,
+      "seq_no": 276,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -6193,21 +6193,21 @@
        "bid_qty": 14
       },
       "md_seq": 61,
-      "seq_no": 372,
+      "seq_no": 280,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10000,
         "qty": 7,
-        "seq_no": 370,
+        "seq_no": 278,
         "trade_id": 86
        },
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 7,
-        "seq_no": 370,
+        "seq_no": 278,
         "trade_id": 87
        }
       ],
@@ -6304,14 +6304,14 @@
        "bid_qty": 13
       },
       "md_seq": 62,
-      "seq_no": 378,
+      "seq_no": 286,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10001,
         "qty": 14,
-        "seq_no": 374,
+        "seq_no": 282,
         "trade_id": 88
        }
       ],
@@ -6418,21 +6418,21 @@
        "bid_qty": 20
       },
       "md_seq": 63,
-      "seq_no": 384,
+      "seq_no": 291,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 13,
-        "seq_no": 381,
+        "seq_no": 288,
         "trade_id": 89
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 5,
-        "seq_no": 381,
+        "seq_no": 288,
         "trade_id": 90
        }
       ],
@@ -6523,21 +6523,21 @@
        "bid_qty": 4
       },
       "md_seq": 64,
-      "seq_no": 390,
+      "seq_no": 293,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 2,
-        "seq_no": 389,
+        "seq_no": 293,
         "trade_id": 91
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 14,
-        "seq_no": 389,
+        "seq_no": 293,
         "trade_id": 92
        }
       ],
@@ -6639,28 +6639,28 @@
        "bid_qty": 22
       },
       "md_seq": 65,
-      "seq_no": 396,
+      "seq_no": 297,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 4,
-        "seq_no": 392,
+        "seq_no": 294,
         "trade_id": 93
        },
        {
         "aggressor_side": "sell",
         "price": 9995,
         "qty": 9,
-        "seq_no": 392,
+        "seq_no": 294,
         "trade_id": 94
        },
        {
         "aggressor_side": "sell",
         "price": 9995,
         "qty": 7,
-        "seq_no": 392,
+        "seq_no": 294,
         "trade_id": 95
        }
       ],
@@ -6757,7 +6757,7 @@
        "bid_qty": 22
       },
       "md_seq": 66,
-      "seq_no": 402,
+      "seq_no": 302,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -6853,7 +6853,7 @@
        "bid_qty": 19
       },
       "md_seq": 67,
-      "seq_no": 408,
+      "seq_no": 305,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -6969,14 +6969,14 @@
        "bid_qty": 6
       },
       "md_seq": 68,
-      "seq_no": 414,
+      "seq_no": 311,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9999,
         "qty": 13,
-        "seq_no": 413,
+        "seq_no": 310,
         "trade_id": 96
        }
       ],
@@ -7067,7 +7067,7 @@
        "bid_qty": 6
       },
       "md_seq": 69,
-      "seq_no": 420,
+      "seq_no": 313,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -7183,35 +7183,35 @@
        "bid_qty": 6
       },
       "md_seq": 70,
-      "seq_no": 426,
+      "seq_no": 317,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 3,
-        "seq_no": 422,
+        "seq_no": 314,
         "trade_id": 97
        },
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 4,
-        "seq_no": 424,
+        "seq_no": 316,
         "trade_id": 98
        },
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 2,
-        "seq_no": 424,
+        "seq_no": 316,
         "trade_id": 99
        },
        {
         "aggressor_side": "buy",
         "price": 10004,
         "qty": 2,
-        "seq_no": 424,
+        "seq_no": 316,
         "trade_id": 100
        }
       ],
@@ -7312,28 +7312,28 @@
        "bid_qty": 16
       },
       "md_seq": 71,
-      "seq_no": 432,
+      "seq_no": 322,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 6,
-        "seq_no": 428,
+        "seq_no": 319,
         "trade_id": 101
        },
        {
         "aggressor_side": "sell",
         "price": 10003,
         "qty": 4,
-        "seq_no": 428,
+        "seq_no": 319,
         "trade_id": 102
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 3,
-        "seq_no": 428,
+        "seq_no": 319,
         "trade_id": 103
        }
       ],
@@ -7424,7 +7424,7 @@
        "bid_qty": 16
       },
       "md_seq": 72,
-      "seq_no": 438,
+      "seq_no": 327,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -7525,14 +7525,14 @@
        "bid_qty": 33
       },
       "md_seq": 73,
-      "seq_no": 444,
+      "seq_no": 331,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10002,
         "qty": 14,
-        "seq_no": 440,
+        "seq_no": 329,
         "trade_id": 104
        }
       ],
@@ -7629,7 +7629,7 @@
        "bid_qty": 36
       },
       "md_seq": 74,
-      "seq_no": 450,
+      "seq_no": 335,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -7730,7 +7730,7 @@
        "bid_qty": 36
       },
       "md_seq": 75,
-      "seq_no": 456,
+      "seq_no": 340,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -7826,14 +7826,14 @@
        "bid_qty": 36
       },
       "md_seq": 76,
-      "seq_no": 462,
+      "seq_no": 345,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 5,
-        "seq_no": 458,
+        "seq_no": 342,
         "trade_id": 105
        }
       ],
@@ -7924,7 +7924,7 @@
        "bid_qty": 36
       },
       "md_seq": 77,
-      "seq_no": 468,
+      "seq_no": 350,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -8015,21 +8015,21 @@
        "bid_qty": 8
       },
       "md_seq": 78,
-      "seq_no": 474,
+      "seq_no": 356,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 13,
-        "seq_no": 472,
+        "seq_no": 354,
         "trade_id": 106
        },
        {
         "aggressor_side": "buy",
         "price": 10001,
         "qty": 12,
-        "seq_no": 473,
+        "seq_no": 355,
         "trade_id": 107
        }
       ],
@@ -8121,7 +8121,7 @@
        "bid_qty": 8
       },
       "md_seq": 79,
-      "seq_no": 480,
+      "seq_no": 360,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -8211,14 +8211,14 @@
        "bid_qty": 19
       },
       "md_seq": 80,
-      "seq_no": 486,
+      "seq_no": 364,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10001,
         "qty": 3,
-        "seq_no": 484,
+        "seq_no": 363,
         "trade_id": 108
        }
       ],
@@ -8310,14 +8310,14 @@
        "bid_qty": 5
       },
       "md_seq": 81,
-      "seq_no": 492,
+      "seq_no": 367,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 14,
-        "seq_no": 489,
+        "seq_no": 366,
         "trade_id": 109
        }
       ],
@@ -8408,14 +8408,14 @@
        "bid_qty": 4
       },
       "md_seq": 82,
-      "seq_no": 498,
+      "seq_no": 372,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 1,
-        "seq_no": 493,
+        "seq_no": 368,
         "trade_id": 110
        }
       ],
@@ -8536,28 +8536,28 @@
        "bid_qty": 17
       },
       "md_seq": 83,
-      "seq_no": 504,
+      "seq_no": 374,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 4,
-        "seq_no": 500,
+        "seq_no": 373,
         "trade_id": 111
        },
        {
         "aggressor_side": "sell",
         "price": 10000,
         "qty": 1,
-        "seq_no": 500,
+        "seq_no": 373,
         "trade_id": 112
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 10,
-        "seq_no": 500,
+        "seq_no": 373,
         "trade_id": 113
        }
       ],
@@ -8654,7 +8654,7 @@
        "bid_qty": 26
       },
       "md_seq": 84,
-      "seq_no": 510,
+      "seq_no": 379,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -8739,7 +8739,7 @@
        "bid_qty": 8
       },
       "md_seq": 85,
-      "seq_no": 516,
+      "seq_no": 384,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -8835,7 +8835,7 @@
        "bid_qty": 26
       },
       "md_seq": 86,
-      "seq_no": 522,
+      "seq_no": 389,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -8926,14 +8926,14 @@
        "bid_qty": 34
       },
       "md_seq": 87,
-      "seq_no": 528,
+      "seq_no": 394,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10000,
         "qty": 11,
-        "seq_no": 526,
+        "seq_no": 393,
         "trade_id": 114
        }
       ],
@@ -9034,35 +9034,35 @@
        "bid_qty": 34
       },
       "md_seq": 88,
-      "seq_no": 534,
+      "seq_no": 400,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10000,
         "qty": 8,
-        "seq_no": 529,
+        "seq_no": 395,
         "trade_id": 115
        },
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 5,
-        "seq_no": 529,
+        "seq_no": 395,
         "trade_id": 116
        },
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 2,
-        "seq_no": 529,
+        "seq_no": 395,
         "trade_id": 117
        },
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 2,
-        "seq_no": 533,
+        "seq_no": 399,
         "trade_id": 118
        }
       ],
@@ -9164,28 +9164,28 @@
        "bid_qty": 19
       },
       "md_seq": 89,
-      "seq_no": 540,
+      "seq_no": 403,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 3,
-        "seq_no": 535,
+        "seq_no": 401,
         "trade_id": 119
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 6,
-        "seq_no": 540,
+        "seq_no": 403,
         "trade_id": 120
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 9,
-        "seq_no": 540,
+        "seq_no": 403,
         "trade_id": 121
        }
       ],
@@ -9281,14 +9281,14 @@
        "bid_qty": 17
       },
       "md_seq": 90,
-      "seq_no": 546,
+      "seq_no": 408,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 8,
-        "seq_no": 541,
+        "seq_no": 404,
         "trade_id": 122
        }
       ],
@@ -9369,21 +9369,21 @@
        "bid_qty": 17
       },
       "md_seq": 91,
-      "seq_no": 552,
+      "seq_no": 412,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 2,
-        "seq_no": 548,
+        "seq_no": 410,
         "trade_id": 123
        },
        {
         "aggressor_side": "buy",
         "price": 10005,
         "qty": 3,
-        "seq_no": 548,
+        "seq_no": 410,
         "trade_id": 124
        }
       ],
@@ -9464,7 +9464,7 @@
        "bid_qty": 17
       },
       "md_seq": 92,
-      "seq_no": 558,
+      "seq_no": 416,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -9575,28 +9575,28 @@
        "bid_qty": 25
       },
       "md_seq": 93,
-      "seq_no": 564,
+      "seq_no": 421,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "sell",
         "price": 10004,
         "qty": 17,
-        "seq_no": 559,
+        "seq_no": 417,
         "trade_id": 125
        },
        {
         "aggressor_side": "sell",
         "price": 9998,
         "qty": 8,
-        "seq_no": 563,
+        "seq_no": 421,
         "trade_id": 126
        },
        {
         "aggressor_side": "sell",
         "price": 9997,
         "qty": 5,
-        "seq_no": 563,
+        "seq_no": 421,
         "trade_id": 127
        }
       ],
@@ -9687,7 +9687,7 @@
        "bid_qty": 25
       },
       "md_seq": 94,
-      "seq_no": 570,
+      "seq_no": 427,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -9787,7 +9787,7 @@
        "bid_qty": 25
       },
       "md_seq": 95,
-      "seq_no": 576,
+      "seq_no": 430,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -9882,7 +9882,7 @@
        "bid_qty": 12
       },
       "md_seq": 96,
-      "seq_no": 582,
+      "seq_no": 435,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -9983,14 +9983,14 @@
        "bid_qty": 12
       },
       "md_seq": 97,
-      "seq_no": 588,
+      "seq_no": 438,
       "symbol": "AAA",
       "trades": [
        {
         "aggressor_side": "buy",
         "price": 9999,
         "qty": 6,
-        "seq_no": 586,
+        "seq_no": 437,
         "trade_id": 128
        }
       ],
@@ -10102,7 +10102,7 @@
        "bid_qty": 8
       },
       "md_seq": 98,
-      "seq_no": 594,
+      "seq_no": 443,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
@@ -10198,7 +10198,7 @@
        "bid_qty": 8
       },
       "md_seq": 99,
-      "seq_no": 600,
+      "seq_no": 448,
       "symbol": "AAA",
       "trades": [],
       "type": "update"
